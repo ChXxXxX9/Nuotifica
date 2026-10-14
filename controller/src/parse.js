@@ -168,11 +168,12 @@ export function settoriDelPost(idCategorie = [], mappa, titolo = '') {
   for (const [settore, re] of SETTORI_DA_TITOLO) {
     if (re.test(titolo)) {
       settori.add(settore);
+      // "Master – …", "Propaganda NU – …", "Salvamento: …": il titolo dice di chi è,
+      // anche se sul sito il post è archiviato pure sotto Nuoto.
+      if (settore !== 'nuoto') settori.delete('nuoto');
       break;
     }
   }
-  // "Propaganda NU" e simili: è propaganda, non nuoto agonistico.
-  if (settori.has('propaganda') && /^\s*propaganda/i.test(titolo)) settori.delete('nuoto');
   const sportivi = [...settori].filter((s) => s !== 'comitato');
   if (sportivi.length) settori.delete('comitato');
   if (!settori.size) settori.add('comitato');
@@ -199,6 +200,19 @@ export function gruppiDelPost(idCategorie = [], mappa, testi = []) {
   return [...gruppi].sort();
 }
 
+const RE_LEGGI_TUTTO = /^(leggi|continua|scopri|vai|clicca|qui|link|more|read)\b/i;
+
+/**
+ * Un link è un documento se punta a un file (PDF, Excel…) o alla cartella dei caricamenti;
+ * gli altri link (articoli, "Leggi tutto…") contano solo se dal testo si capisce che sono
+ * ammessi, risultati, start list ecc. (es. risultati pubblicati su un altro sito).
+ */
+export function eDocumento(f) {
+  if (RE_DOCUMENTO.test(f.url) || /\/wp-content\/uploads\//i.test(f.url)) return true;
+  if (RE_LEGGI_TUTTO.test(f.etichetta)) return false;
+  return f.tipo !== TIPO_ALTRO.id;
+}
+
 /** Trasforma un post dell'API WordPress nella forma che usiamo noi. */
 export function leggiPost(post, mappa) {
   const titolo = testoPulito(post.title?.rendered ?? '');
@@ -206,7 +220,7 @@ export function leggiPost(post, mappa) {
     ...f,
     tipo: tipoDocumento(f.etichetta, f.url),
     aggiornato: eAggiornato(f.etichetta),
-  }));
+  })).filter(eDocumento);
   const settori = settoriDelPost(post.categories ?? [], mappa, titolo);
   const gruppi = gruppiDelPost(post.categories ?? [], mappa, [
     titolo,
