@@ -1,0 +1,50 @@
+name: Pubblica il sito
+
+# A ogni modifica dell'app (cartella public) o delle regole, pubblica tutto su Firebase.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/**'
+      - 'firebase.json'
+      - 'firestore.rules'
+      - 'firestore.indexes.json'
+      - '.github/workflows/pubblica.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pubblica
+  cancel-in-progress: true
+
+jobs:
+  pubblica:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Credenziali Firebase
+        env:
+          ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$ACCOUNT" ]; then
+            echo "::error::Manca il secret FIREBASE_SERVICE_ACCOUNT (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+          printf '%s' "$ACCOUNT" > "$RUNNER_TEMP/account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/account.json" >> "$GITHUB_ENV"
+          echo "PROGETTO=$(node -p "require(process.env.RUNNER_TEMP + '/account.json').project_id")" >> "$GITHUB_ENV"
+
+      - name: Pubblica sito, regole e indici
+        run: npx --yes firebase-tools@latest deploy --only hosting,firestore:rules,firestore:indexes --project "$PROGETTO" --non-interactive --force
+
+      - name: Pulizia
+        if: ${{ always() }}
+        run: rm -f "$RUNNER_TEMP/account.json"

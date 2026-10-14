@@ -1,0 +1,70 @@
+name: Controllore
+
+# Ogni 15 minuti guarda il sito della FIN Lazio e avvisa gli iscritti.
+# I minuti non sono "tondi" apposta: allo scoccare dell'ora GitHub è più carico e ritarda.
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+    inputs:
+      anteprima:
+        description: 'Solo anteprima: mostra cosa riconosce sul sito, senza salvare né inviare niente'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # per il "segno di vita"
+  actions: write    # per riattivare il controllo programmato
+
+concurrency:
+  group: controllore
+  cancel-in-progress: false
+
+jobs:
+  controlla:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Anteprima di cosa riconosce sul sito
+        if: ${{ inputs.anteprima }}
+        working-directory: controller
+        run: node src/main.js --anteprima
+
+      - name: Controlla il sito e avvisa
+        if: ${{ !inputs.anteprima }}
+        working-directory: controller
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+          BREVO_MITTENTE: ${{ vars.BREVO_MITTENTE }}
+          SITO_URL: ${{ vars.SITO_URL }}
+        run: node src/main.js
+
+      # Nei repository pubblici GitHub spegne i controlli programmati dopo 60 giorni senza attività.
+      # Se l'ultimo commit ha più di 30 giorni, ne facciamo uno piccolo; una volta a settimana
+      # riattiviamo anche il controllo via API. Così non si ferma mai.
+      - name: Segno di vita
+        if: ${{ always() && github.event_name == 'schedule' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ultimo=$(git log -1 --format=%ct)
+          adesso=$(date +%s)
+          if [ $(( adesso - ultimo )) -gt $(( 30 * 86400 )) ]; then
+            mkdir -p .github/segno-di-vita
+            date -u +"%Y-%m-%dT%H:%M:%SZ" > .github/segno-di-vita/ultimo.txt
+            git config user.name "nuotifica-bot"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add .github/segno-di-vita/ultimo.txt
+            git commit -m "Segno di vita automatico"
+            git push
+          fi
+          if [ "$(date -u +%u%H)" = "103" ]; then
+            gh api -X PUT "repos/${{ github.repository }}/actions/workflows/controllore.yml/enable" || true
+          fi

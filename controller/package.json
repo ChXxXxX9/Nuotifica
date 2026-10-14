@@ -1,0 +1,14 @@
+{
+  "name": "nuotifica-controllore",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Controlla il sito del Comitato Regionale Lazio FIN e avvisa gli iscritti di Nuotifica.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/main.js",
+    "test": "node --test \"test/*.test.js\""
+  }
+}

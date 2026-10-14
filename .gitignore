@@ -1,0 +1,10 @@
+node_modules/
+.firebase/
+*.log
+.DS_Store
+Thumbs.db
+# credenziali: non vanno mai nel repository
+account.json
+*service-account*.json
+*-firebase-adminsdk-*.json
+.env

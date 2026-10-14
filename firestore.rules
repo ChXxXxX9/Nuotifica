@@ -1,0 +1,59 @@
+rules_version = '2';
+
+// Regole di sicurezza di Firestore per Nuotifica.
+// Il controllore (GitHub Actions) usa l'account di servizio, che non passa da queste regole.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Post del sito FIN Lazio: pubblici in lettura, li scrive solo il controllore.
+    match /posts/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // "Ultimo controllo del sito": pubblico in lettura.
+    match /meta/stato {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Indice interno del controllore.
+    match /meta/{altro} {
+      allow read, write: if false;
+    }
+
+    // Preferenze di ogni utente: le vede e le cambia solo lui.
+    match /users/{uid} {
+      function proprietario() {
+        return request.auth != null && request.auth.uid == uid;
+      }
+
+      function valido(d) {
+        return d.keys().hasOnly([
+            'email', 'settori', 'gruppi', 'tipi', 'pushOn', 'emailOn', 'tokens',
+            'unsubToken', 'unsubProva', 'creato', 'aggiornato'
+          ])
+          && d.settori is list && d.settori.size() <= 12
+          && d.gruppi is list && d.gruppi.size() <= 2
+          && d.tipi is list && d.tipi.size() <= 12
+          && d.pushOn is bool
+          && d.emailOn is bool
+          && d.tokens is list && d.tokens.size() <= 20
+          && d.unsubToken is string && d.unsubToken.size() >= 24
+          && d.email == request.auth.token.email;
+      }
+
+      allow read, delete: if proprietario();
+      allow create: if proprietario() && valido(request.resource.data);
+      allow update: if
+        // l'utente cambia le sue impostazioni (ma non il codice di disiscrizione)
+        (proprietario()
+          && valido(request.resource.data)
+          && request.resource.data.unsubToken == resource.data.unsubToken)
+        // oppure il link "non voglio più email", anche senza accesso, se il codice è giusto
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['emailOn', 'unsubProva'])
+          && request.resource.data.emailOn == false
+          && request.resource.data.unsubProva == resource.data.unsubToken);
+    }
+  }
+}
