@@ -36,8 +36,21 @@ jobs:
         working-directory: controller
         run: node src/main.js --anteprima
 
-      - name: Controlla il sito e avvisa
+      - name: Configurazione presente?
+        id: config
         if: ${{ !inputs.anteprima }}
+        env:
+          ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$ACCOUNT" ]; then
+            echo "::notice::Manca il secret FIREBASE_SERVICE_ACCOUNT: il controllo parte appena viene aggiunto."
+            echo "pronto=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "pronto=si" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Controlla il sito e avvisa
+        if: ${{ !inputs.anteprima && steps.config.outputs.pronto == 'si' }}
         working-directory: controller
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
