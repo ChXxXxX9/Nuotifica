@@ -206,17 +206,27 @@ export async function controlla({ wp, db, invio, sito, adesso = new Date().toISO
 }
 
 /** Modalità anteprima: stampa come vengono classificati gli ultimi post. Non servono credenziali. */
-export async function anteprima(wp, quanti = 15, log = console.log) {
+export async function anteprima(wp, quanti = 30, log = console.log) {
   const mappa = mappaCategorie(await wp.categorie());
   const posts = await wp.paginaPost('modified', 1, quanti);
+  const righe = [];
   for (const g of posts) {
     const p = leggiPost(g, mappa);
-    log(`\n${p.titolo}`);
-    log(`  modificato: ${p.modificato}  |  settori: ${p.settori.map((s) => SETTORI[s]).join(', ')}  |  gruppi: ${p.gruppi.join(', ')}`);
+    righe.push('', p.titolo);
+    righe.push(`  modificato: ${p.modificato}  |  settori: ${p.settori.map((s) => SETTORI[s]).join(', ')}  |  gruppi: ${p.gruppi.join(', ')}`);
     for (const f of p.file) {
-      log(`  - [${NOMI_TIPI[f.tipo]}] ${f.etichetta}${f.aggiornato ? '  (AGGIORNATO)' : ''}`);
+      righe.push(`  - [${NOMI_TIPI[f.tipo]}] ${f.etichetta}${f.aggiornato ? '  (AGGIORNATO)' : ''}`);
     }
-    if (!p.file.length) log('  (nessun file: avviso/comunicato)');
+    if (!p.file.length) righe.push('  (nessun file: avviso/comunicato)');
+  }
+  log(righe.join('\n'));
+  // Su GitHub: anche nel riepilogo della corsa e come annotazione, così si legge senza aprire i log.
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    const { appendFile } = await import('node:fs/promises');
+    await appendFile(process.env.GITHUB_STEP_SUMMARY, `## Anteprima\n\n\`\`\`\n${righe.join('\n')}\n\`\`\`\n`);
+    const testo = righe.join('\n').slice(0, 60_000)
+      .replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+    log(`::notice title=Anteprima::${testo}`);
   }
 }
 
