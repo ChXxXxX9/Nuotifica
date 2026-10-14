@@ -5,12 +5,12 @@
 // a "firebaseapp.com": così l'accesso con Google funziona anche nell'app installata su iPhone.
 export const CONFIG = {
   firebase: {
-    apiKey: '',
-    authDomain: '',
-    projectId: '',
-    storageBucket: '',
-    messagingSenderId: '',
-    appId: '',
+    apiKey: 'AIzaSyDU-4W2quk3t7ronsbIMT73sqIUQLiu1rc',
+    authDomain: 'nuotifica.web.app',
+    projectId: 'nuotifica',
+    storageBucket: 'nuotifica.firebasestorage.app',
+    messagingSenderId: '929572098468',
+    appId: '1:929572098468:web:4701760e8219fdca14b131',
   },
   // Chiave pubblica "Web Push" (Impostazioni progetto → Cloud Messaging → Certificati Web Push).
   vapidKey: '',
