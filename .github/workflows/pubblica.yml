@@ -42,8 +42,22 @@ jobs:
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/account.json" >> "$GITHUB_ENV"
           echo "PROGETTO=$(node -p "require(process.env.RUNNER_TEMP + '/account.json').project_id")" >> "$GITHUB_ENV"
 
+      - name: Prepara Firestore (crea il database se manca)
+        working-directory: controller
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node src/prepara.js
+
       - name: Pubblica sito, regole e indici
-        run: npx --yes firebase-tools@latest deploy --only hosting,firestore:rules,firestore:indexes --project "$PROGETTO" --non-interactive --force
+        run: |
+          set -o pipefail
+          if ! npx --yes firebase-tools@latest deploy --only hosting,firestore:rules,firestore:indexes \
+               --project "$PROGETTO" --non-interactive --force 2>&1 | tee "$RUNNER_TEMP/deploy.log"; then
+            # l'errore compare anche come annotazione della corsa
+            msg=$(grep -v '^\s*$' "$RUNNER_TEMP/deploy.log" | tail -n 25 | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=Pubblicazione::$msg"
+            exit 1
+          fi
 
       - name: Pulizia
         if: ${{ always() }}
