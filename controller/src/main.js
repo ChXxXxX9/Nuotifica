@@ -268,6 +268,11 @@ async function principale() {
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   principale().catch((e) => {
     console.error(e);
+    // Su GitHub l'errore compare anche come annotazione della corsa, leggibile senza aprire i log.
+    if (process.env.GITHUB_ACTIONS) {
+      const testo = String(e?.message ?? e).slice(0, 4000).replace(/%/g, '%25').replace(/\r?\n/g, '%0A');
+      console.log(`::error title=Controllore::${testo}`);
+    }
     process.exit(1);
   });
 }
