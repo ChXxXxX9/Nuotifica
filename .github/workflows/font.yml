@@ -1,0 +1,44 @@
+name: Prepara i font
+
+# Scarica i font (licenza SIL OFL) dal repository ufficiale di Google Fonts, li riduce ai soli
+# caratteri latini e li salva in public/fonts, così il sito li serve da sé senza chiamare Google.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  font:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Scarica e riduci
+        run: |
+          pip install --quiet fonttools brotli
+          mkdir -p sorgenti public/fonts
+          base=https://raw.githubusercontent.com/google/fonts/main/ofl
+          curl -fsSL -o sorgenti/saira.ttf        "$base/saira/Saira%5Bwdth,wght%5D.ttf"
+          curl -fsSL -o sorgenti/saira-italic.ttf "$base/saira/Saira-Italic%5Bwdth,wght%5D.ttf"
+          curl -fsSL -o sorgenti/doto.ttf         "$base/doto/Doto%5BROND,wght%5D.ttf"
+          curl -fsSL -o public/fonts/OFL-Saira.txt "$base/saira/OFL.txt"
+          curl -fsSL -o public/fonts/OFL-Doto.txt  "$base/doto/OFL.txt"
+          caratteri="U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2190-2199,U+2212,U+2215,U+25B2-25BC,U+25CF"
+          for f in saira saira-italic doto; do
+            pyftsubset "sorgenti/$f.ttf" --unicodes="$caratteri" --layout-features='*' \
+              --flavor=woff2 --output-file="public/fonts/$f.woff2"
+          done
+          ls -la public/fonts
+
+      - name: Salva nel repository
+        run: |
+          git config user.name "nuotifica-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/fonts
+          git diff --cached --quiet || { git commit -m "Font Saira e Doto (SIL OFL) ridotti ai caratteri latini"; git push; }
