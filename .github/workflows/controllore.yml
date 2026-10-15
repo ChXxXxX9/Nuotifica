@@ -1,6 +1,6 @@
 name: Controllore
 
-# Ogni 15 minuti guarda il sito della FIN Lazio e avvisa gli iscritti.
+# Ogni 15 minuti guarda il sito della FIN Lazio e manda le notifiche agli iscritti.
 # I minuti non sono "tondi" apposta: allo scoccare dell'ora GitHub è più carico e ritarda.
 on:
   schedule:
@@ -54,8 +54,6 @@ jobs:
         working-directory: controller
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
-          BREVO_MITTENTE: ${{ vars.BREVO_MITTENTE }}
           SITO_URL: ${{ vars.SITO_URL }}
         run: node src/main.js
 

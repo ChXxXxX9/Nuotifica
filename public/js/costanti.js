@@ -10,7 +10,7 @@ export const SETTORI = [
   { id: 'master', nome: 'Master' },
   { id: 'propaganda', nome: 'Propaganda' },
   { id: 'sit', nome: 'Corsi di formazione' },
-  { id: 'comitato', nome: 'Comunicazioni del Comitato' },
+  { id: 'comitato', nome: 'Comitato' },
 ];
 
 export const GRUPPI = [
@@ -31,7 +31,6 @@ export const TIPI = [
 ];
 
 export const NOME_SETTORE = Object.fromEntries(SETTORI.map((s) => [s.id, s.nome]));
-export const NOME_TIPO = Object.fromEntries(TIPI.map((t) => [t.id, t.nome]));
 
 // Etichette brevi per le targhette dei file.
 export const TIPO_BREVE = {

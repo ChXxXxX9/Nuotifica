@@ -29,31 +29,16 @@ service cloud.firestore {
       }
 
       function valido(d) {
-        return d.keys().hasOnly([
-            'email', 'settori', 'gruppi', 'tipi', 'pushOn', 'emailOn', 'tokens',
-            'unsubToken', 'unsubProva', 'creato', 'aggiornato'
-          ])
+        return d.keys().hasOnly(['settori', 'gruppi', 'tipi', 'pushOn', 'tokens', 'creato', 'aggiornato'])
           && d.settori is list && d.settori.size() <= 12
           && d.gruppi is list && d.gruppi.size() <= 2
           && d.tipi is list && d.tipi.size() <= 12
           && d.pushOn is bool
-          && d.emailOn is bool
-          && d.tokens is list && d.tokens.size() <= 20
-          && d.unsubToken is string && d.unsubToken.size() >= 24
-          && d.email == request.auth.token.email;
+          && d.tokens is list && d.tokens.size() <= 20;
       }
 
       allow read, delete: if proprietario();
-      allow create: if proprietario() && valido(request.resource.data);
-      allow update: if
-        // l'utente cambia le sue impostazioni (ma non il codice di disiscrizione)
-        (proprietario()
-          && valido(request.resource.data)
-          && request.resource.data.unsubToken == resource.data.unsubToken)
-        // oppure il link "non voglio più email", anche senza accesso, se il codice è giusto
-        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['emailOn', 'unsubProva'])
-          && request.resource.data.emailOn == false
-          && request.resource.data.unsubProva == resource.data.unsubToken);
+      allow create, update: if proprietario() && valido(request.resource.data);
     }
   }
 }

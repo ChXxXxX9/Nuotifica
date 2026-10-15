@@ -3,10 +3,6 @@ import { impronta, tipiDiFile } from './parse.js';
 import { comeData } from './firestore.js';
 import { NOMI_TIPI, MAX_PUSH_PER_GIRO } from './config.js';
 
-export const AVVISO_NON_UFFICIALE =
-  'Nuotifica è un servizio non ufficiale: non è collegato alla Federazione Italiana Nuoto '
-  + 'né al Comitato Regionale Lazio. Fa fede solo il sito finlazio.it.';
-
 const impEtichetta = (etichetta) => impronta(etichetta, 6);
 
 /** Voce compatta dell'indice: data di modifica e impronta di ogni file. */
@@ -143,58 +139,4 @@ export function messaggiPush(cambi, sito) {
     }];
   }
   return cambi.map((c) => messaggioPush(c, sito));
-}
-
-const esc = (t = '') => String(t)
-  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-export function linkDisiscrizione(sito, utente) {
-  return `${sito}/#/disiscriviti/${utente.id}/${utente.unsubToken}`;
-}
-
-export function costruisciEmail(utente, cambi, sito) {
-  const oggetto = cambi.length === 1
-    ? `${cambi[0].tipo === 'nuovo' ? 'Nuovo' : 'Aggiornato'}: ${accorcia(cambi[0].post.titolo, 80)}`
-    : `${cambi.length} novità dal sito FIN Lazio`;
-  const disiscrizione = linkDisiscrizione(sito, utente);
-
-  const blocchi = cambi.map((c) => {
-    const intestazione = c.tipo === 'nuovo' ? 'Nuovo post' : 'Aggiunte al post';
-    const righe = c.file.map((f) => `
-      <tr><td style="padding:6px 0;border-top:1px solid #e3e9ef;font:14px/1.4 Arial,sans-serif">
-        <span style="display:inline-block;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:.04em;color:#0b4f75;background:#e4f1f8;border-radius:4px;padding:2px 6px;margin-right:6px">${esc(NOMI_TIPI[f.tipo] ?? 'Altro')}</span>
-        <a href="${esc(f.url)}" style="color:#0b4f75">${esc(etichettaLeggibile(f.etichetta))}</a>${f.aggiornato ? ' <strong style="color:#b4321f">AGGIORNATO</strong>' : ''}
-      </td></tr>`).join('');
-    return `
-      <div style="margin:0 0 22px">
-        <div style="font:bold 11px Arial,sans-serif;text-transform:uppercase;letter-spacing:.06em;color:#6a7c8c">${intestazione}</div>
-        <a href="${esc(urlPost(sito, c.post.id))}" style="display:block;margin:4px 0 8px;font:bold 17px/1.3 Arial,sans-serif;color:#0d2233;text-decoration:none">${esc(c.post.titolo)}</a>
-        ${righe ? `<table role="presentation" cellpadding="0" cellspacing="0" width="100%">${righe}</table>` : ''}
-      </div>`;
-  }).join('');
-
-  const html = `<!doctype html><html lang="it"><body style="margin:0;background:#f2f5f8;padding:24px 12px">
-  <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden">
-    <div style="height:6px;background:repeating-linear-gradient(90deg,#d6402b 0 18px,#ffffff 18px 26px,#1d6fa5 26px 44px,#ffffff 44px 52px)"></div>
-    <div style="padding:20px 22px 6px;font:bold 20px Arial,sans-serif;color:#0d2233">Nuotifica</div>
-    <div style="padding:4px 22px 6px">${blocchi}</div>
-    <div style="padding:14px 22px 22px;font:12px/1.5 Arial,sans-serif;color:#6a7c8c;border-top:1px solid #e3e9ef">
-      ${esc(AVVISO_NON_UFFICIALE)}<br><br>
-      <a href="${esc(`${sito}/#/impostazioni`)}" style="color:#6a7c8c">Cambia cosa ricevi</a> ·
-      <a href="${esc(disiscrizione)}" style="color:#6a7c8c">Non voglio più ricevere email</a>
-    </div>
-  </div></body></html>`;
-
-  const testo = [
-    ...cambi.map((c) => [
-      `${c.tipo === 'nuovo' ? 'NUOVO' : 'AGGIUNTE'}: ${c.post.titolo}`,
-      urlPost(sito, c.post.id),
-      ...c.file.map((f) => `- [${NOMI_TIPI[f.tipo] ?? 'Altro'}] ${etichettaLeggibile(f.etichetta)}${f.aggiornato ? ' (AGGIORNATO)' : ''}: ${f.url}`),
-      '',
-    ].join('\n')),
-    AVVISO_NON_UFFICIALE,
-    `Non vuoi più ricevere email? ${disiscrizione}`,
-  ].join('\n');
-
-  return { oggetto, html, testo, disiscrizione };
 }

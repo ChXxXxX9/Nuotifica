@@ -1,5 +1,5 @@
 // Service worker di Nuotifica: mostra le notifiche e tiene in cache l'app per aprirla subito.
-const VERSIONE = 'nuotifica-v1';
+const VERSIONE = 'nuotifica-v2';
 const GUSCIO = [
   '/',
   '/index.html',
@@ -11,6 +11,11 @@ const GUSCIO = [
   '/manifest.webmanifest',
   '/icons/icon-192.png',
   '/icons/badge-96.png',
+  '/fonts/saira.woff2',
+  '/fonts/saira-italic.woff2',
+  '/fonts/doto.woff2',
+  '/img/caustiche-a.png',
+  '/img/caustiche-b.png',
 ];
 
 self.addEventListener('install', (evento) => {

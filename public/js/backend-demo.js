@@ -96,13 +96,11 @@ export function creaBackendDemo() {
     uid: 'demo', email: 'tu@esempio.it', nome: 'Demo', verificata: true, conGoogle: true,
   };
   let profilo = parametri.has('nuovo') ? null : {
-    email: 'tu@esempio.it',
     settori: ['nuoto', 'comitato'],
     gruppi: ['categoria'],
     tipi: ['tutti'],
     pushOn: true,
-    emailOn: false,
-    tokens: [],
+    tokens: parametri.has('attive') ? ['demo-token'] : [],
   };
   const ascoltatori = new Set();
   const avvisa = () => ascoltatori.forEach((cb) => cb(utente));
@@ -142,6 +140,5 @@ export function creaBackendDemo() {
       return 'demo-token';
     },
     async disattivaPushQui() { await pausa(); profilo.tokens = []; },
-    async disiscriviEmail() { await pausa(); },
   };
 }

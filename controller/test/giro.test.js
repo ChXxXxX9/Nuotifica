@@ -33,18 +33,15 @@ function wpFinto(posts) {
   };
 }
 
-function invioFinto(verificati = []) {
-  const registro = { push: [], email: [] };
+function invioFinto() {
+  const registro = { push: [] };
   return {
     registro,
-    emailAttive: true,
     async push(token, m) {
       if (token === 'morto') return 'token-non-valido';
       registro.push.push({ token, ...m });
       return 'ok';
     },
-    async emailVerificate(uids) { return new Set(uids.filter((u) => verificati.includes(u))); },
-    async email(e) { registro.email.push(e); },
   };
 }
 
@@ -53,20 +50,20 @@ const log = () => {};
 test('giro completo: primo avvio muto, poi avvisi solo a chi interessa', async () => {
   const wp = wpFinto([d.finali, d.salvamento, d.chiusura, d.esordienti, d.assoluto]);
   const db = dbFinto();
-  const invio = invioFinto(['marco', 'giulia']);
+  const invio = invioFinto();
   const sito = 'https://nuotifica.web.app';
 
   db.docs.set('users/marco', {
-    email: 'marco@example.com', settori: ['nuoto'], gruppi: ['categoria'], tipi: ['tutti'],
-    pushOn: true, emailOn: false, tokens: ['tel-marco', 'morto'], unsubToken: 't1',
+    settori: ['nuoto'], gruppi: ['categoria'], tipi: ['tutti'], pushOn: true, tokens: ['tel-marco', 'morto'],
   });
   db.docs.set('users/giulia', {
-    email: 'giulia@example.com', settori: ['nuoto'], gruppi: ['esordienti'], tipi: ['tutti'],
-    pushOn: false, emailOn: true, tokens: [], unsubToken: 't2',
+    settori: ['nuoto'], gruppi: ['esordienti'], tipi: ['tutti'], pushOn: true, tokens: ['tel-giulia'],
   });
   db.docs.set('users/luca', {
-    email: 'luca@example.com', settori: ['nuoto'], gruppi: ['categoria'], tipi: ['risultati'],
-    pushOn: false, emailOn: true, tokens: [], unsubToken: 't3',
+    settori: ['nuoto'], gruppi: ['categoria'], tipi: ['risultati'], pushOn: true, tokens: ['tel-luca'],
+  });
+  db.docs.set('users/sara', {
+    settori: ['nuoto'], gruppi: ['categoria'], tipi: ['tutti'], pushOn: true, tokens: [],
   });
 
   // 1° giro: memorizza, non avvisa nessuno.
@@ -101,19 +98,18 @@ test('giro completo: primo avvio muto, poi avvisi solo a chi interessa', async (
   const terzo = await controlla({ wp, db, invio, sito, adesso: '2026-10-14T20:30:00.000Z', log });
   assert.equal(terzo.cambi.length, 2);
 
-  // Marco (nuoto categoria, push): riceve solo il post Finali, sul token valido.
-  assert.equal(invio.registro.push.length, 1);
-  assert.equal(invio.registro.push[0].token, 'tel-marco');
-  assert.equal(invio.registro.push[0].url, `${sito}/#/post/350001`);
-  assert.match(invio.registro.push[0].corpo, /^Aggiunto: Start list Finali/);
+  // Marco (nuoto categoria): riceve solo il post Finali, sul token valido.
+  // Giulia (esordienti): riceve solo il post esordienti.
+  // Luca vuole solo i risultati: niente. Sara non ha dispositivi: niente.
+  const perToken = (t) => invio.registro.push.filter((p) => p.token === t);
+  assert.equal(invio.registro.push.length, 2);
+  assert.equal(perToken('tel-marco').length, 1);
+  assert.equal(perToken('tel-marco')[0].url, `${sito}/#/post/350001`);
+  assert.match(perToken('tel-marco')[0].corpo, /^Aggiunto: Start list Finali/);
+  assert.equal(perToken('tel-giulia').length, 1);
+  assert.match(perToken('tel-giulia')[0].titolo, /Esordienti A/);
   // il token non valido è stato tolto
   assert.deepEqual(db.docs.get('users/marco').tokens, ['tel-marco']);
-
-  // Giulia (esordienti, email verificata): riceve solo il post esordienti.
-  // Luca vuole solo risultati e non ha l'email verificata: niente.
-  assert.equal(invio.registro.email.length, 1);
-  assert.equal(invio.registro.email[0].a, 'giulia@example.com');
-  assert.match(invio.registro.email[0].oggetto, /Esordienti A/);
 
   // Il post salvato ha la novità e il file nuovo con la data giusta.
   const salvato = db.docs.get('posts/350001');
@@ -125,5 +121,5 @@ test('giro completo: primo avvio muto, poi avvisi solo a chi interessa', async (
   // 4° giro: niente di nuovo, niente doppioni.
   const quarto = await controlla({ wp, db, invio, sito, adesso: '2026-10-14T20:45:00.000Z', log });
   assert.equal(quarto.cambi.length, 0);
-  assert.equal(invio.registro.push.length, 1);
+  assert.equal(invio.registro.push.length, 2);
 });

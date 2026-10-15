@@ -127,15 +127,10 @@ export async function creaBackendFirebase(config) {
       if (snap.exists()) {
         await F.updateDoc(rif, { ...dati, aggiornato: F.serverTimestamp() });
       } else {
-        const casuale = crypto.getRandomValues(new Uint8Array(18));
-        const unsubToken = Array.from(casuale, (b) => b.toString(16).padStart(2, '0')).join('');
         await F.setDoc(rif, {
           tokens: [],
-          pushOn: false,
-          emailOn: false,
+          pushOn: true,
           ...dati,
-          email: auth.currentUser.email,
-          unsubToken,
           creato: F.serverTimestamp(),
           aggiornato: F.serverTimestamp(),
         });
@@ -183,10 +178,10 @@ export async function creaBackendFirebase(config) {
         e.code = 'non-supportato';
         throw e;
       }
-      const token = await M.getToken(M.getMessaging(app), {
-        vapidKey: config.vapidKey,
-        serviceWorkerRegistration: registrazione,
-      });
+      // Senza chiave Web Push propria, Firebase usa la sua chiave predefinita.
+      const opzioni = { serviceWorkerRegistration: registrazione };
+      if (config.vapidKey) opzioni.vapidKey = config.vapidKey;
+      const token = await M.getToken(M.getMessaging(app), opzioni);
       if (!token) throw new Error('Non sono riuscito a registrare questo dispositivo.');
       await F.updateDoc(F.doc(db, 'users', uid), {
         tokens: F.arrayUnion(token),
@@ -202,10 +197,5 @@ export async function creaBackendFirebase(config) {
         aggiornato: F.serverTimestamp(),
       });
     }),
-
-    disiscriviEmail: (uid, token) => avvolgi(() => F.updateDoc(F.doc(db, 'users', uid), {
-      emailOn: false,
-      unsubProva: token,
-    })),
   };
 }

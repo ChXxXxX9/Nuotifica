@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { generateKeyPairSync, createVerify } from 'node:crypto';
 import { mappaCategorie, leggiPost } from '../src/parse.js';
 import {
-  confronta, voceIndice, documentoPost, perUtente, messaggiPush, costruisciEmail, etichettaLeggibile,
+  confronta, voceIndice, documentoPost, perUtente, messaggiPush, etichettaLeggibile,
 } from '../src/logica.js';
 import { codifica, decodifica } from '../src/firestore.js';
 import { creaGestoreToken } from '../src/google.js';
@@ -95,17 +95,6 @@ test('etichette leggibili', () => {
   assert.equal(etichettaLeggibile('comun198- FcrEC – Orari Prime Serie'), 'Orari Prime Serie');
   assert.equal(etichettaLeggibile('comun197 AGGIORNATO- FcrEC – Orari Serie Successive'), 'Aggiornato – FcrEC – Orari Serie Successive'.replace('FcrEC – ', ''));
   assert.equal(etichettaLeggibile('Bozza Calendario Salvamento'), 'Bozza Calendario Salvamento');
-});
-
-test('email: oggetto, link di disiscrizione, avviso non ufficiale', () => {
-  const finali = leggiPost(d.finali, mappa);
-  const utente = { id: 'abc', unsubToken: 'tok123', email: 'a@b.it' };
-  const e = costruisciEmail(utente, [{ tipo: 'nuovo', file: finali.file.slice(0, 2), post: finali }], 'https://s');
-  assert.match(e.oggetto, /^Nuovo: NUOTO/);
-  assert.equal(e.disiscrizione, 'https://s/#/disiscriviti/abc/tok123');
-  assert.match(e.html, /non ufficiale/);
-  assert.match(e.testo, /disiscriviti\/abc\/tok123/);
-  assert.ok(!e.html.includes('<script'));
 });
 
 test('Firestore: codifica e decodifica', () => {

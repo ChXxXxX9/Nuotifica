@@ -1,6 +1,6 @@
 # Nuotifica
 
-Avvisi (notifiche sul telefono o email) quando sul sito del Comitato Regionale Lazio FIN
+Notifiche sul telefono quando sul sito del Comitato Regionale Lazio FIN
 ([finlazio.it](https://www.finlazio.it)) escono ammessi, start list, orari, risultati e comunicati.
 
 > Servizio **non ufficiale**: non è collegato alla Federazione Italiana Nuoto né al Comitato
@@ -14,8 +14,7 @@ Avvisi (notifiche sul telefono o email) quando sul sito del Comitato Regionale L
         ▼
  GitHub Actions ── controller/ ──► Firestore (post, preferenze utenti)
         │                              ▲
-        ├──► Firebase Cloud Messaging ──► notifiche sul telefono
-        └──► Brevo ─────────────────────► email
+        └──► Firebase Cloud Messaging ──► notifiche sul telefono
                                        │
                  public/ (Firebase Hosting) ◄── l'app che usano gli iscritti
 ```
@@ -23,7 +22,7 @@ Avvisi (notifiche sul telefono o email) quando sul sito del Comitato Regionale L
 - **`controller/`**: lo script che controlla il sito. Non ha dipendenze (`npm install` non serve).
   Riconosce i post nuovi e i file aggiunti o "aggiornati" dentro post già usciti,
   capisce sport, gruppo (Categoria / Esordienti) e tipo di documento, salva tutto su Firestore
-  e avvisa chi è interessato. Al primo avvio memorizza lo stato del sito senza mandare notifiche.
+  e manda la notifica a chi è interessato. Al primo avvio memorizza lo stato del sito senza mandare notifiche.
 - **`public/`**: l'app (PWA) senza build: accesso con Google o email, scelte, guida per aggiungerla
   alla schermata Home su iPhone e Android, elenco dei post e dettaglio con i file.
   Finché `public/js/config.js` è vuoto parte in **anteprima** con dati di esempio
@@ -38,9 +37,8 @@ Avvisi (notifiche sul telefono o email) quando sul sito del Comitato Regionale L
 ### Firebase
 1. Authentication → Metodo di accesso: attivare **Google** ed **Email/password**.
 2. Impostazioni progetto → Le tue app → app web: copiare `firebaseConfig` in `public/js/config.js`.
-3. Impostazioni progetto → Cloud Messaging → Certificati Web Push → generare la coppia di chiavi
-   e copiare la chiave pubblica in `vapidKey` dentro `public/js/config.js`.
-4. Impostazioni progetto → Account di servizio → **Genera nuova chiave privata** (file JSON).
+   La chiave Web Push (`vapidKey`) è facoltativa: se resta vuota Firebase usa la sua.
+3. Impostazioni progetto → Account di servizio → **Genera nuova chiave privata** (file JSON).
    Nella console Google Cloud → IAM, a quell'account (`firebase-adminsdk-…`) aggiungere il ruolo
    **Firebase Admin**, che serve per pubblicare il sito.
 
@@ -48,11 +46,10 @@ Avvisi (notifiche sul telefono o email) quando sul sito del Comitato Regionale L
 | Nome | Tipo | Valore |
 |---|---|---|
 | `FIREBASE_SERVICE_ACCOUNT` | Secret | tutto il contenuto del file JSON dell'account di servizio |
-| `BREVO_API_KEY` | Secret | chiave API di Brevo (SMTP & API → API Keys) |
-| `BREVO_MITTENTE` | Variable | indirizzo mittente verificato su Brevo |
 | `SITO_URL` | Variable | es. `https://nome-progetto.web.app` (facoltativo) |
 
-Poi in **Actions** avviare a mano "Pubblica il sito" e "Controllore".
+Poi in **Actions** avviare a mano "Pubblica il sito" e "Controllore". Se il database Firestore
+non esiste ancora, "Pubblica il sito" lo crea. "Prepara i font" scarica i font (SIL OFL) in `public/fonts`.
 Con l'opzione *anteprima* il controllore mostra cosa riconosce sul sito senza salvare né inviare niente.
 
 ## Prove in locale

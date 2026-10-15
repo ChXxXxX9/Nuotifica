@@ -12,7 +12,7 @@ export const CONFIG = {
     messagingSenderId: '929572098468',
     appId: '1:929572098468:web:4701760e8219fdca14b131',
   },
-  // Chiave pubblica "Web Push" (Impostazioni progetto → Cloud Messaging → Certificati Web Push).
+  // Chiave pubblica "Web Push" (facoltativa): se vuota, Firebase usa la sua chiave predefinita.
   vapidKey: '',
   // Chi gestisce il servizio, mostrato nella pagina Privacy.
   titolare: '',

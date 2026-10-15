@@ -3,7 +3,7 @@
 // 1. legge gli ultimi post del sito finlazio.it (API WordPress pubbliche);
 // 2. li confronta con quelli già visti (indice su Firestore);
 // 3. salva i post cambiati su Firestore (l'app li mostra da lì);
-// 4. avvisa con push ed email chi è interessato.
+// 4. manda una notifica a chi è interessato.
 //
 // Uso:
 //   node src/main.js              giro normale (serve FIREBASE_SERVICE_ACCOUNT)
@@ -12,7 +12,7 @@ import { pathToFileURL } from 'node:url';
 import { creaWp } from './wp.js';
 import { leggiPost, mappaCategorie } from './parse.js';
 import {
-  confronta, documentoPost, voceIndice, perUtente, messaggiPush, costruisciEmail,
+  confronta, documentoPost, voceIndice, perUtente, messaggiPush,
 } from './logica.js';
 import { leggiAccountServizio, creaGestoreToken, creaClientGoogle } from './google.js';
 import { creaFirestore, comeData } from './firestore.js';
@@ -61,64 +61,43 @@ async function scriviStato(db, stato) {
     esito: stato.esito,
     postCambiati: stato.postCambiati ?? 0,
     push: stato.push ?? 0,
-    email: stato.email ?? 0,
     errori: stato.errori ?? 0,
     messaggio: stato.messaggio ?? '',
   });
 }
 
-/** Manda gli avvisi agli utenti interessati. */
+/** Manda le notifiche agli utenti interessati. */
 export async function avvisa({ db, invio, cambi, sito, log = console.log }) {
   const utenti = await db.elenca('users');
   const daAvvisare = [];
   for (const utente of utenti) {
+    if (utente.pushOn === false || !utente.tokens?.length) continue;
     const loro = cambi.map((c) => perUtente(utente, c)).filter(Boolean);
     if (loro.length) daAvvisare.push({ utente, loro });
   }
 
-  let verificati = new Set();
-  const perEmail = daAvvisare.filter(({ utente }) => utente.emailOn && utente.email);
-  if (perEmail.length && invio.emailAttive) {
-    try {
-      verificati = await invio.emailVerificate(perEmail.map(({ utente }) => utente.id));
-    } catch (e) {
-      log(`Verifica email non riuscita: ${e.message}`);
-    }
-  }
-
-  const conteggi = { push: 0, email: 0, errori: 0 };
+  const conteggi = { push: 0, errori: 0 };
   await inParallelo(daAvvisare, 8, async ({ utente, loro }) => {
-    if (utente.pushOn && utente.tokens?.length) {
-      const messaggi = messaggiPush(loro, sito);
-      const nonValidi = new Set();
-      for (const token of utente.tokens) {
-        for (const m of messaggi) {
-          const esito = await invio.push(token, m);
-          if (esito === 'ok') conteggi.push++;
-          else if (esito === 'token-non-valido') { nonValidi.add(token); break; } else conteggi.errori++;
-        }
-      }
-      if (nonValidi.size) {
-        try {
-          await db.aggiorna(`users/${utente.id}`, {
-            tokens: utente.tokens.filter((t) => !nonValidi.has(t)),
-          });
-        } catch (e) {
-          log(`Pulizia token non riuscita per ${utente.id}: ${e.message}`);
-        }
+    const messaggi = messaggiPush(loro, sito);
+    const nonValidi = new Set();
+    for (const token of utente.tokens) {
+      for (const m of messaggi) {
+        const esito = await invio.push(token, m);
+        if (esito === 'ok') conteggi.push++;
+        else if (esito === 'token-non-valido') { nonValidi.add(token); break; } else conteggi.errori++;
       }
     }
-    if (utente.emailOn && utente.email && utente.unsubToken && invio.emailAttive && verificati.has(utente.id)) {
+    if (nonValidi.size) {
       try {
-        await invio.email({ a: utente.email, ...costruisciEmail(utente, loro, sito) });
-        conteggi.email++;
+        await db.aggiorna(`users/${utente.id}`, {
+          tokens: utente.tokens.filter((t) => !nonValidi.has(t)),
+        });
       } catch (e) {
-        conteggi.errori++;
-        log(e.message);
+        log(`Pulizia token non riuscita per ${utente.id}: ${e.message}`);
       }
     }
   });
-  log(`Avvisati ${daAvvisare.length} utenti: ${conteggi.push} push, ${conteggi.email} email, ${conteggi.errori} errori.`);
+  log(`Avvisati ${daAvvisare.length} utenti: ${conteggi.push} notifiche, ${conteggi.errori} errori.`);
   return conteggi;
 }
 
@@ -183,7 +162,7 @@ export async function controlla({ wp, db, invio, sito, adesso = new Date().toISO
     }
   }
 
-  let conteggi = { push: 0, email: 0, errori: 0 };
+  let conteggi = { push: 0, errori: 0 };
   if (scritture.length) {
     await db.scriviTanti(scritture);
   }
@@ -242,13 +221,7 @@ async function principale() {
   const sito = (process.env.SITO_URL || `https://${progetto}.web.app`).replace(/\/+$/, '');
   const chiamaGoogle = creaClientGoogle(creaGestoreToken(account));
   const db = creaFirestore(chiamaGoogle, progetto);
-  const invio = creaInvio({
-    chiamaGoogle,
-    progetto,
-    brevoKey: process.env.BREVO_API_KEY,
-    brevoMittente: process.env.BREVO_MITTENTE,
-  });
-  if (!invio.emailAttive) console.log('Email disattivate: mancano BREVO_API_KEY o BREVO_MITTENTE.');
+  const invio = creaInvio({ chiamaGoogle, progetto });
 
   const adesso = new Date().toISOString();
   try {
