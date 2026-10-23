@@ -15,6 +15,12 @@ on:
 permissions:
   contents: read
 
+env:
+  # Versione fissa di firebase-tools (prima era "@latest", cioè l'ultima uscita su npm al momento
+  # della corsa: un pacchetto compromesso sarebbe partito con la chiave Firebase in mano).
+  # Per aggiornarla: cambia solo questo numero.
+  FIREBASE_TOOLS: firebase-tools@15.33.0
+
 concurrency:
   group: pubblica
   cancel-in-progress: true
@@ -51,7 +57,7 @@ jobs:
       - name: Pubblica sito, regole e indici
         run: |
           set -o pipefail
-          if ! npx --yes firebase-tools@latest deploy --only hosting,firestore:rules,firestore:indexes \
+          if ! npx --yes "$FIREBASE_TOOLS" deploy --only hosting,firestore:rules,firestore:indexes \
                --project "$PROGETTO" --non-interactive --force 2>&1 | tee "$RUNNER_TEMP/deploy.log"; then
             # l'errore compare anche come annotazione della corsa
             msg=$(grep -v '^\s*$' "$RUNNER_TEMP/deploy.log" | tail -n 25 | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
