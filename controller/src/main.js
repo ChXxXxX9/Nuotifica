@@ -106,6 +106,21 @@ export async function controlla({ wp, db, invio, sito, adesso = new Date().toISO
   const indice = (await db.leggi('meta/indice')) ?? {};
   indice.posts ??= {};
 
+  // Controllo rapido: una sola richiesta piccola. Se l'ultimo post modificato è lo stesso
+  // della volta scorsa, il sito non è cambiato e ci fermiamo qui (leggero per il sito FIN).
+  let firma = null;
+  try {
+    const ultima = await wp.ultimaModifica();
+    firma = ultima ? `${ultima.id}@${ultima.modificato}` : null;
+  } catch (e) {
+    throw new ErroreSito(e.message);
+  }
+  if (indice.avviato && firma && indice.firma === firma) {
+    await scriviStato(db, { adesso, esito: 'ok', messaggio: 'Nessuna novità.' });
+    log('Nessuna novità (controllo rapido).');
+    return { avvio: false, rapido: true, cambi: [], scritture: 0 };
+  }
+
   let mappa;
   try {
     mappa = mappaCategorie(await wp.categorie());
@@ -133,7 +148,9 @@ export async function controlla({ wp, db, invio, sito, adesso = new Date().toISO
       indice.posts[post.id] = voceIndice(post);
     }
     await db.scriviTanti(scritture);
-    await db.scrivi('meta/indice', { posts: indice.posts, avviato: true, aggiornato: comeData(adesso) });
+    await db.scrivi('meta/indice', {
+      posts: indice.posts, avviato: true, firma, aggiornato: comeData(adesso),
+    });
     const messaggio = `Primo avvio: memorizzati ${scritture.length} post, nessuna notifica inviata.`;
     await scriviStato(db, { adesso, esito: 'ok', messaggio });
     log(messaggio);
@@ -169,9 +186,11 @@ export async function controlla({ wp, db, invio, sito, adesso = new Date().toISO
   if (cambi.length) {
     conteggi = await avvisa({ db, invio, cambi, sito, log });
   }
-  if (scritture.length) {
+  if (scritture.length || indice.firma !== firma) {
     potaIndice(indice, adesso);
-    await db.scrivi('meta/indice', { posts: indice.posts, avviato: true, aggiornato: comeData(adesso) });
+    await db.scrivi('meta/indice', {
+      posts: indice.posts, avviato: true, firma, aggiornato: comeData(adesso),
+    });
   }
   await scriviStato(db, {
     adesso,

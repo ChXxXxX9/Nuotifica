@@ -24,7 +24,12 @@ function dbFinto() {
 function wpFinto(posts) {
   return {
     posts,
-    async categorie() { return d.categorie; },
+    chiamateCategorie: 0,
+    async categorie() { this.chiamateCategorie++; return d.categorie; },
+    async ultimaModifica() {
+      const [p] = [...this.posts].sort((a, b) => b.modified_gmt.localeCompare(a.modified_gmt));
+      return p ? { id: String(p.id), modificato: p.modified_gmt } : null;
+    },
     async paginaPost(ordine, pagina, perPagina = 25) {
       const campo = ordine === 'modified' ? 'modified_gmt' : 'date_gmt';
       const ordinati = [...this.posts].sort((a, b) => b[campo].localeCompare(a[campo]));
@@ -73,9 +78,13 @@ test('giro completo: primo avvio muto, poi avvisi solo a chi interessa', async (
   assert.ok(db.docs.get('posts/350001'));
   assert.equal(db.docs.get('meta/stato').esito, 'ok');
 
-  // 2° giro senza cambiamenti: niente.
+  // 2° giro senza cambiamenti: si ferma al controllo rapido, senza leggere altro dal sito.
+  const categoriePrima = wp.chiamateCategorie;
   const secondo = await controlla({ wp, db, invio, sito, adesso: '2026-10-14T20:15:00.000Z', log });
   assert.equal(secondo.cambi.length, 0);
+  assert.equal(secondo.rapido, true);
+  assert.equal(wp.chiamateCategorie, categoriePrima);
+  assert.equal(db.docs.get('meta/stato').ultimoControllo, '2026-10-14T20:15:00.000Z');
 
   // Sul post Finali compare l'elenco ammessi delle staffette aggiornato + esce un post esordienti nuovo.
   const finaliDopo = {
@@ -121,5 +130,6 @@ test('giro completo: primo avvio muto, poi avvisi solo a chi interessa', async (
   // 4° giro: niente di nuovo, niente doppioni.
   const quarto = await controlla({ wp, db, invio, sito, adesso: '2026-10-14T20:45:00.000Z', log });
   assert.equal(quarto.cambi.length, 0);
+  assert.equal(quarto.rapido, true);
   assert.equal(invio.registro.push.length, 2);
 });

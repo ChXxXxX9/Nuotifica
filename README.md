@@ -10,7 +10,7 @@ Notifiche sul telefono quando sul sito del Comitato Regionale Lazio FIN
 
 ```
  finlazio.it (API WordPress pubbliche)
-        │  ogni 15 minuti
+        │  ogni 5 minuti (timer cron-job.org → GitHub Actions)
         ▼
  GitHub Actions ── controller/ ──► Firestore (post, preferenze utenti)
         │                              ▲
@@ -27,8 +27,11 @@ Notifiche sul telefono quando sul sito del Comitato Regionale Lazio FIN
   alla schermata Home su iPhone e Android, elenco dei post e dettaglio con i file.
   Finché `public/js/config.js` è vuoto parte in **anteprima** con dati di esempio
   (si può forzare con `?demo` nell'indirizzo).
-- **`.github/workflows/controllore.yml`**: fa girare il controllore ogni 15 minuti, con il
-  "segno di vita" automatico che evita lo spegnimento dopo 60 giorni di inattività.
+- **`.github/workflows/controllore.yml`**: fa girare il controllore. Lo avvia ogni 5 minuti un timer
+  esterno gratuito (cron-job.org, chiamata `POST …/actions/workflows/controllore.yml/dispatches` con un
+  token GitHub fine-grained "Actions: read and write"); il timer interno di GitHub resta di riserva,
+  con il "segno di vita" che evita lo spegnimento dopo 60 giorni. Ogni giro parte con un controllo
+  rapido (una sola richiesta piccola al sito) e legge il resto solo se qualcosa è cambiato.
 - **`.github/workflows/pubblica.yml`**: a ogni modifica di `public/` o delle regole pubblica
   su Firebase Hosting e aggiorna regole e indici di Firestore.
 

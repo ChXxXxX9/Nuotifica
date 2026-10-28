@@ -1,6 +1,8 @@
 name: Controllore
 
-# Ogni 15 minuti guarda il sito della FIN Lazio e manda le notifiche agli iscritti.
+# Guarda il sito della FIN Lazio e manda le notifiche agli iscritti.
+# Il timer principale è esterno (cron-job.org, ogni 5 minuti, avvia questo workflow via API):
+# il "schedule" qui sotto è solo di riserva, perché GitHub lo fa partire con ore di ritardo.
 # I minuti non sono "tondi" apposta: allo scoccare dell'ora GitHub è più carico e ritarda.
 on:
   schedule:

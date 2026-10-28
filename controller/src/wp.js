@@ -44,6 +44,16 @@ export function creaWp({ fetchFn = fetch, base = WP_BASE } = {}) {
       return tutte;
     },
 
+    /**
+     * Controllo rapido: solo id e data di modifica dell'ultimo post toccato.
+     * Se non è cambiato dall'ultima volta, sul sito non è successo niente.
+     */
+    async ultimaModifica() {
+      const { dati } = await richiesta('/posts?orderby=modified&order=desc&per_page=1&_fields=id,modified_gmt');
+      const p = dati?.[0];
+      return p ? { id: String(p.id), modificato: p.modified_gmt } : null;
+    },
+
     /** Una pagina di post ordinati per "modified" o per "date", dal più recente. */
     async paginaPost(ordine, pagina, perPagina = PER_PAGINA) {
       const { dati } = await richiesta(
