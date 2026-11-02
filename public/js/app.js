@@ -19,7 +19,14 @@ const stato = {
   animaElenco: true, // l'elenco entra con l'animazione solo la prima volta
   filtro: 'tutto',
 };
-let api;
+// Il backend (Firebase o demo) si carica in parallelo: l'app intanto mostra subito
+// gli ultimi dati salvati sul telefono. Ogni chiamata ad `api` aspetta da sola che sia pronto.
+let backend = null;
+let backendPronto;
+const promessaBackend = new Promise((r) => { backendPronto = r; });
+const api = new Proxy({}, {
+  get: (_, nome) => async (...argomenti) => (await promessaBackend)[nome](...argomenti),
+});
 
 /* ---------- utilità ---------- */
 
@@ -36,6 +43,44 @@ function memoria(chiave, valore) {
   return null;
 }
 stato.filtro = memoria('filtro') ?? 'tutto';
+
+/* ---------- copia locale: l'app si apre subito con gli ultimi dati ---------- */
+
+const VERSIONE_COPIA = 1;
+
+function salvaCopia() {
+  if (modoDemo || !stato.utente) return;
+  memoria('copia', {
+    v: VERSIONE_COPIA,
+    utente: stato.utente,
+    profilo: stato.profilo ?? null,
+    posts: stato.posts,
+    statoSito: stato.statoSito,
+  });
+}
+
+function leggiCopia() {
+  const c = memoria('copia');
+  if (!c || c.v !== VERSIONE_COPIA || !c.utente?.uid) return null;
+  const data = (v) => (v ? new Date(v) : null);
+  return {
+    utente: c.utente,
+    profilo: c.profilo ?? undefined,
+    posts: Array.isArray(c.posts) ? c.posts.map((post) => ({
+      ...post,
+      data: data(post.data),
+      ultimoCambio: data(post.ultimoCambio),
+      novita: post.novita ? { ...post.novita, quando: data(post.novita.quando) } : null,
+      file: (post.file ?? []).map((f) => ({ ...f, aggiuntoIl: data(f.aggiuntoIl) })),
+    })) : null,
+    statoSito: c.statoSito ? { ...c.statoSito, ultimoControllo: data(c.statoSito.ultimoControllo) } : null,
+  };
+}
+
+/** Impronta dei post: se non cambia, non serve ridisegnare l'elenco. */
+function improntaPosts(posts) {
+  return (posts ?? []).map((p) => `${p.id}:${p.ultimoCambio?.getTime?.() ?? ''}:${p.file?.length ?? 0}`).join('|');
+}
 
 function dispositivo() {
   const ua = navigator.userAgent;
@@ -220,7 +265,8 @@ function tabellone(righe, { titolo = 'FIN LAZIO', anima = false, dalVivo = true 
     </div>`;
 }
 
-function disegna(html, collega, { classeBody = '' } = {}) {
+function disegna(html, collega, { classeBody = '', aggiornamento = false, scrollA = 0 } = {}) {
+  const scrollPrima = window.scrollY;
   const fai = () => {
     document.body.className = classeBody;
     radice.innerHTML = html;
@@ -230,12 +276,12 @@ function disegna(html, collega, { classeBody = '' } = {}) {
       else location.hash = '#/';
     });
     collega?.(radice);
-    window.scrollTo(0, 0);
+    window.scrollTo(0, aggiornamento ? scrollPrima : scrollA);
     const titolo = radice.querySelector('h1');
     const testo = titolo?.textContent.trim();
     document.title = testo && testo.toLowerCase() !== 'nuotifica' ? `${testo} – Nuotifica` : 'Nuotifica';
   };
-  if (document.startViewTransition && !pocoMovimento && radice.childElementCount) {
+  if (document.startViewTransition && !pocoMovimento && !aggiornamento && radice.childElementCount) {
     document.startViewTransition(fai);
   } else {
     fai();
@@ -293,7 +339,7 @@ function vistaOspite() {
     let modoRegistrazione = false;
     const modulo = el.querySelector('[data-modulo="email"]');
     const erroreGoogle = el.querySelector('[data-errore-google]');
-    const errRedirect = api.prendiErroreAccesso();
+    const errRedirect = backend?.prendiErroreAccesso?.();
     if (errRedirect) {
       erroreGoogle.textContent = errRedirect.message;
       erroreGoogle.hidden = false;
@@ -498,6 +544,8 @@ function vistaImpostazioni({ primaVolta = false } = {}) {
         await conAttesa(modulo.querySelector('[type="submit"]'), () => api.salvaProfilo(stato.utente.uid, nuovi));
         stato.profilo = { ...(stato.profilo ?? {}), ...nuovi };
         stato.posts = null;
+        stato.aggiornatoIl = 0;
+        salvaCopia();
         avviso('Salvato.');
         location.hash = memoria('token') ? '#/' : '#/installa';
       } catch (err) {
@@ -722,7 +770,10 @@ async function vistaHome() {
     : '<div class="vuoto"><strong>Sei in pari</strong><p>Hai già visto tutte le novità.</p></div>'}`;
   };
 
-  const ridisegna = () => disegna(`
+  // Tornando da un post si riparte dal punto dell'elenco in cui si era.
+  const scrollA = stato.scrollHome ?? 0;
+  stato.scrollHome = 0;
+  const ridisegna = (aggiornamento = false) => disegna(`
     ${testata()}
     <main class="pagina pagina-elenco">
       ${barraStato()}
@@ -734,22 +785,37 @@ async function vistaHome() {
     el.querySelectorAll('[data-filtro]').forEach((b) => b.addEventListener('click', () => {
       stato.filtro = b.dataset.filtro;
       memoria('filtro', stato.filtro);
-      ridisegna();
+      ridisegna(true);
     }));
-  });
+  }, { aggiornamento, scrollA });
 
   ridisegna();
+
+  // Dati freschi al massimo ogni 20 secondi (tornando indietro dai post non si ricarica tutto).
+  if (stato.aggiornatoIl && Date.now() - stato.aggiornatoIl < 20_000) return;
+  stato.aggiornatoIl = Date.now();
   try {
+    const prima = improntaPosts(stato.posts);
     const [posts, statoSito] = await Promise.all([
       api.leggiPost(p.settori ?? []),
       api.leggiStato(),
     ]);
     stato.posts = posts;
     stato.statoSito = statoSito;
-    if (percorso() === '') ridisegna();
+    salvaCopia();
+    if (percorso() !== '') return;
+    if (improntaPosts(posts) === prima && radice.querySelector('.gare, .vuoto')) {
+      // Niente di nuovo: aggiorniamo solo la riga "controllato X minuti fa".
+      const barra = radice.querySelector('.barra-stato');
+      const nuova = barraStato();
+      if (barra && nuova) barra.outerHTML = nuova;
+    } else {
+      ridisegna(true);
+    }
   } catch (err) {
-    if (percorso() === '') {
-      radice.querySelector('.caricamento')?.replaceWith(Object.assign(document.createElement('p'), {
+    stato.aggiornatoIl = 0;
+    if (percorso() === '' && radice.querySelector('.caricamento')) {
+      radice.querySelector('.caricamento').replaceWith(Object.assign(document.createElement('p'), {
         className: 'errore', textContent: err.message,
       }));
     }
@@ -759,6 +825,18 @@ async function vistaHome() {
 /* ---------- un post ---------- */
 
 async function vistaPost(id) {
+  const giaInElenco = stato.posts?.find((x) => x.id === id);
+  if (giaInElenco) {
+    disegnaPost(giaInElenco);
+    try {
+      const fresco = await api.leggiUnPost(id);
+      if (fresco && percorso() === `post/${id}`
+        && fresco.ultimoCambio?.getTime() !== giaInElenco.ultimoCambio?.getTime()) {
+        disegnaPost(fresco, { aggiornamento: true });
+      }
+    } catch { /* restiamo con quello che abbiamo */ }
+    return;
+  }
   caricamento('Apro il post…');
   let post;
   try {
@@ -767,11 +845,17 @@ async function vistaPost(id) {
     disegna(`${testata({ indietro: true })}<main class="pagina"><p class="errore">${esc(err.message)}</p></main>`);
     return;
   }
+  if (percorso() !== `post/${id}`) return;
   if (!post) {
     disegna(`${testata({ indietro: true })}<main class="pagina"><h1>Post non trovato</h1><p>Forse è stato tolto dal sito. Torna alle <a href="#/">novità</a>.</p></main>`);
     return;
   }
-  const vistoPrima = visti()[post.id] ? new Date(visti()[post.id]) : null;
+  disegnaPost(post);
+}
+
+function disegnaPost(post, { aggiornamento = false } = {}) {
+  const vistoPrima = aggiornamento ? stato.vistoPrimaPost : (visti()[post.id] ? new Date(visti()[post.id]) : null);
+  stato.vistoPrimaPost = vistoPrima;
   segnaVisto(post);
   const { inApp } = dispositivo();
   const destinazione = inApp ? '' : ' target="_blank" rel="noopener"';
@@ -812,7 +896,7 @@ async function vistaPost(id) {
         <a class="bottone bottone-vetro" href="${esc(post.link)}"${destinazione}>Apri il post su finlazio.it</a>
       </article>
       ${piede()}
-    </main>`);
+    </main>`, null, { aggiornamento });
 }
 
 /* ---------- privacy ---------- */
@@ -868,6 +952,7 @@ async function mostra() {
     caricamento();
     try {
       stato.profilo = await api.leggiProfilo(stato.utente.uid);
+      salvaCopia();
     } catch (err) {
       disegna(`${testata()}<main class="pagina"><p class="errore">${esc(err.message)}</p><div class="pila"><button class="bottone" onclick="location.reload()">Riprova</button></div></main>`);
       return null;
@@ -880,38 +965,87 @@ async function mostra() {
   return vistaHome();
 }
 
-async function avvia() {
-  caricamento();
-  if (modoDemo) {
-    const { creaBackendDemo } = await import('./backend-demo.js');
-    api = creaBackendDemo();
-  } else {
-    try {
-      const { creaBackendFirebase } = await import('./backend-firebase.js');
-      api = await creaBackendFirebase(CONFIG);
-    } catch {
-      disegna(`${testata()}<main class="pagina"><h1>Connessione assente</h1><p>Non riesco a caricare Nuotifica. Controlla internet e riprova.</p><div class="pila"><button class="bottone" onclick="location.reload()">Riprova</button></div></main>`);
-      return;
-    }
-  }
+/** Dopo l'accesso confermato: rilegge il profilo in silenzio (potrebbe essere cambiato su un altro telefono). */
+async function aggiornaProfiloInSilenzio() {
+  try {
+    const fresco = await api.leggiProfilo(stato.utente.uid);
+    if (JSON.stringify(fresco) === JSON.stringify(stato.profilo ?? null)) return;
+    stato.profilo = fresco;
+    stato.aggiornatoIl = 0;
+    salvaCopia();
+    if (!fresco || percorso() === '') mostra();
+  } catch { /* si riprova alla prossima apertura */ }
+}
 
-  api.seguiAccesso((utente) => {
-    const cambiato = stato.utente?.uid !== utente?.uid;
-    stato.utente = utente;
-    if (cambiato) {
-      stato.profilo = undefined;
-      stato.posts = null;
-    }
-    mostra();
-  });
+async function avvia() {
+  let percorsoAttuale = percorso();
   window.addEventListener('hashchange', () => {
     stato.passi++;
+    if (percorsoAttuale === '') stato.scrollHome = window.scrollY;
+    percorsoAttuale = percorso();
     mostra();
   });
 
   // Quando si torna sull'app, ricarichiamo le novità.
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && percorso() === '' && stato.profilo) vistaHome();
+    if (document.visibilityState === 'visible' && percorso() === '' && stato.profilo) {
+      stato.aggiornatoIl = 0;
+      vistaHome();
+    }
+  });
+
+  // 1) Se abbiamo una copia dell'ultima volta, l'app si apre subito con quella.
+  const copia = modoDemo ? null : leggiCopia();
+  if (copia) {
+    stato.utente = copia.utente;
+    stato.profilo = copia.profilo;
+    stato.posts = copia.posts;
+    stato.statoSito = copia.statoSito;
+    mostra();
+  } else {
+    caricamento();
+  }
+
+  // 2) Intanto carichiamo Firebase (o i dati di prova).
+  try {
+    if (modoDemo) {
+      const { creaBackendDemo } = await import('./backend-demo.js');
+      backend = creaBackendDemo();
+    } else {
+      const { creaBackendFirebase } = await import('./backend-firebase.js');
+      backend = await creaBackendFirebase(CONFIG);
+    }
+  } catch {
+    if (!copia) {
+      disegna(`${testata()}<main class="pagina"><h1>Connessione assente</h1><p>Non riesco a caricare Nuotifica. Controlla internet e riprova.</p><div class="pila"><button class="bottone" onclick="location.reload()">Riprova</button></div></main>`);
+    } else {
+      avviso('Sei offline: vedi le ultime novità salvate.', 'errore');
+    }
+    return;
+  }
+  backendPronto(backend);
+
+  // 3) Accesso confermato da Firebase.
+  let primaConferma = true;
+  backend.seguiAccesso((utente) => {
+    const cambiato = stato.utente?.uid !== utente?.uid;
+    const eraLaCopia = primaConferma && copia && !cambiato;
+    primaConferma = false;
+    stato.utente = utente;
+    if (!utente) memoria('copia', null);
+    if (cambiato) {
+      stato.profilo = undefined;
+      stato.posts = null;
+      stato.statoSito = null;
+      stato.aggiornatoIl = 0;
+    }
+    if (eraLaCopia) {
+      // È la stessa persona della copia: la pagina è già giusta, aggiorniamo solo i dati.
+      salvaCopia();
+      aggiornaProfiloInSilenzio();
+      return;
+    }
+    mostra();
   });
 }
 

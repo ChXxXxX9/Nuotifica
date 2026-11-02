@@ -1,5 +1,8 @@
 // Service worker di Nuotifica: mostra le notifiche e tiene in cache l'app per aprirla subito.
-const VERSIONE = 'nuotifica-v2';
+const VERSIONE = 'nuotifica-v3';
+// Librerie di Firebase: l'indirizzo contiene la versione, quindi non cambiano mai e si tengono in memoria.
+const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/';
+const CACHE_SDK = 'nuotifica-sdk';
 const GUSCIO = [
   '/',
   '/index.html',
@@ -25,30 +28,49 @@ self.addEventListener('install', (evento) => {
 self.addEventListener('activate', (evento) => {
   evento.waitUntil((async () => {
     const chiavi = await caches.keys();
-    await Promise.all(chiavi.filter((k) => k !== VERSIONE).map((k) => caches.delete(k)));
+    await Promise.all(chiavi.filter((k) => k !== VERSIONE && k !== CACHE_SDK).map((k) => caches.delete(k)));
     await self.clients.claim();
   })());
 });
 
-// Prima la rete (così gli aggiornamenti arrivano subito), la cache solo senza connessione.
+// File dell'app: si risponde subito con la copia sul telefono e intanto si scarica la versione nuova
+// (che si vedrà alla prossima apertura). Senza copia si va in rete.
+async function primaLaCopia(evento) {
+  const richiesta = evento.request;
+  const navigazione = richiesta.mode === 'navigate';
+  const cache = await caches.open(VERSIONE);
+  const inCache = await cache.match(navigazione ? '/' : richiesta, { ignoreSearch: navigazione });
+  const dallaRete = fetch(richiesta).then((risposta) => {
+    if (risposta.ok) cache.put(navigazione ? '/' : richiesta, risposta.clone());
+    return risposta;
+  }).catch(() => null);
+  if (inCache) {
+    evento.waitUntil(dallaRete);
+    return inCache;
+  }
+  return (await dallaRete) ?? (navigazione ? cache.match('/index.html') : Response.error());
+}
+
+// Librerie di Firebase: una volta scaricate, sempre dalla memoria.
+async function sempreDallaCopia(richiesta) {
+  const cache = await caches.open(CACHE_SDK);
+  const inCache = await cache.match(richiesta);
+  if (inCache) return inCache;
+  const risposta = await fetch(richiesta);
+  if (risposta.ok) cache.put(richiesta, risposta.clone());
+  return risposta;
+}
+
 self.addEventListener('fetch', (evento) => {
   const richiesta = evento.request;
   if (richiesta.method !== 'GET') return;
+  if (richiesta.url.startsWith(FIREBASE_SDK)) {
+    evento.respondWith(sempreDallaCopia(richiesta));
+    return;
+  }
   const url = new URL(richiesta.url);
   if (url.origin !== self.location.origin || url.pathname.startsWith('/__/')) return;
-  evento.respondWith((async () => {
-    try {
-      const risposta = await fetch(richiesta);
-      if (risposta.ok) {
-        const copia = risposta.clone();
-        caches.open(VERSIONE).then((c) => c.put(richiesta, copia));
-      }
-      return risposta;
-    } catch {
-      const inCache = await caches.match(richiesta, { ignoreSearch: richiesta.mode === 'navigate' });
-      return inCache ?? (richiesta.mode === 'navigate' ? caches.match('/index.html') : Response.error());
-    }
-  })());
+  evento.respondWith(primaLaCopia(evento));
 });
 
 function leggiMessaggio(evento) {
