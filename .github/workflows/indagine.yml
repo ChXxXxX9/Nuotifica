@@ -1,0 +1,38 @@
+name: Indagine (temporaneo)
+
+# Scarica le pagine pubbliche della FIN su graduatorie e risultati per capire come funzionano.
+# Salva solo l'HTML grezzo su un ramo a parte ("indagine"), non tocca il sito.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  indagine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Scarica le pagine
+        run: |
+          mkdir -p out
+          UA="Mozilla/5.0 (Nuotifica; indagine una tantum)"
+          for p in \
+            "graduatorie|https://www.federnuoto.it/home/nuoto/graduatorie.html" \
+            "graduatorie-2026-2027|https://www.federnuoto.it/home/nuoto/graduatorie-stagione-2026-2027.html" \
+            "risultati-e-classifiche|https://www.federnuoto.it/home/nuoto/risultati-e-classifiche-nuoto.html" \
+            "robots|https://www.federnuoto.it/robots.txt"; do
+            nome="${p%%|*}"; url="${p#*|}"
+            curl -sSL -A "$UA" -D "out/$nome.headers" -o "out/$nome.html" --max-time 30 "$url" || echo "errore $url" >> out/errori.txt
+          done
+          ls -la out
+
+      - name: Salva sul ramo indagine
+        run: |
+          git config user.name "nuotifica-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan indagine
+          git rm -rf --cached . >/dev/null
+          git add out
+          git commit -qm "Indagine pagine FIN"
+          git push -f origin indagine
