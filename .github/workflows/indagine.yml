@@ -14,27 +14,32 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
-      - name: Pagine pubbliche
+      - name: Dati di una gara (come li chiede il sito pubblico)
         run: |
-          mkdir -p out; UA="Nuotifica/1.0 (+https://nuotifica.web.app)"
-          for u in https://aquatix.it/ https://www.aquatix.it/ https://aquatix.it/robots.txt https://aquatix.it/sitemap.xml; do
-            n=$(echo "$u" | sed 's#https://##; s#[/:]#_#g')
-            curl -sL --max-time 20 -A "$UA" -o "out/$n" -w "$u %{http_code} %{url_effective} %{content_type}\n" "$u" >> out/esiti.txt || echo "$u ERRORE" >> out/esiti.txt
-          done
-          cat out/esiti.txt
-          grep -h -o -E '(href|src|action)="[^"]+"' out/aquatix.it_ out/www.aquatix.it_ 2>/dev/null | sort -u > out/link.txt || true
-          grep -h -o -i -E '.{0,120}(firebase|api|live|risultat|gare|login|accedi|termini|condizioni).{0,120}' out/aquatix.it_ 2>/dev/null | head -80 > out/parole.txt || true
-          wc -l out/link.txt out/parole.txt
-      - name: Script della pagina
-        run: |
-          UA="Nuotifica/1.0 (+https://nuotifica.web.app)"
-          grep -h -o -E 'src="[^"]+\.js[^"]*"' out/aquatix.it_ 2>/dev/null | sed 's/src="//; s/"$//' | head -8 | while read -r s; do
-            case "$s" in http*) u="$s";; /*) u="https://aquatix.it$s";; *) u="https://aquatix.it/$s";; esac
-            n=$(basename "${s%%\?*}")
-            curl -sL --max-time 20 -A "$UA" -o "out/js_$n" -w "$u %{http_code}\n" "$u" >> out/esiti.txt || true
-          done
-          grep -h -o -i -E '.{0,100}(firebaseio|firestore|cloudfunctions|/api/|https://[a-z0-9.-]+\.[a-z]+/).{0,100}' out/js_* 2>/dev/null | sort -u | head -60 > out/indirizzi.txt || true
-          cat out/esiti.txt
+          rm -rf out; mkdir -p out; UA="Nuotifica/1.0 (+https://nuotifica.web.app)"
+          G=98cffe1039132decfb898faca74a089c1eeeed8f
+          curl -s --max-time 30 -A "$UA" -H "Origin: https://aquatix.it" -D out/intestazioni.txt -o out/gara.json -w "%{http_code} %{size_download} %{time_total}\n" "https://aquatix.nextadv.it/admin/gara/$G" | tee out/esiti.txt
+          python3 - <<'PY' > out/struttura.txt
+          import json
+          d=json.load(open('out/gara.json'))
+          print('chiavi', list(d.keys()))
+          r=d.get('results',{})
+          print('categorie', list(r.keys())[:20])
+          for cat,ev in list(r.items())[:1]:
+              print('gare in', cat, list(ev.keys())[:30])
+              for gara,batt in list(ev.items())[:1]:
+                  print('batterie', list(batt.keys()))
+                  for b,atl in list(batt.items())[:1]:
+                      a=atl[0]
+                      a2=json.loads(json.dumps(a))
+                      if 'athlete' in a2:
+                          a2['athlete']={k:(v if k in ('year','nat') else 'X') for k,v in a2['athlete'].items()}
+                      print(json.dumps(a2,ensure_ascii=False,indent=1)[:3000])
+          for k,v in d.items():
+              if k!='results': print(k, json.dumps(v,ensure_ascii=False)[:600])
+          PY
+          cat out/struttura.txt | head -120
+          rm out/gara.json
       - name: Salva
         run: |
           git config user.name "nuotifica-bot"
