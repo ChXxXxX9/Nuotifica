@@ -13,9 +13,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v5
+
       - name: Scarica le pagine
         run: |
-          mkdir -p out
+          mkdir -p "$RUNNER_TEMP/out"; ln -s "$RUNNER_TEMP/out" out
           UA="Mozilla/5.0 (Nuotifica; indagine una tantum)"
           for p in \
             "graduatorie|https://www.federnuoto.it/home/nuoto/graduatorie.html" \
@@ -31,8 +33,9 @@ jobs:
         run: |
           git config user.name "nuotifica-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout --orphan indagine
-          git rm -rf --cached . >/dev/null
+          git checkout -q --orphan indagine
+          git rm -rfq --cached .
+          rm -f out; cp -r "$RUNNER_TEMP/out" out
           git add out
           git commit -qm "Indagine pagine FIN"
           git push -f origin indagine
