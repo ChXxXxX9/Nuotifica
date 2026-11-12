@@ -1,0 +1,43 @@
+name: Indagine AquatiX (temporaneo)
+
+# Guarda solo le pagine pubbliche di aquatix.it (nessun accesso, nessuna app).
+on:
+  push:
+    branches: [indagine]
+    paths: ['.github/workflows/indagine.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  indagine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Pagine pubbliche
+        run: |
+          mkdir -p out; UA="Nuotifica/1.0 (+https://nuotifica.web.app)"
+          for u in https://aquatix.it/ https://www.aquatix.it/ https://aquatix.it/robots.txt https://aquatix.it/sitemap.xml; do
+            n=$(echo "$u" | sed 's#https://##; s#[/:]#_#g')
+            curl -sL --max-time 20 -A "$UA" -o "out/$n" -w "$u %{http_code} %{url_effective} %{content_type}\n" "$u" >> out/esiti.txt || echo "$u ERRORE" >> out/esiti.txt
+          done
+          cat out/esiti.txt
+          grep -h -o -E '(href|src|action)="[^"]+"' out/aquatix.it_ out/www.aquatix.it_ 2>/dev/null | sort -u > out/link.txt || true
+          grep -h -o -i -E '.{0,120}(firebase|api|live|risultat|gare|login|accedi|termini|condizioni).{0,120}' out/aquatix.it_ 2>/dev/null | head -80 > out/parole.txt || true
+          wc -l out/link.txt out/parole.txt
+      - name: Script della pagina
+        run: |
+          UA="Nuotifica/1.0 (+https://nuotifica.web.app)"
+          grep -h -o -E 'src="[^"]+\.js[^"]*"' out/aquatix.it_ 2>/dev/null | sed 's/src="//; s/"$//' | head -8 | while read -r s; do
+            case "$s" in http*) u="$s";; /*) u="https://aquatix.it$s";; *) u="https://aquatix.it/$s";; esac
+            n=$(basename "${s%%\?*}")
+            curl -sL --max-time 20 -A "$UA" -o "out/js_$n" -w "$u %{http_code}\n" "$u" >> out/esiti.txt || true
+          done
+          grep -h -o -i -E '.{0,100}(firebaseio|firestore|cloudfunctions|/api/|https://[a-z0-9.-]+\.[a-z]+/).{0,100}' out/js_* 2>/dev/null | sort -u | head -60 > out/indirizzi.txt || true
+          cat out/esiti.txt
+      - name: Salva
+        run: |
+          git config user.name "nuotifica-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add out && git commit -qm "Esiti indagine AquatiX" && git push origin HEAD:indagine
