@@ -4,7 +4,6 @@ name: Indagine AquatiX (temporaneo)
 on:
   push:
     branches: [indagine]
-    paths: ['.github/workflows/indagine.yml']
 
 permissions:
   contents: write
