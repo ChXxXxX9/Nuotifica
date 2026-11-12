@@ -19,19 +19,20 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/out"; ln -s "$RUNNER_TEMP/out" out
           UA="Mozilla/5.0 (Nuotifica; indagine una tantum)"
-          B=https://fin2023.microplustiming.com
+          E=https://fin2023.microplustiming.com/export/NU_2023_10_31-11_01_Potenza/NU
           for p in \
-            "potenza-web|$B/NU_2023_10_31-11_01_Potenza_web.php" \
-            "potenza-mobile|$B/NU_2023_10_31-11_01_Potenza_mobile.php" \
-            "misc-js|$B/js/Misc.js?v=2.0"; do
+            "live-index-2023|https://fin2023.microplustiming.com/live/NU/indexframe3_web.htm" \
+            "live-index-2026|https://fin2026.microplustiming.com/live/NU/indexframe3_web.htm" \
+            "contatori|$E/Contatori.json" \
+            "categorie|$E/categorie.json" \
+            "orario|$E/orario.json" \
+            "counter-generale|$E/CounterGenerale.json"; do
             nome="${p%%|*}"; url="${p#*|}"
-            curl -sSL -A "$UA" -D "out/$nome.headers" -o "out/$nome.html" --max-time 30 "$url" || echo "errore $url" >> out/errori.txt
+            curl -sSL -A "$UA" -D "out/$nome.headers" -o "out/$nome.txt" --max-time 30 "$url" || echo "errore $url" >> out/errori.txt
           done
-          # tutti gli script e i file di dati citati dalla pagina web
-          for f in $(grep -oE '(src|href)="[^"]+\.(js|json|xml|txt|php)[^"]*"' out/potenza-web.html out/potenza-mobile.html | sed -E 's/.*="([^"]+)"/\1/' | sort -u); do
-            n=$(echo "$f" | tr '/?=&' '____')
-            curl -sSL -A "$UA" -o "out/x_$n" --max-time 30 "$B/$f" || true
-          done
+          # il primo file di risultati elencato nei contatori, se c'è
+          primo=$(grep -oE '"[A-Za-z0-9_]+\.json"' out/contatori.txt | grep -viE 'categorie|orario|contatori|counter' | head -3 | tr -d '"')
+          for f in $primo; do curl -sSL -A "$UA" -o "out/dato_$f" --max-time 30 "$E/$f" || true; done
           ls -la out
 
       - name: Salva sul ramo indagine
