@@ -14,32 +14,32 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
-      - name: Dati di una gara (come li chiede il sito pubblico)
+      - name: Parziali in una gara di categoria assoluta
         run: |
           rm -rf out; mkdir -p out; UA="Nuotifica/1.0 (+https://nuotifica.web.app)"
-          G=98cffe1039132decfb898faca74a089c1eeeed8f
-          curl -s --max-time 30 -A "$UA" -H "Origin: https://aquatix.it" -D out/intestazioni.txt -o out/gara.json -w "%{http_code} %{size_download} %{time_total}\n" "https://aquatix.nextadv.it/admin/gara/$G" | tee out/esiti.txt
-          python3 - <<'PY' > out/struttura.txt
-          import json
-          d=json.load(open('out/gara.json'))
-          print('chiavi', list(d.keys()))
-          r=d.get('results',{})
-          print('categorie', list(r.keys())[:20])
-          for cat,ev in list(r.items())[:1]:
-              print('gare in', cat, list(ev.keys())[:30])
-              for gara,batt in list(ev.items())[:1]:
-                  print('batterie', list(batt.keys()))
-                  for b,atl in list(batt.items())[:1]:
-                      a=atl[0]
-                      a2=json.loads(json.dumps(a))
-                      if 'athlete' in a2:
-                          a2['athlete']={k:(v if k in ('year','nat') else 'X') for k,v in a2['athlete'].items()}
-                      print(json.dumps(a2,ensure_ascii=False,indent=1)[:3000])
-          for k,v in d.items():
-              if k!='results': print(k, json.dumps(v,ensure_ascii=False)[:600])
+          curl -s --max-time 30 -A "$UA" -o gara.json -w "%{http_code} %{size_download}\n" "https://aquatix.nextadv.it/admin/gara/72a5f6a67cf27cd7cd3f4ef0b372ea6b03b6b152" | tee out/esiti.txt
+          python3 - <<'PY' > out/parziali.txt
+          import json, collections
+          r=json.load(open('gara.json'))['results']
+          tot=0; conpar=0; esempio=None; tipi=collections.Counter(); campi=collections.Counter()
+          for cat,ev in r.items():
+              for gara,batt in ev.items():
+                  for b,atl in batt.items():
+                      for a in atl:
+                          tot+=1; tipi[a.get('type')]+=1
+                          m=a.get('MemFields') or []
+                          inter=[x for x in m if x.get('M')!='FINISH' and x.get('V')]
+                          for x in m:
+                              for k,v in x.items():
+                                  if v: campi[k]+=1
+                          if inter:
+                              conpar+=1
+                              if esempio is None: esempio=(cat,gara,a.get('time'),m)
+          print('atleti',tot,'con parziali',conpar,'tipi',dict(tipi),'campi pieni',dict(campi))
+          print('categorie',list(r.keys()))
+          print('esempio',json.dumps(esempio,ensure_ascii=False)[:1500])
           PY
-          cat out/struttura.txt | head -120
-          rm out/gara.json
+          cat out/parziali.txt
       - name: Salva
         run: |
           git config user.name "nuotifica-bot"
