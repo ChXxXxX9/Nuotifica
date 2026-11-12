@@ -15,20 +15,16 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Prove di accesso
+      - name: Script della pagina graduatorie
         run: |
           mkdir -p "$RUNNER_TEMP/out"; O="$RUNNER_TEMP/out"
-          U="https://www.federnuoto.it/home/nuoto/graduatorie.html"
-          curl -s -o /dev/null -w "curl-http2 %{http_code}\n" "$U" >> $O/esiti.txt || true
-          curl -s --http1.1 -o /dev/null -w "curl-http1.1 %{http_code}\n" -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36" "$U" >> $O/esiti.txt || true
-          python3 -c "import urllib.request as u; r=u.urlopen(u.Request('$U', headers={'User-Agent':'Mozilla/5.0'})); print('python', r.status)" >> $O/esiti.txt 2>&1 || echo "python errore" >> $O/esiti.txt
-          node -e "fetch('$U').then(r=>console.log('node', r.status)).catch(e=>console.log('node errore', e.message))" >> $O/esiti.txt
-          timeout 60 google-chrome --headless=new --disable-gpu --no-sandbox --dump-dom "$U" > $O/chrome.html 2>/dev/null || true
-          echo "chrome $(wc -c < $O/chrome.html) byte, contiene filtri graduatorie: $(grep -c graduatorie_filtri $O/chrome.html)" >> $O/esiti.txt
-          # controllo: un sito italiano qualsiasi risponde?
-          curl -s -o /dev/null -w "controllo-finlazio %{http_code}\n" "https://www.finlazio.it/" >> $O/esiti.txt || true
-          curl -s -o /dev/null -w "controllo-coni %{http_code}\n" "https://www.coni.it/" >> $O/esiti.txt || true
-          cat $O/esiti.txt
+          B=https://www.federnuoto.it
+          for f in templates/ifrit/js/app.js templates/ifrit/svi/svi.js templates/ifrit/svi/override.js templates/ifrit/svi/settebello.js; do
+            n=$(echo "$f" | tr '/' '_')
+            curl -s --http2 -o "$O/$n" -w "$f %{http_code}\n" "$B/$f" >> $O/esiti.txt || true
+          done
+          grep -n -o -E ".{0,300}(solrconnect|data-com|graduatori).{0,400}" $O/*.js > $O/trovati.txt || true
+          cat $O/esiti.txt; wc -l $O/trovati.txt
 
       - name: Salva sul ramo indagine
         run: |
