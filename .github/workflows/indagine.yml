@@ -19,15 +19,18 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/out"; ln -s "$RUNNER_TEMP/out" out
           UA="Mozilla/5.0 (Nuotifica; indagine una tantum)"
+          B=https://fin2023.microplustiming.com
           for p in \
-            "fin2026-index|https://fin2026.microplustiming.com/" \
-            "fin2027-index|https://fin2027.microplustiming.com/" \
-            "fin2026-index-php|https://fin2026.microplustiming.com/index.php" \
-            "fin2023-potenza|https://fin2023.microplustiming.com/NU_2023_10_31-11_01_Potenza.php" \
-            "live-index|https://live.microplustiming.com/" \
-            "microplus-robots|https://fin2026.microplustiming.com/robots.txt"; do
+            "potenza-web|$B/NU_2023_10_31-11_01_Potenza_web.php" \
+            "potenza-mobile|$B/NU_2023_10_31-11_01_Potenza_mobile.php" \
+            "misc-js|$B/js/Misc.js?v=2.0"; do
             nome="${p%%|*}"; url="${p#*|}"
             curl -sSL -A "$UA" -D "out/$nome.headers" -o "out/$nome.html" --max-time 30 "$url" || echo "errore $url" >> out/errori.txt
+          done
+          # tutti gli script e i file di dati citati dalla pagina web
+          for f in $(grep -oE '(src|href)="[^"]+\.(js|json|xml|txt|php)[^"]*"' out/potenza-web.html out/potenza-mobile.html | sed -E 's/.*="([^"]+)"/\1/' | sort -u); do
+            n=$(echo "$f" | tr '/?=&' '____')
+            curl -sSL -A "$UA" -o "out/x_$n" --max-time 30 "$B/$f" || true
           done
           ls -la out
 
