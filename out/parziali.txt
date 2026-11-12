@@ -1,3 +1,0 @@
-atleti 1070 con parziali 741 tipi {'F': 530, 'M': 540} campi pieni {'V': 3992, 'P': 3992, 'M': 4539, 'T': 3052}
-categorie ['ASSOLUTI FEMMINE', 'ASSOLUTI MASCHI']
-esempio ["ASSOLUTI FEMMINE", "100 m Dorso", "58.88", [{"V": "28.26", "T": "", "P": "1", "M": "50m"}, {"V": "58.88", "T": "30.62", "P": "1", "M": "FINISH"}]]
