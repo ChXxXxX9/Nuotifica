@@ -19,16 +19,14 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/out"; ln -s "$RUNNER_TEMP/out" out
           UA="Mozilla/5.0 (Nuotifica; indagine una tantum)"
-          W="https://www.finlazio.it/wp-json/wp/v2/posts?per_page=50&_fields=id,date,title,link,content"
-          curl -sSL -A "$UA" -o out/cerca-microplus.json --max-time 30 "$W&search=microplus" || true
-          curl -sSL -A "$UA" -o out/cerca-temporeale.json --max-time 30 "$W&search=tempo%20reale" || true
-          curl -sSL -A "$UA" -o out/cerca-live.json --max-time 30 "$W&search=live" || true
-          # in tutti i post recenti: link a siti di risultati live
-          for pg in 1 2 3 4; do
-            curl -sSL -A "$UA" --max-time 30 "https://www.finlazio.it/wp-json/wp/v2/posts?per_page=100&page=$pg&_fields=id,date,title,content" >> out/recenti.json || true
-            echo >> out/recenti.json
+          CH="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36"
+          for p in \
+            "fin-www|https://www.federnuoto.it/home/nuoto/graduatorie.html" \
+            "fin-rest|https://rest.federnuoto.web.coninet.it/home/nuoto/graduatorie.html" \
+            "fin-rest-stagione|https://rest.federnuoto.web.coninet.it/home/nuoto/graduatorie-stagione-2026-2027.html"; do
+            nome="${p%%|*}"; url="${p#*|}"
+            curl -sSL -A "$CH" -H "Accept-Language: it-IT,it;q=0.9" -H "Accept: text/html" -D "out/$nome.headers" -o "out/$nome.html" --max-time 30 "$url" || echo "errore $url" >> out/errori.txt
           done
-          grep -oE 'https?://[a-zA-Z0-9.-]*(microplus|ficr|swimify|livetiming|risultati)[a-zA-Z0-9./_?=&%-]*' out/recenti.json | sort | uniq -c | sort -rn > out/link-live.txt || true
           ls -la out
 
       - name: Salva sul ramo indagine
