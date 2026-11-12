@@ -1,0 +1,6 @@
+https://aquatix.it/ 200 https://aquatix.it/ text/html; charset=UTF-8
+https://www.aquatix.it/ 200 https://aquatix.it/ text/html; charset=UTF-8
+https://aquatix.it/robots.txt 200 https://aquatix.it/robots.txt text/plain; charset=utf-8
+https://aquatix.it/sitemap.xml 404 https://aquatix.it/sitemap.xml text/html; charset=UTF-8
+https://aquatix.it//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.6.1/html5shiv.js 404
+https://aquatix.it/wp-content/themes/flatsome/assets/libs/ie-flexibility.js 200

@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<!--[if IE 9 ]> <html lang="it-IT" class="ie9 loading-site no-js bg-fill"> <![endif]-->
+<!--[if IE 8 ]> <html lang="it-IT" class="ie8 loading-site no-js bg-fill"> <![endif]-->
+<!--[if (gte IE 9)|!(IE)]><!--><html lang="it-IT" class="loading-site no-js bg-fill"> <!--<![endif]-->
+<head>
+	<meta charset="UTF-8" />
+	<link rel="profile" href="https://gmpg.org/xfn/11" />
+	<link rel="pingback" href="https://aquatix.it/xmlrpc.php" />
+	<script>(function(html){html.className = html.className.replace(/\bno-js\b/,'js')})(document.documentElement);</script>
+<title>AquatiX</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" /><link rel='dns-prefetch' href='//use.fontawesome.com' />
+<link rel='dns-prefetch' href='//fonts.googleapis.com' />
+<link rel='dns-prefetch' href='//s.w.org' />
+<link rel="alternate" type="application/rss+xml" title="AquatiX &raquo; Feed" href="https://aquatix.it/feed/" />
+<link rel="alternate" type="application/rss+xml" title="AquatiX &raquo; Feed dei commenti" href="https://aquatix.it/comments/feed/" />
+		<script type="text/javascript">
+			window._wpemojiSettings = {"baseUrl":"https:\/\/s.w.org\/images\/core\/emoji\/12.0.0-1\/72x72\/","ext":".png","svgUrl":"https:\/\/s.w.org\/images\/core\/emoji\/12.0.0-1\/svg\/","svgExt":".svg","source":{"concatemoji":"https:\/\/aquatix.it\/wp-includes\/js\/wp-emoji-release.min.js?ver=5.3.27"}};
+			!function(e,a,t){var n,r,o,i=a.createElement("canvas"),p=i.getContext&&i.getContext("2d");function s(e,t){var a=String.fromCharCode;p.clearRect(0,0,i.width,i.height),p.fillText(a.apply(this,e),0,0);e=i.toDataURL();return p.clearRect(0,0,i.width,i.height),p.fillText(a.apply(this,t),0,0),e===i.toDataURL()}function c(e){var t=a.createElement("script");t.src=e,t.defer=t.type="text/javascript",a.getElementsByTagName("head")[0].appendChild(t)}for(o=Array("flag","emoji"),t.supports={everything:!0,everythingExceptFlag:!0},r=0;r<o.length;r++)t.supports[o[r]]=function(e){if(!p||!p.fillText)return!1;switch(p.textBaseline="top",p.font="600 32px Arial",e){case"flag":return s([127987,65039,8205,9895,65039],[127987,65039,8203,9895,65039])?!1:!s([55356,56826,55356,56819],[55356,56826,8203,55356,56819])&&!s([55356,57332,56128,56423,56128,56418,56128,56421,56128,56430,56128,56423,56128,56447],[55356,57332,8203,56128,56423,8203,56128,56418,8203,56128,56421,8203,56128,56430,8203,56128,56423,8203,56128,56447]);case"emoji":return!s([55357,56424,55356,57342,8205,55358,56605,8205,55357,56424,55356,57340],[55357,56424,55356,57342,8203,55358,56605,8203,55357,56424,55356,57340])}return!1}(o[r]),t.supports.everything=t.supports.everything&&t.supports[o[r]],"flag"!==o[r]&&(t.supports.everythingExceptFlag=t.supports.everythingExceptFlag&&t.supports[o[r]]);t.supports.everythingExceptFlag=t.supports.everythingExceptFlag&&!t.supports.flag,t.DOMReady=!1,t.readyCallback=function(){t.DOMReady=!0},t.supports.everything||(n=function(){t.readyCallback()},a.addEventListener?(a.addEventListener("DOMContentLoaded",n,!1),e.addEventListener("load",n,!1)):(e.attachEvent("onload",n),a.attachEvent("onreadystatechange",function(){"complete"===a.readyState&&t.readyCallback()})),(n=t.source||{}).concatemoji?c(n.concatemoji):n.wpemoji&&n.twemoji&&(c(n.twemoji),c(n.wpemoji)))}(window,document,window._wpemojiSettings);
+		</script>
+		<style type="text/css">
+img.wp-smiley,
+img.emoji {
+	display: inline !important;
+	border: none !important;
+	box-shadow: none !important;
+	height: 1em !important;
+	width: 1em !important;
+	margin: 0 .07em !important;
+	vertical-align: -0.1em !important;
+	background: none !important;
+	padding: 0 !important;
+}
+</style>
+	<link rel='stylesheet' id='wp-block-library-css'  href='https://aquatix.it/wp-includes/css/dist/block-library/style.min.css?ver=5.3.27' type='text/css' media='all' />
+<link rel='stylesheet' id='cookie-notice-front-css'  href='https://aquatix.it/wp-content/plugins/cookie-notice/css/front.min.css?ver=5.3.27' type='text/css' media='all' />
+<link rel='stylesheet' id='menu-image-css'  href='https://aquatix.it/wp-content/plugins/menu-image/includes/css/menu-image.css?ver=2.9.6' type='text/css' media='all' />
+<link rel='stylesheet' id='custom-fa-css'  href='https://use.fontawesome.com/releases/v5.0.6/css/all.css?ver=5.3.27' type='text/css' media='all' />
+<link rel='stylesheet' id='flatsome-icons-css'  href='https://aquatix.it/wp-content/themes/flatsome/assets/css/fl-icons.css?ver=3.3' type='text/css' media='all' />
+<link rel='stylesheet' id='flatsome-main-css'  href='https://aquatix.it/wp-content/themes/flatsome/assets/css/flatsome.css?ver=3.10.0' type='text/css' media='all' />
+<link rel='stylesheet' id='flatsome-style-css'  href='https://aquatix.it/wp-content/themes/flatsome-child/style.css?ver=3.0' type='text/css' media='all' />
+<link rel='stylesheet' id='flatsome-googlefonts-css'  href='//fonts.googleapis.com/css?family=Lato%3Aregular%2C700%2C400%2C700%7CDancing+Script%3Aregular%2C400&#038;display=swap&#038;ver=3.9' type='text/css' media='all' />
+<script type='text/javascript' src='https://aquatix.it/wp-includes/js/jquery/jquery.js?ver=1.12.4-wp'></script>
+<script type='text/javascript' src='https://aquatix.it/wp-includes/js/jquery/jquery-migrate.min.js?ver=1.4.1'></script>
+<link rel='https://api.w.org/' href='https://aquatix.it/wp-json/' />
+<link rel="EditURI" type="application/rsd+xml" title="RSD" href="https://aquatix.it/xmlrpc.php?rsd" />
+<link rel="wlwmanifest" type="application/wlwmanifest+xml" href="https://aquatix.it/wp-includes/wlwmanifest.xml" /> 
+<meta name="generator" content="WordPress 5.3.27" />
+<link rel="canonical" href="https://aquatix.it/" />
+<link rel='shortlink' href='https://aquatix.it/' />
+<link rel="alternate" type="application/json+oembed" href="https://aquatix.it/wp-json/oembed/1.0/embed?url=https%3A%2F%2Faquatix.it%2F" />
+<link rel="alternate" type="text/xml+oembed" href="https://aquatix.it/wp-json/oembed/1.0/embed?url=https%3A%2F%2Faquatix.it%2F&#038;format=xml" />
+<style>.bg{opacity: 0; transition: opacity 1s; -webkit-transition: opacity 1s;} .bg-loaded{opacity: 1;}</style><!--[if IE]><link rel="stylesheet" type="text/css" href="https://aquatix.it/wp-content/themes/flatsome/assets/css/ie-fallback.css"><script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.6.1/html5shiv.js"></script><script>var head = document.getElementsByTagName('head')[0],style = document.createElement('style');style.type = 'text/css';style.styleSheet.cssText = ':before,:after{content:none !important';head.appendChild(style);setTimeout(function(){head.removeChild(style);}, 0);</script><script src="https://aquatix.it/wp-content/themes/flatsome/assets/libs/ie-flexibility.js"></script><![endif]--><link rel="icon" href="https://aquatix.it/wp-content/uploads/2019/11/cropped-Aquatix_favicon-32x32.png" sizes="32x32" />
+<link rel="icon" href="https://aquatix.it/wp-content/uploads/2019/11/cropped-Aquatix_favicon-192x192.png" sizes="192x192" />
+<link rel="apple-touch-icon-precomposed" href="https://aquatix.it/wp-content/uploads/2019/11/cropped-Aquatix_favicon-180x180.png" />
+<meta name="msapplication-TileImage" content="https://aquatix.it/wp-content/uploads/2019/11/cropped-Aquatix_favicon-270x270.png" />
+<style id="custom-css" type="text/css">:root {--primary-color: #446084;}.header-main{height: 100px}#logo img{max-height: 100px}#logo{width:183px;}.header-bottom{min-height: 10px}.header-top{min-height: 26px}.transparent .header-main{height: 277px}.transparent #logo img{max-height: 277px}.has-transparent + .page-title:first-of-type,.has-transparent + #main > .page-title,.has-transparent + #main > div > .page-title,.has-transparent + #main .page-header-wrapper:first-of-type .page-title{padding-top: 277px;}.header.show-on-scroll,.stuck .header-main{height:70px!important}.stuck #logo img{max-height: 70px!important}.header-bg-color, .header-wrapper {background-color: #ffffff}.header-bottom {background-color: #f1f1f1}.header-main .nav > li > a{line-height: 16px }.header-bottom-nav > li > a{line-height: 16px }@media (max-width: 549px) {.header-main{height: 112px}#logo img{max-height: 112px}}.nav-dropdown{font-size:100%}body{font-family:"Lato", sans-serif}body{font-weight: 400}.nav > li > a {font-family:"Lato", sans-serif;}.nav > li > a {font-weight: 700;}h1,h2,h3,h4,h5,h6,.heading-font, .off-canvas-center .nav-sidebar.nav-vertical > li > a{font-family: "Lato", sans-serif;}h1,h2,h3,h4,h5,h6,.heading-font,.banner h1,.banner h2{font-weight: 700;}.alt-font{font-family: "Dancing Script", sans-serif;}.alt-font{font-weight: 400!important;}.header:not(.transparent) .header-nav.nav > li > a {color: #123888;}.header:not(.transparent) .header-nav.nav > li > a:hover,.header:not(.transparent) .header-nav.nav > li.active > a,.header:not(.transparent) .header-nav.nav > li.current > a,.header:not(.transparent) .header-nav.nav > li > a.active,.header:not(.transparent) .header-nav.nav > li > a.current{color: #073567;}.header-nav.nav-line-bottom > li > a:before,.header-nav.nav-line-grow > li > a:before,.header-nav.nav-line > li > a:before,.header-nav.nav-box > li > a:hover,.header-nav.nav-box > li.active > a,.header-nav.nav-pills > li > a:hover,.header-nav.nav-pills > li.active > a{color:#FFF!important;background-color: #073567;}.footer-1{background-color: #073567}.label-new.menu-item > a:after{content:"Nuovo";}.label-hot.menu-item > a:after{content:"Hot";}.label-sale.menu-item > a:after{content:"Offerta";}.label-popular.menu-item > a:after{content:"Popolare";}</style>	
+</head>
+
+<body data-rsssl=1 class="home page-template page-template-page-blank page-template-page-blank-php page page-id-11 cookies-not-set full-width bg-fill lightbox nav-dropdown-has-arrow">
+
+
+<a class="skip-link screen-reader-text" href="#main">Skip to content</a>
+
+<div id="wrapper">
+
+	
+	<header id="header" class="header has-sticky sticky-jump">
+		<div class="header-wrapper">
+			<div id="masthead" class="header-main ">
+      <div class="header-inner flex-row container logo-left medium-logo-center" role="navigation">
+
+          <!-- Logo -->
+          <div id="logo" class="flex-col logo">
+            <!-- Header logo -->
+<a href="https://aquatix.it/" title="AquatiX" rel="home">
+    <img width="183" height="100" src="https://aquatix.it/wp-content/uploads/2019/11/AquatiX-Pos.png" class="header_logo header-logo" alt="AquatiX"/><img  width="183" height="100" src="https://aquatix.it/wp-content/uploads/2019/11/AquatiX-Pos.png" class="header-logo-dark" alt="AquatiX"/></a>
+          </div>
+
+          <!-- Mobile Left Elements -->
+          <div class="flex-col show-for-medium flex-left">
+            <ul class="mobile-nav nav nav-left ">
+              <li class="nav-icon has-icon">
+  		<a href="#" data-open="#main-menu" data-pos="center" data-bg="main-menu-overlay" data-color="" class="is-small" aria-label="Menu" aria-controls="main-menu" aria-expanded="false">
+		
+		  <i class="icon-menu" ></i>
+		  		</a>
+	</li>            </ul>
+          </div>
+
+          <!-- Left Elements -->
+          <div class="flex-col hide-for-medium flex-left
+            flex-grow">
+            <ul class="header-nav header-nav-main nav nav-left  nav-spacing-xlarge nav-uppercase" >
+                          </ul>
+          </div>
+
+          <!-- Right Elements -->
+          <div class="flex-col hide-for-medium flex-right">
+            <ul class="header-nav header-nav-main nav nav-right  nav-spacing-xlarge nav-uppercase">
+              <li id="menu-item-5517" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-home current-menu-item page_item page-item-11 current_page_item active  menu-item-5517"><a href="https://aquatix.it/" class="nav-top-link">HOME</a></li>
+<li id="menu-item-39" class="menu-item menu-item-type-post_type menu-item-object-page  menu-item-39"><a href="https://aquatix.it/atleti/" class="nav-top-link"><img width="24" height="24" src="https://aquatix.it/wp-content/uploads/2019/12/atleta_blu.png" class="menu-image menu-image-title-below" alt="" /><span class="menu-image-title-below menu-image-title">ATLETI</span></a></li>
+<li id="menu-item-40" class="menu-item menu-item-type-post_type menu-item-object-page  menu-item-40"><a href="https://aquatix.it/gare/" class="nav-top-link"><img width="24" height="24" src="https://aquatix.it/wp-content/uploads/2019/12/primati_blu.png" class="menu-image menu-image-title-below" alt="" /><span class="menu-image-title-below menu-image-title">GARE</span></a></li>
+            </ul>
+          </div>
+
+          <!-- Mobile Right Elements -->
+          <div class="flex-col show-for-medium flex-right">
+            <ul class="mobile-nav nav nav-right ">
+                          </ul>
+          </div>
+
+      </div><!-- .header-inner -->
+     
+      </div><!-- .header-main -->
+<div class="header-bg-container fill"><div class="header-bg-image fill"></div><div class="header-bg-color fill"></div></div><!-- .header-bg-container -->		</div><!-- header-wrapper-->
+	</header>
+
+	
+	<main id="main" class="">
+
+
+<div id="content" role="main" class="content-area">
+
+		
+				<section class="section" id="section_1477660577">
+		<div class="bg section-bg fill bg-fill  bg-loaded" >
+
+			
+			
+			
+
+		</div><!-- .section-bg -->
+
+		<div class="section-content relative">
+			
+		</div><!-- .section-content -->
+
+		
+<style scope="scope">
+
+#section_1477660577 {
+  padding-top: 30px;
+  padding-bottom: 30px;
+}
+</style>
+	</section>
+	
+  <div class="banner-grid-wrapper">
+  <div id="banner-grid-1602397587" class="banner-grid row row-grid row-small" data-packery-options="">
+                      
+<div class="col grid-col large-3 grid-col-1-2" ><div class="col-inner">
+
+  <div class="banner has-hover" id="banner-997600267">
+          <div class="banner-inner fill">
+        <div class="banner-bg fill" >
+            <div class="bg fill bg-fill "></div>
+                                    
+                    </div><!-- bg-layers -->
+        <div class="banner-layers container">
+            <div class="fill banner-link"></div>            
+        </div><!-- .banner-layers -->
+      </div><!-- .banner-inner -->
+
+            
+<style scope="scope">
+
+#banner-997600267 {
+  padding-top: 500px;
+  background-color: rgb(7, 53, 103);
+}
+#banner-997600267 .bg.bg-loaded {
+  background-image: url(https://aquatix.it/wp-content/uploads/2020/02/App-AquatiX-Bunner-1.jpg);
+}
+</style>
+  </div><!-- .banner -->
+
+
+</div></div>
+<div class="col grid-col large-3 grid-col-1-2" ><div class="col-inner">
+
+  <div class="banner has-hover" id="banner-1912000975">
+          <div class="banner-inner fill">
+        <div class="banner-bg fill" >
+            <div class="bg fill bg-fill "></div>
+                                    
+                    </div><!-- bg-layers -->
+        <div class="banner-layers container">
+            <div class="fill banner-link"></div>            
+   <div id="text-box-115103350" class="text-box banner-layer text_box_banner x50 md-x50 lg-x50 y50 md-y50 lg-y50 res-text">
+                                <div class="text dark">
+              
+              <div class="text-inner text-center">
+                  
+	<div class="img has-hover x md-x lg-x y md-y lg-y" id="image_185842014">
+								<div class="img-inner dark" >
+			<img width="242" height="277" src="https://aquatix.it/wp-content/uploads/2020/02/App-AquatiX-Bunner-4.jpg" class="attachment-large size-large" alt="" srcset="https://aquatix.it/wp-content/uploads/2020/02/App-AquatiX-Bunner-4.jpg 242w, https://aquatix.it/wp-content/uploads/2020/02/App-AquatiX-Bunner-4-21x24.jpg 21w, https://aquatix.it/wp-content/uploads/2020/02/App-AquatiX-Bunner-4-31x36.jpg 31w, https://aquatix.it/wp-content/uploads/2020/02/App-AquatiX-Bunner-4-42x48.jpg 42w" sizes="(max-width: 242px) 100vw, 242px" />						
+					</div>
+								
+<style scope="scope">
+
+#image_185842014 {
+  width: 100%;
+}
+</style>
+	</div>
+	
+              </div>
+           </div><!-- text-box-inner -->
+                            
+<style scope="scope">
+
+#text-box-115103350 {
+  width: 60%;
+}
+#text-box-115103350 .text {
+  font-size: 100%;
+}
+</style>
+    </div><!-- text-box -->
+ 
+        </div><!-- .banner-layers -->
+      </div><!-- .banner-inner -->
+
+            
+<style scope="scope">
+
+#banner-1912000975 {
+  padding-top: 500px;
+  background-color: rgb(7, 53, 103);
+}
+</style>
+  </div><!-- .banner -->
+
+
+</div></div>
+<div class="col grid-col large-3 grid-col-1-2" ><div class="col-inner">
+
+  <div class="banner has-hover" id="banner-25479090">
+          <div class="banner-inner fill">
+        <div class="banner-bg fill" >
+            <div class="bg fill bg-fill "></div>
+                                    
+                    </div><!-- bg-layers -->
+        <div class="banner-layers container">
+            <div class="fill banner-link"></div>            
+	<div class="img has-hover x50 md-x50 lg-x50 y50 md-y50 lg-y50" id="image_2091992031">
+								<div class="img-inner dark" >
+			<img width="242" height="277" src="https://aquatix.it/wp-content/uploads/2020/02/App-AquatiX-Bunner-3.jpg" class="attachment-large size-large" alt="" srcset="https://aquatix.it/wp-content/uploads/2020/02/App-AquatiX-Bunner-3.jpg 242w, https://aquatix.it/wp-content/uploads/2020/02/App-AquatiX-Bunner-3-21x24.jpg 21w, https://aquatix.it/wp-content/uploads/2020/02/App-AquatiX-Bunner-3-31x36.jpg 31w, https://aquatix.it/wp-content/uploads/2020/02/App-AquatiX-Bunner-3-42x48.jpg 42w" sizes="(max-width: 242px) 100vw, 242px" />						
+					</div>
+								
+<style scope="scope">
+
+#image_2091992031 {
+  width: 100%;
+}
+</style>
+	</div>
+	
+        </div><!-- .banner-layers -->
+      </div><!-- .banner-inner -->
+
+            
+<style scope="scope">
+
+#banner-25479090 {
+  padding-top: 500px;
+  background-color: rgb(7, 53, 103);
+}
+</style>
+  </div><!-- .banner -->
+
+
+</div></div>
+<div class="col grid-col large-3 grid-col-1-2" ><div class="col-inner">
+
+  <div class="banner has-hover banner_sx_up" id="banner-1462209858">
+          <div class="banner-inner fill">
+        <div class="banner-bg fill" >
+            <div class="bg fill bg-fill "></div>
+                                    
+                    </div><!-- bg-layers -->
+        <div class="banner-layers container">
+            <div class="fill banner-link"></div>            
+	<div class="img has-hover x50 md-x50 lg-x50 y50 md-y50 lg-y50" id="image_857508775">
+								<div class="img-inner dark" >
+			<img width="242" height="277" src="https://aquatix.it/wp-content/uploads/2020/02/App-AquatiX-Bunner-2.jpg" class="attachment-large size-large" alt="" srcset="https://aquatix.it/wp-content/uploads/2020/02/App-AquatiX-Bunner-2.jpg 242w, https://aquatix.it/wp-content/uploads/2020/02/App-AquatiX-Bunner-2-21x24.jpg 21w, https://aquatix.it/wp-content/uploads/2020/02/App-AquatiX-Bunner-2-31x36.jpg 31w, https://aquatix.it/wp-content/uploads/2020/02/App-AquatiX-Bunner-2-42x48.jpg 42w" sizes="(max-width: 242px) 100vw, 242px" />						
+					</div>
+								
+<style scope="scope">
+
+#image_857508775 {
+  width: 100%;
+}
+</style>
+	</div>
+	
+        </div><!-- .banner-layers -->
+      </div><!-- .banner-inner -->
+
+            
+<style scope="scope">
+
+#banner-1462209858 {
+  padding-top: 500px;
+  background-color: rgb(7, 53, 103);
+}
+</style>
+  </div><!-- .banner -->
+
+
+</div></div>
+<div class="col grid-col large-6 grid-col-1 hidden" ><div class="col-inner">
+
+  <div class="banner has-hover" id="banner-1500399545">
+          <div class="banner-inner fill">
+        <div class="banner-bg fill" >
+            <div class="bg fill bg-fill "></div>
+                                    
+                    </div><!-- bg-layers -->
+        <div class="banner-layers container">
+            <div class="fill banner-link"></div>            
+   <div id="text-box-1910931994" class="text-box banner-layer x50 md-x50 lg-x50 y5 md-y5 lg-y5 res-text">
+                                <div class="text dark">
+              
+              <div class="text-inner text-center">
+                  
+<h1 style="text-align: center; border: 1px solid white; background-color: white; border-radius: 30px; min-width:272px"><span style="color: #073567;">ULTIME GARE</span></h1>
+<p> </p>
+<div class='ultime_gare_1'><ul style='list-style-type: none;'><li style='font-size:12px; background-color:white; color:#123888; border-radius:30px; margin-left: 0' class='aquatixgare' ><a nome-pool=Pietralata Conc.A href='#' data-id-gare=98cffe1039132decfb898faca74a089c1eeeed8f  nome-competizione='Trofeo Gaetano Lanzi 2026 ES/A - Qualificazioni' >Roma, 07-08/11/2026: Trofeo Gaetano Lanzi 2026 ES/A - Qualificazioni</a></li><li style='font-size:12px; background-color:white; color:#123888; border-radius:30px; margin-left: 0' class='aquatixgare' ><a nome-pool=Valco San Paolo/Pietralata Conc.B href='#' data-id-gare=d5a5382e7e25ade1c5cb14ad075465525bdd1e48  nome-competizione='Trofeo Gaetano Lanzi 2026 ES/A - Qualificazioni' >Roma, 07-08/11/2026: Trofeo Gaetano Lanzi 2026 ES/A - Qualificazioni</a></li><li style='font-size:12px; background-color:white; color:#123888; border-radius:30px; margin-left: 0' class='aquatixgare' ><a nome-pool=Valco San Paolo Conc.D href='#' data-id-gare=dc21e7af6cfaf245ff2bad1fd91c4623c239ad70  nome-competizione='Trofeo Gaetano Lanzi 2026 ES/A - Qualificazioni' >Roma, 07-08/11/2026: Trofeo Gaetano Lanzi 2026 ES/A - Qualificazioni</a></li><li style='font-size:12px; background-color:white; color:#123888; border-radius:30px; margin-left: 0' class='aquatixgare' ><a nome-pool=Anzio href='#' data-id-gare=f5246eecea14dab39869f7ea34a45b369a3f9663  nome-competizione='DISTANZE SPECIALI Master 2026' >Anzio, 31-08/10-11/2026: DISTANZE SPECIALI Master 2026</a></li><li style='font-size:12px; background-color:white; color:#123888; border-radius:30px; margin-left: 0' class='aquatixgare' ><a nome-pool=Aquaniene Conc.C href='#' data-id-gare=951935b3ac24c9c58aa2a649637978ed77c83f76  nome-competizione='Trofeo Gaetano Lanzi 2026 ES/A - Qualificazioni' >Roma, 07-08/11/2026: Trofeo Gaetano Lanzi 2026 ES/A - Qualificazioni</a></li><li style='font-size:12px; background-color:white; color:#123888; border-radius:30px; margin-left: 0' class='aquatixgare' ><a nome-pool=Frosinone href='#' data-id-gare=de0e1bc4a10019f82723a82ab557957eba6c295e  nome-competizione='1 Manifestazione Regionale Propaganda Nuoto 2026' >Frosinone, 07/11/2026: 1 Manifestazione Regionale Propaganda Nuoto 2026</a></li><li style='font-size:12px; background-color:white; color:#123888; border-radius:30px; margin-left: 0' class='aquatixgare' ><a nome-pool=Pietralata href='#' data-id-gare=72a5f6a67cf27cd7cd3f4ef0b372ea6b03b6b152  nome-competizione='Campionato Regionale Assoluto V.C. 2026' >Roma, 31-01/10-11/2026: Campionato Regionale Assoluto V.C. 2026</a></li><li style='font-size:12px; background-color:white; color:#123888; border-radius:30px; margin-left: 0' class='aquatixgare' ><a nome-pool=Aquaniene href='#' data-id-gare=05aa53559c418c3cc45ea4dec5ce5ff327192401  nome-competizione='1 Meeting ARENA Intercentri' >Roma, 24/10/2026: 1 Meeting ARENA Intercentri</a></li><li style='font-size:12px; background-color:white; color:#123888; border-radius:30px; margin-left: 0' class='aquatixgare' ><a nome-pool=Stadio del Nuoto href='#' data-id-gare=81c806cb96c0a8f8150d69f942261786aff52c40  nome-competizione='Campionato Regionale di Categoria 2026 -  V.L.' >Roma, 10-19/07/2026: Campionato Regionale di Categoria 2026 -  V.L.</a></li><li style='font-size:12px; background-color:white; color:#123888; border-radius:30px; margin-left: 0' class='aquatixgare' ><a nome-pool=Stadio del Nuoto href='#' data-id-gare=88f43a584a5880438e3d8bb52a2a354b61fb24c4  nome-competizione='Campionato Regionale di Categoria 2026 - V.L.' >Roma, 10-19/07/2026: Campionato Regionale di Categoria 2026 - V.L.</a></li><li style='font-size:12px; background-color:white; color:#123888; border-radius:30px; margin-left: 0' class='aquatixgare' ><a nome-pool=Pietralata/Stadio del Nuoto href='#' data-id-gare=6bebb25f470408169885386251ce71c94578702d  nome-competizione='Campionato Regionale di Categoria 2026 - V.L.' >Roma, 10-19/07/2026: Campionato Regionale di Categoria 2026 - V.L.</a></li><li style='font-size:12px; background-color:white; color:#123888; border-radius:30px; margin-left: 0' class='aquatixgare' ><a nome-pool=Stadio del Nuoto href='#' data-id-gare=1802945c2ea4d38625ea4c2b357e2156c0205b3f  nome-competizione='14 Trofeo di Nuoto SIS ROMA - Finali' >Roma, 06-08/07/2026: 14 Trofeo di Nuoto SIS ROMA - Finali</a></li><li style='font-size:12px; background-color:white; color:#123888; border-radius:30px; margin-left: 0' class='aquatixgare' ><a nome-pool=Stadio del Nuoto href='#' data-id-gare=35c4983be675add0f8af74b0a7765a4d9916f05c  nome-competizione='14 Trofeo di Nuoto SIS ROMA' >Roma, 06-08/07/2026: 14 Trofeo di Nuoto SIS ROMA</a></li><li style='font-size:12px; background-color:white; color:#123888; border-radius:30px; margin-left: 0' class='aquatixgare' ><a nome-pool=Stadio del Nuoto href='#' data-id-gare=dd608c2271d63a18e1ec326d4abfa02a177fe9f2  nome-competizione='Camp.Regionale Estivo Es/A 2026 - FINALI' >Roma, 04-05/07/2026: Camp.Regionale Estivo Es/A 2026 - FINALI</a></li><li style='font-size:12px; background-color:white; color:#123888; border-radius:30px; margin-left: 0' class='aquatixgare' ><a nome-pool=Stadio del Nuoto href='#' data-id-gare=27806fcbce60ca7e3131e726db0784045fe6720e  nome-competizione='Campionato Staffette Estate 2026' >Roma, 01-02/07/2026: Campionato Staffette Estate 2026</a></li></ul></div>
+              </div>
+           </div><!-- text-box-inner -->
+                            
+<style scope="scope">
+
+#text-box-1910931994 {
+  width: 80%;
+}
+#text-box-1910931994 .text {
+  font-size: 100%;
+}
+</style>
+    </div><!-- text-box -->
+ 
+        </div><!-- .banner-layers -->
+      </div><!-- .banner-inner -->
+
+            
+<style scope="scope">
+
+#banner-1500399545 {
+  padding-top: 500px;
+  background-color: rgb(7, 53, 103);
+}
+</style>
+  </div><!-- .banner -->
+
+
+</div></div>
+            </div><!-- .banner-grid .row .grid -->
+    <style scope="scope">
+    #banner-grid-1602397587 .grid-col-1{height: 600px}
+    #banner-grid-1602397587 .grid-col-1-2{height: 300px}
+    #banner-grid-1602397587 .grid-col-1-3{height:200px}
+    #banner-grid-1602397587 .grid-col-2-3{height: 400px}
+    #banner-grid-1602397587 .grid-col-1-4{height: 150px}
+    #banner-grid-1602397587 .grid-col-3-4{height: 450px}
+
+
+    
+    
+
+  </style>
+    </div><!-- .banner-grid-wrapper -->
+  
+	<div id="gap-1537150403" class="gap-element clearfix" style="display:block; height:auto;">
+		
+<style scope="scope">
+
+#gap-1537150403 {
+  padding-top: 36px;
+}
+</style>
+	</div>
+	
+	<section class="section" id="section_1635983739">
+		<div class="bg section-bg fill bg-fill  bg-loaded" >
+
+			
+			
+			
+
+		</div><!-- .section-bg -->
+
+		<div class="section-content relative">
+			
+		</div><!-- .section-content -->
+
+		
+<style scope="scope">
+
+#section_1635983739 {
+  padding-top: 30px;
+  padding-bottom: 30px;
+}
+</style>
+	</section>
+	
+	<section class="section" id="section_1144986886">
+		<div class="bg section-bg fill bg-fill  bg-loaded" >
+
+			
+			
+			
+
+		</div><!-- .section-bg -->
+
+		<div class="section-content relative">
+			
+<div class="row"  id="row-1508174253">
+<div class="col small-12 large-12"  ><div class="col-inner"  >
+<h1 style="text-align: center;"><span style="font-size: 105%; color: #ffffff;" data-animate="fadeInLeft">RESTA SEMPRE AGGIORNATO CON L&#8217;APP DI AquatiX</span></h1>
+<p> </p>
+<p data-animate="fadeInUp">                                           </p>
+<div class="row"  id="row-511119030">
+<div class="col medium-6 small-12 large-6"  ><div class="col-inner text-center"  >
+<p style="text-align: center;"><a href="https://play.google.com/store/apps/details?id=it.aquatix.app&#038;hl=it&#038;gl=US" target="_blank" data-animate="fadeInLeft" rel="noopener noreferrer"><img class="alignnone size-full wp-image-528" src="https://localhost/AquatiX/wp-content/uploads/2019/12/google-01.png" alt="" width="251" height="76" srcset="https://aquatix.it/wp-content/uploads/2019/12/google-01.png 251w, https://aquatix.it/wp-content/uploads/2019/12/google-01-24x7.png 24w, https://aquatix.it/wp-content/uploads/2019/12/google-01-36x11.png 36w, https://aquatix.it/wp-content/uploads/2019/12/google-01-48x15.png 48w" sizes="(max-width: 251px) 100vw, 251px" /></a></p>
+</div></div>
+<div class="col medium-6 small-12 large-6"  ><div class="col-inner text-center"  >
+<p style="text-align: center;"><a href="https://apps.apple.com/it/app/aquatix/id1514437859" target="_blank" data-animate="fadeInRight" rel="noopener noreferrer"><img class="alignnone size-full wp-image-529" src="https://localhost/AquatiX/wp-content/uploads/2019/12/google-02.png" alt="" width="254" height="76" srcset="https://aquatix.it/wp-content/uploads/2019/12/google-02.png 254w, https://aquatix.it/wp-content/uploads/2019/12/google-02-24x7.png 24w, https://aquatix.it/wp-content/uploads/2019/12/google-02-36x11.png 36w, https://aquatix.it/wp-content/uploads/2019/12/google-02-48x14.png 48w" sizes="(max-width: 254px) 100vw, 254px" /></a></p>
+</div></div>
+</div>
+</div></div>
+</div>
+		</div><!-- .section-content -->
+
+		
+<style scope="scope">
+
+#section_1144986886 {
+  padding-top: 30px;
+  padding-bottom: 30px;
+  background-color: rgb(7, 53, 103);
+}
+</style>
+	</section>
+	
+		
+				
+</div>
+
+
+
+</main><!-- #main -->
+
+<footer id="footer" class="footer-wrapper">
+
+	
+<!-- FOOTER 1 -->
+<div class="footer-widgets footer footer-1">
+		<div class="row dark large-columns-2 mb-0">
+	   		<div id="custom_html-5" class="widget_text col pb-0 widget widget_custom_html"><div class="textwidget custom-html-widget"><p>
+	<img src="https://aquatix.it/wp-content/uploads/2019/11/AquatiX-Neg.png" style="width:100px" alt="immagine"> 
+</p><p>
+	AEMMEX ELECTRONICS SERVICE SRL <br>C.ne Clodia n° 100 - 00195 Roma - P.IVA: 09204291000
+</p></div></div>        
+		</div><!-- end row -->
+</div><!-- footer 1 -->
+
+
+<!-- FOOTER 2 -->
+
+
+
+<div class="absolute-footer dark medium-text-center text-center">
+  <div class="container clearfix">
+
+    
+    <div class="footer-primary pull-left">
+            <div class="copyright-footer">
+        Copyright 2026 ©      </div>
+          </div><!-- .left -->
+  </div><!-- .container -->
+</div><!-- .absolute-footer -->
+<a href="#top" class="back-to-top button icon invert plain fixed bottom z-1 is-outline round" id="top-link"><i class="icon-angle-up" ></i></a>
+
+</footer><!-- .footer-wrapper -->
+
+</div><!-- #wrapper -->
+
+<!-- Mobile Sidebar -->
+<div id="main-menu" class="mobile-sidebar no-scrollbar mfp-hide">
+    <div class="sidebar-menu no-scrollbar text-center">
+        <ul class="nav nav-sidebar nav-anim nav-vertical nav-uppercase">
+              <li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-home current-menu-item page_item page-item-11 current_page_item menu-item-5517"><a href="https://aquatix.it/" class="nav-top-link">HOME</a></li>
+<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-39"><a href="https://aquatix.it/atleti/" class="nav-top-link"><img width="24" height="24" src="https://aquatix.it/wp-content/uploads/2019/12/atleta_blu.png" class="menu-image menu-image-title-below" alt="" /><span class="menu-image-title-below menu-image-title">ATLETI</span></a></li>
+<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-40"><a href="https://aquatix.it/gare/" class="nav-top-link"><img width="24" height="24" src="https://aquatix.it/wp-content/uploads/2019/12/primati_blu.png" class="menu-image menu-image-title-below" alt="" /><span class="menu-image-title-below menu-image-title">GARE</span></a></li>
+        </ul>
+    </div><!-- inner -->
+</div><!-- #mobile-menu -->
+<script type='text/javascript'>
+/* <![CDATA[ */
+var cnArgs = {"ajaxUrl":"https:\/\/aquatix.it\/wp-admin\/admin-ajax.php","nonce":"01f532f880","hideEffect":"fade","position":"bottom","onScroll":"0","onScrollOffset":"100","onClick":"0","cookieName":"cookie_notice_accepted","cookieTime":"2592000","cookieTimeRejected":"2592000","cookiePath":"\/","cookieDomain":"","redirection":"0","cache":"0","refuse":"0","revokeCookies":"0","revokeCookiesOpt":"automatic","secure":"1","coronabarActive":"0"};
+/* ]]> */
+</script>
+<script type='text/javascript' src='https://aquatix.it/wp-content/plugins/cookie-notice/js/front.min.js?ver=1.3.2'></script>
+<script type='text/javascript' src='https://aquatix.it/wp-content/themes/flatsome/inc/extensions/flatsome-live-search/flatsome-live-search.js?ver=3.10.0'></script>
+<script type='text/javascript' src='https://aquatix.it/wp-includes/js/hoverIntent.min.js?ver=1.8.1'></script>
+<script type='text/javascript'>
+/* <![CDATA[ */
+var flatsomeVars = {"ajaxurl":"https:\/\/aquatix.it\/wp-admin\/admin-ajax.php","rtl":"","sticky_height":"70","lightbox":{"close_markup":"<button title=\"%title%\" type=\"button\" class=\"mfp-close\"><svg xmlns=\"http:\/\/www.w3.org\/2000\/svg\" width=\"28\" height=\"28\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"feather feather-x\"><line x1=\"18\" y1=\"6\" x2=\"6\" y2=\"18\"><\/line><line x1=\"6\" y1=\"6\" x2=\"18\" y2=\"18\"><\/line><\/svg><\/button>","close_btn_inside":false},"user":{"can_edit_pages":false}};
+/* ]]> */
+</script>
+<script type='text/javascript' src='https://aquatix.it/wp-content/themes/flatsome/assets/js/flatsome.js?ver=3.10.0'></script>
+<script type='text/javascript' src='https://aquatix.it/wp-includes/js/wp-embed.min.js?ver=5.3.27'></script>
+<script type='text/javascript' src='https://aquatix.it/wp-content/themes/flatsome/assets/libs/packery.pkgd.min.js?ver=3.10.0'></script>
+
+		<!-- Cookie Notice plugin v1.3.2 by Digital Factory https://dfactory.eu/ -->
+		<div id="cookie-notice" role="banner" class="cookie-notice-hidden cookie-revoke-hidden cn-position-bottom" aria-label="Cookie Notice" style="background-color: rgba(7,53,103,1);"><div class="cookie-notice-container" style="color: #fff;"><span id="cn-notice-text" class="cn-text-container">Utilizziamo i cookie per essere sicuri che tu possa avere la migliore esperienza sul nostro sito. Se continui a navigare accetti le nostre modalità d’uso.</span><span id="cn-notice-buttons" class="cn-buttons-container"><a href="#" id="cn-accept-cookie" data-cookie-set="accept" class="cn-set-cookie cn-button wp-default button" aria-label="Accetta">Accetta</a><a href="https://www.iubenda.com/privacy-policy/23961157" target="_blank" id="cn-more-info" class="cn-more-info cn-button wp-default button" aria-label="Privacy policy">Privacy policy</a></span><a href="javascript:void(0);" id="cn-close-notice" data-cookie-set="accept" class="cn-close-icon" aria-label="Accetta"></a></div>
+			
+		</div>
+		<!-- / Cookie Notice plugin -->
+<!-- Modal HP Classifiche -->
+<div id="myModalRecord" class="modal">
+	<div class="modal-content">
+		<span class="close">&times;</span>
+		<h5 class="pRecord"></h5>
+		<div class="record_container"></div>
+	</div>
+</div>
+
+<!-- The Modal atleti-->
+<div id="myModal" class="modal">
+	<!-- Modal content -->
+	<div class="modal-content">
+		<span class="close">&times;</span>
+
+		<div style="display:flex; justify-content: space-between; width:80%; margin-top:10%">
+
+			<div style="margin-left: 5%">
+
+
+				<h2 class="nome"></h2>
+				<p class="nationality"></p>
+
+				<h4>Anno di nascita:</h4>
+				<p class="nascita"></p>
+				<h4>Società attuale:</h4>
+				<p class="society"></p>
+
+
+				<p class="descr_athlete"></p>
+				<!-- <table style="border:none">
+					<tr class="table_head">
+						<th style="border-top: 4px solid #4F8AF2; text-align: center">Tutte</th>
+						<th style="border-top: 4px solid #c69401; text-align: center">Primo</th>
+						<th style="border-top: 4px solid #e0e0e2; text-align: center">Secondo</th>
+						<th style="border-top: 4px solid #d6823a;text-align: center">Terzo</th>
+					</tr>
+					<tr class="table_body">
+						<td class="all_pos_races" style="text-align: center"></td>
+						<td class="first_pos_race" style="text-align: center"></td>
+						<td class="second_pos_race" style="text-align: center"></td>
+						<td class="third_pos_race" style="text-align: center"></td>
+					</tr>
+				</table>  -->
+			</div>
+			<img class="profile_pics" src="" alt="immagine" style="border-radius: 90px;width: 120px;max-height: 120px;margin-left: 40px;">
+		</div>
+		<div class="descrizione" style="margin-top: 10px"></div>
+
+		<h3 style="text-align: center;display: none">Record Personali</h3>
+		<button class="accordion" style="display: none">Scopri</button>
+		<div class="panel" style="display: none">
+			<table class="table_record_time">
+				<tr>
+					<th>Tipologia</th>
+					<th>Tempo</th>
+					<th>Data</th>
+				</tr>
+
+			</table>
+		</div>
+		<h3 style="text-align: center;margin-top:20px">Tutti i tempi</h3>
+		<button class="accordion">Scopri</button>
+		<div class="panel">
+			<table class="table_last_time">
+				<tr>
+					<th>Tipologia</th>
+					<th>Tempo</th>
+					<th>Data</th>
+				</tr>
+
+			</table>
+		</div>
+	</div>
+</div>
+
+<!-- Modal gare -->
+<div id="myModalGare" class="modal">
+	<!-- Modal content -->
+	<div class="modal-content">
+		<span class="close">&times;</span>
+		<h1 class="pool" id="title_race" style="margin-top:50px; text-align:center; color:#073567"></h1>
+		<div class="img_pool" style="width: 100%; text-align:center"></div>
+		<table style="border:none">
+			<tr>
+				<td>
+					<label for="" style="color: #073567">Categorie</label>
+					<select name="" id="list_categoria">
+						<option value="All">TUTTE</option>
+
+					</select>
+
+				</td>
+				<td>
+					<label for="" style="color: #073567">Stili</label>
+					<select name="" id="list_stili">
+						<option value="All">TUTTI</option>
+
+					</select>
+				</td>
+			</tr>
+		</table>
+		<div class="classifica" id="classifiche">
+
+
+		</div>
+		<div class="loader"></div>
+	</div>
+</div>
+
+<script>
+	jQuery(function($) {
+
+		let atleti;
+
+		function showModal() {
+			$(".nome").text("");
+			$(".nascita").text("");
+			$(".tecnico").text("");
+			$(".societa").text("");
+			$(".stili").text("");
+			$("#myModal").show();
+		}
+
+		function show_Modal_gare() {
+			$(".loader").show();
+			$("#myModalGare").show();
+			setTimeout(function() {
+				$(".loader").hide();
+			}, 1200)
+
+		}
+
+		$("#myModal .close").click(function() {
+
+			$(".time_last_race").remove("");
+			$(".records_table_result").remove("");
+			$(".all_pos_races").text("");
+			$(".first_pos_race").text("");
+			$('.second_pos_race').text("");
+			$('.third_pos_race').text("");
+			$("#myModal").hide();
+		});
+
+
+		/*$.get("https://aquatix.it/wp-json/api/v2/nuotatori/", function(result) {
+			atleti = result;
+			updateAtleti(atleti);
+		});*/
+
+
+		function atlListener(event) {
+			//$(".descrizione").append("<button class='accordion' id='accordionDescr' >" + $(event.target).attr('data-descr').substr(0, 20) + "...</button><div class='panel' id='content_descr'>" + $(event.target).attr("data-descr") + "</div>")
+			showModal();
+			$(".nome").text($(event.target).attr("data-nome"));
+			$(".nascita").text($(event.target).attr("data-nascita"));
+			$(".society").text($(event.target).attr("data-society"));
+			$(".nationality").text($(event.target).attr("data-nationality"));
+			$(".profile_pics").attr("src", $(event.target).attr("url-pic"));
+			if ($(event.target).attr("data-descr") !== "") {
+				$(".descr_athlete").text($(event.target).attr("data-descr"));
+			}
+			$fincode = $(event.target).attr('data-fincode');
+
+
+			$.get("https://aquatix.it/wp-json/api/v2/nuotatori/single?fincode=" + $fincode, function(result_atleti) {
+
+				let data = result_atleti.data;
+
+
+				let all_races = 0;
+				var first = 0;
+				var second = 0;
+				var third = 0;
+				let results = data.results;
+				let rids = Object.values(data.records);
+				let records = results.filter(i => rids.includes(i.id));
+				//console.log(records);
+
+
+				insert_record_table(records);
+
+				for (let index = 0; index < results.length; index++) {
+					let position = results[index].ord;
+
+					if (position == '1') {
+						first++;
+					} else if (position == '2') {
+						second++;
+					} else if (position == '3') {
+						third++;
+					}
+
+					$(".table_last_time").append("<tr class='time_last_race'><td>" + results[index].style + "</td><td>" + results[index].time + "</td><td>" + changeFormatDate(results[index].date.substr(0, 10)) + "</td></tr>")
+
+
+
+				}
+				/* $(".all_pos_races").text(results.length);
+				$(".first_pos_race").text(first);
+				$('.second_pos_race').text(second);
+				$('.third_pos_race').text(third); */
+
+			});
+
+		}
+
+		function insert_record_table(record) {
+			for (let y in record) {
+				$(".table_record_time").append("<tr class='records_table_result'><td>" + record[y].style + "</td><td>" + record[y].time + "</td><td class='td_with_i' >" + changeFormatDate(record[y].date.substr(0, 10)) + "</td></tr>");
+			}
+
+		}
+
+
+
+
+		//Funzione per live Search degli atleti
+		$("#myInput").keyup(function() {
+			let value = $(this).val();
+			$(".atleti div").each(function() {
+				let thisDiv = $(this);
+				if (thisDiv.attr("attr-nome").indexOf(value.toLowerCase()) !== -1) {
+
+					thisDiv.show();
+
+				} else {
+
+					thisDiv.hide();
+				}
+			});
+		});
+
+
+		function createAtleta(atleta) {
+
+			let nome_minuscolo = atleta.fullname.toLowerCase();
+			let fullname = titleCase(atleta.fullname);
+			let $atleta = $('<div class="aquatixatleti large-3 col" style="text-align:center" attr-nome="' + nome_minuscolo + '" ></div>');
+			let $link = $('<a href="#" data-id="' + atleta.fincode + '" ><img class="img_box_atleta" data-nationality="' + atleta.nat + '" data-fincode="' + atleta.fincode + '" data-descr="' + atleta.descrizione + '" data-society="' + atleta.team + '" data-nascita="' + atleta.year + '" data-nome="' + atleta.fullname + '"url-pic="' + atleta.image + '" style="width:auto" src="' + atleta.image + '"><h4 class="nome_box_atleta" style="margin:0 auto; color: white; background-color:#073567; box-shadow: 5px 5px 10px #73567;">' + fullname + '</h4></a>');
+			$link.click(atlListener);
+			$atleta.append($link);
+
+			return $atleta;
+
+		}
+
+
+
+		function updateAtleti(atleti) {
+
+			$(".atleti div.aquatixatleti").remove();
+			$("#loader_atleti").hide();
+			for (const i in atleti) {
+
+				const $atleta = createAtleta(atleti[i]);
+				$(".atleti").append($atleta);
+
+			}
+
+			//live_search();
+		}
+
+
+		setTimeout(() => {
+
+			$(".aquatixgare").each(function() {
+
+				let aquatix_click = $(this).find("a");
+				aquatix_click.click(function(event) {
+
+					let data_id_gara = $(this).attr("data-id-gare");
+					let title_competizione = $(this).attr("nome-competizione");
+					let nome_pool = $(this).attr("nome-pool");
+
+					$("#title_race").text(title_competizione);
+					if (nome_pool !== "null") {
+						$("#title_race").append("<p style='font-size: 16px'>" + nome_pool + "</p>");
+					}
+					//event.preventDefault();
+					var piscina_competizione;
+					if (nome_pool == "null") {
+
+						//$(".img_pool").append("<img class='url_img_pool' src='https://aquatix.it/wp-content/uploads/2020/01/Placeholder_piscine.png' style='width:60%; height:auto; margin-top: 20px'>");
+						$('.modal-content').css('background-image', 'url(https://aquatix.it/wp-content/uploads/2020/01/Placeholder_piscine.png)');
+
+					} else {
+
+						$.getJSON("https://aquatix.it/wp-json/api/v2/piscina/url?nome_pool=" + nome_pool, function(result_pool) {
+							let img_pool = result_pool[0].img;
+							//$(".img_pool").append("<img class='url_img_pool' src="+img_pool+" style='width:60%; height:auto; margin-top: 20px'>");
+							$('.modal-content').css('background-image', 'url(' + img_pool + ')');
+
+						});
+
+					}
+
+					var url_piscina;
+					$.getJSON("https://aquatix.nextadv.it/admin/gara/" + data_id_gara, function(result) {
+						let gara = result.results;
+						var array_stili = [];
+						var uniqueNames = [];
+						//console.log("gara", gara);
+						// ciclo per strutturare le option della select "cotegorie" nel Modal atleti
+						for (var key in gara) {
+
+							var obj = gara[key];
+							const ordered = {};
+							Object.keys(obj).sort(sortStyles).forEach(function(key) {
+
+								ordered[key] = obj[key];
+
+							});
+							$("#list_categoria").append('<option  class="elenco_categoria" value=' + key.split(" ").join("_") + '>' + key + '</option>');
+							$(".classifica").append("<div class='classifica_div_cat' id=" + key.split(" ").join("_") + " attributo-cat=" + key.split(" ").join("_") + " style='text-align: center'><h3 style='color:#073567; margin-top:20px'>" + key + "</h3></div>");
+							// ciclo per strutturare le option della select "stili" nel Modal atleti
+
+							for (var prop in ordered) {
+								var battery = ordered[prop];
+								var prop_toLower = prop.toLowerCase().trim();
+								var prop_replace = prop_toLower.split(" ").join("_");
+								//console.log("LEEEGGO_2", prop_toLower);
+								array_stili.push(prop);
+								$.each(array_stili, function(i, el) {
+									if ($.inArray(el, uniqueNames) === -1) uniqueNames.push(el);
+								});
+								//console.log("array", uniqueNames);
+								//console.log("LEEEGGO_3", prop_replace);
+								//$('#list_stili').append('<option class="elenco_stili" value=' + prop_replace + '>' + prop + '</option>');
+
+								$("#" + key.split(" ").join("_")).append('<div class="classifica_div" data-stiles=' + prop_replace + '><button class="accordion">' + prop + '</button><div class="panel" id=' + prop_replace + key.split(" ").join("_") + '></div></div>');
+								//console.log(prop + " = " + obj[prop]);
+								//ciclo per strutturare tabelle con batterie atleti
+								for (index in battery) {
+									$("#" + prop_replace + key.split(" ").join("_")).append("<strong>Batteria #" + index + "</strong><table id='line_" + index + "_" + prop_replace + key.split(" ").join("_") + "'><tr ><th>Nome</th><th>Anno</th><th>Naz.</th><th>Tempo</th></tr></table>")
+									var athletes = battery[index];
+									for (athlete of athletes) {
+										var intertempi = athlete.MemFields;
+
+										$("#line_" + index + "_" + prop_replace + key.split(" ").join("_")).append("<tr id=" + athlete.ord + athlete.athlete.lastname + athlete.athlete.firstname + " onclick='openIntertempi(this.id)' style='cursor: pointer'><td>" + athlete.ord + ". " + athlete.athlete.firstname + " " + athlete.athlete.lastname + "</td><td>" + athlete.athlete.year + "</td><td>" + athlete.athlete.nat + "</td><td>" + athlete.time + "</td></tr><tr style='display:none;' class='intertempi_div" + athlete.ord + athlete.athlete.lastname + athlete.athlete.firstname + "'><td style='text-align:center;width: 48px'><img src='https://aquatix.it/wp-content/uploads/2020/03/code-working-outline.png' style='width:20px; height: 20px' /></td><td style='text-align:center;width: 48px' ><img src='https://aquatix.it/wp-content/uploads/2020/03/stopwatch-outline.png' style='width: 20px; height: 20px' /></td><td style='text-align:center;width: 48px'><img src='https://aquatix.it/wp-content/uploads/2020/03/time-outline.png' style='width: 20px; height: 20px' /></td></tr>");
+										for (let index_intertempi = 0; index_intertempi < intertempi.length; index_intertempi++) {
+											if (intertempi[index_intertempi].V !== "") {
+												if (intertempi[index_intertempi].T == "") {
+													intertempi[index_intertempi].T = intertempi[index_intertempi].V;
+												}
+												let vasca_intertempo;
+												if(intertempi[index_intertempi].M == "FINISH" || intertempi[index_intertempi].M === "ARRIVO"){
+													if(prop.indexOf('x') === 1){
+														let int_all = prop.split('x');
+														let int_1 = int_all[0];
+														let int_2 = int_all[1];
+														vasca_intertempo = parseInt(int_1) * parseInt(int_2) +"m";
+													}else{
+														let intertempo_simply = prop.split(' ')[0];
+														vasca_intertempo = intertempo_simply + "m";
+													}
+												}else{
+													vasca_intertempo = intertempi[index_intertempi].M;
+												}
+												$("#line_" + index + "_" + prop_replace + key.split(" ").join("_")).append("<tr class='intertempi_div" + athlete.ord + athlete.athlete.lastname + athlete.athlete.firstname + "' style='display:none; font-size: 14px'><td style='text-align:center; width: 48px'><strong>" + vasca_intertempo + "</strong></td><td style='text-align:center; width: 48px'><strong>" + intertempi[index_intertempi].T + "</strong></td><td style='text-align:center; width: 48px'><strong>" + intertempi[index_intertempi].V + "</strong></td></tr>")
+											}
+										}
+										var piscina_competizione = athlete.event.pool;
+									}
+
+								}
+
+							}
+
+						}
+
+						uniqueNames.sort(sortStyles);
+						for (let i_unique = 0; i_unique < uniqueNames.length; i_unique++) {
+							var index_uniqueLower = uniqueNames[i_unique].toLowerCase().trim();
+							var index_replac_style = index_uniqueLower.split(" ").join("_");
+							$('#list_stili').append('<option class="elenco_stili" value=' + index_replac_style + '>' + uniqueNames[i_unique] + '</option>');
+						}
+
+						bind_accordion();
+
+					});
+					$(".loader").show();
+					show_Modal_gare();
+				});
+
+			});
+
+		}, 400);
+
+
+		$("#myModalGare .close").click(function() {
+
+			$(".classifica div").remove("");
+			$(".noclassifica div").remove("");
+			$(".pool").text("");
+			$(".elenco_categoria").remove("");
+			$(".elenco_stili").remove("");
+			$(".url_img_pool").remove("");
+			$("#myModalGare").hide();
+
+
+		});
+
+		setTimeout(() => {
+			$(".aquatixrecord").each(function() {
+
+				let aquatix_record_click = $(this).find("a");
+				aquatix_record_click.click(function(event) {
+					let data_cat_record = $(this).attr("cat-record");
+					$(".pRecord").text("Records: " + data_cat_record);
+					$.getJSON("https://aquatix.it/wp-json/api/v2/primati", function(result3) {
+
+						let atleta_record = result3.scores;
+						for (let index = 0; index < atleta_record.length; index++) {
+
+							let id = atleta_record[index]._id.cat;
+
+							if (id.replace(" ", "-") == data_cat_record) {
+
+								$(".record_container").append("<button class='accordion'>" + atleta_record[index]._id.comp + "</button><div class='panel'><h6>" + atleta_record[index].record.event + ": <br>" + atleta_record[index].record.date.substr(0, 10) + "</h6><p>" + atleta_record[index].record.name + " " + atleta_record[index].record.lastname + ": " + atleta_record[index].record.time + "</p></div>")
+
+							}
+
+						}
+
+						bind_accordion();
+
+					});
+
+					$("#myModalRecord").show();
+
+				})
+			});
+		}, 100);
+
+		$("#myModalRecord .close").click(function() {
+
+			$(".elementRecord").remove("");
+			$("h6").remove("");
+			$(".pRecord").text("");
+			$(".recordDiv").remove("");
+			$(".accordion").remove("");
+			$("#myModalRecord").hide();
+
+		})
+
+
+		$("#list_categoria").change(function() {
+
+			let option_selected = $(this).val();
+			$(".classifica_div_cat").hide();
+			let show = $(".classifica_div_cat");
+			//console.log(show);
+			let div_attr = $(".classifica_div_cat").attr('attributo-cat');
+			if (option_selected == "All") {
+
+				$(".classifica_div_cat").show();
+
+			} else {
+
+				$(".classifica_div_cat[attributo-cat=\"" + option_selected + "\"]").show();
+
+			}
+		});
+
+		$("#list_stili").change(function() {
+
+			const option_chose = $(this).val();
+			//console.log(option_chose);
+
+			$(".classifica_div").hide();
+			let show1 = $(".classifica_div");
+			if (option_chose == "All") {
+
+				$(".classifica_div").show();
+
+			} else {
+
+				$(".classifica_div[data-stiles=\"" + option_chose + "\"]").show();
+
+			}
+		})
+
+		$("#data1").change(function() {
+
+			let data_select = $(this).val();
+			//console.log(data_select);
+			$(".ultime_gare div").hide();
+			if (data_select == "") {
+
+				$(".ultime_gare div").show()
+			} else {
+
+				$(".ultime_gare div[data_gara=\"" + data_select + "\"]").show();
+
+			}
+		});
+
+	});
+</script>
+
+<script>
+	var times = document.getElementsByClassName("accordion");
+	var i;
+
+	for (i = 0; i < times.length; i++) {
+		times[i].addEventListener("click", function() {
+			this.classList.toggle("active");
+			var panel = this.nextElementSibling;
+			if (panel.style.display === "block") {
+
+				panel.style.display = "none";
+			} else {
+				panel.style.display = "block";
+			}
+		});
+	}
+
+	function sortStyles(a, b) {
+		var array_stili_sort = ["50 m Stile Libero", "100 m Stile Libero", "200 m Stile Libero",
+			"400 m Stile Libero", "800 m Stile Libero", "1500 m Stile Libero", "50 m Dorso", "100 m Dorso",
+			"200 m Dorso", "50 m Rana", "100 m Rana", "200 m Rana", "50 m Farfalla", "100 m Farfalla", "200 m Farfalla",
+			"100 m Misti", "200 m Misti", "400 m Misti", "4x50 m Stile Libero", "4x100 m Stile Libero", "4x200 m Stile Libero", "4x50 m Misti", "4x100 m Misti"
+		];
+		var index_a = array_stili_sort.indexOf(a);
+
+		var index_b = array_stili_sort.indexOf(b);
+		if (index_a < index_b) {
+			return -1;
+		}
+		if (index_a > index_b) {
+			return 1;
+		}
+	}
+
+	//funzione che torna le prime lettere delle parole in Uppercase
+	function titleCase(str) {
+		var splitStr = str.toLowerCase().split(' ');
+		for (var i = 0; i < splitStr.length; i++) {
+			// You do not need to check if i is larger than splitStr length, as your for does that for you
+			// Assign it back to the array
+			splitStr[i] = splitStr[i].charAt(0).toUpperCase() + splitStr[i].substring(1);
+		}
+		// Directly return the joined string
+		return splitStr.join(' ');
+	}
+
+	function bind_accordion() {
+
+		var acc = document.getElementsByClassName("accordion");
+		var i;
+
+		for (i = 0; i < acc.length; i++) {
+
+			acc[i].addEventListener("click", function() {
+				this.classList.toggle("active");
+				var panel = this.nextElementSibling;
+				if (panel.style.display === "block") {
+
+					panel.style.display = "none";
+				} else {
+
+					panel.style.display = "block";
+				}
+			});
+		}
+	}
+
+	function openIntertempi(id) {
+		var div = document.getElementById(id);
+		var panel = document.getElementsByClassName("intertempi_div" + id);
+		for (let index = 0; index < panel.length; index++) {
+			if (panel[index].style.display === "block") {
+
+				panel[index].style.display = "none";
+			} else {
+
+				panel[index].style.display = "block";
+			}
+
+		}
+
+	}
+
+	function msToTime(msDurata) {
+
+		var millisecondi = parseInt((msDurata % 1000) / 100),
+			secondi = parseInt((msDurata / 1000) % 60),
+			minuti = parseInt((msDurata / (1000 * 60)) % 60),
+			ore = parseInt((msDurata / (1000 * 60 * 60)) % 24);
+
+		ore = (ore < 10) ? "0" + ore : ore;
+		minuti = (minuti < 10) ? "0" + minuti : minuti;
+		secondi = (secondi < 10) ? "0" + secondi : secondi;
+
+		return ore + ":" + minuti + ":" + secondi + "." + millisecondi;
+
+	}
+
+	function changeFormatDate(check) {
+
+		var data = check.split("-");
+		var data1 = data.reverse();
+		var dataNormal = data1[0] + "-" + data1[1] + "-" + data1[2];
+
+		return dataNormal;
+
+	}
+
+	//funzione che restituisce array senza ripetizioni
+	function onlyUnique(value, index, self) {
+		return self.indexOf(value) === index;
+	}
+
+	/*function myMap() {
+
+		var json_piscine = (function() {
+            var json = null;
+            jQuery.ajax({
+                'async': false,
+                'global': false,
+                'url': "https://aquatix.it/wp-json/api/v2/piscine",
+                'dataType': "json",
+                'success': function(data) {
+
+                    //console.log("data", data);
+                    json = data;
+
+                }
+            });
+
+            return json;
+
+        })();
+
+
+        //console.log("piscine", json_piscine);
+		var mapOptions = {
+			center: new google.maps.LatLng(41.8513036, 11.9195296),
+			zoom: 8,
+			panControl: true,
+			zoomControl: true,
+			mapTypeId: google.maps.MapTypeId.ROADMAP
+		};
+
+		var icons = 'https://aquatix.it/wp-content/themes/flatsome-child/icon_marker/pin.svg';
+
+		var map = new google.maps.Map(document.getElementById("map_pool"), mapOptions);
+
+		for (var i = 0; i < json_piscine.length; i++) {
+			var data = json_piscine[i],
+				latLng = new google.maps.LatLng(data.lat, data.lng);
+
+
+			// Crea Marker e mettilo nell Map
+			var marker = new google.maps.Marker({
+
+				position: latLng,
+				map: map,
+				title: data.nome,
+				icon: icons
+
+			});
+			var infoWindow = new google.maps.InfoWindow();
+
+			// Attaching a click event to the current marker
+			/* google.maps.event.addListener(marker, "click", function(e) {
+				infoWindow.setContent(data.description);
+				infoWindow.open(map, marker);
+			}); */
+
+			// Creating a closure to retain the correct data 
+			//Note how I pass the current data in the loop into the closure (marker, data)
+			/*(function(marker, data) {
+
+				// Attaching a click event to the current marker
+				google.maps.event.addListener(marker, "click", function(e) {
+
+					var date = new Date();
+					var giorno = date.getDay();
+					var apre;
+					var ora = date.getHours();
+					//console.log("ora", ora);
+					var chiude;
+					var giorno_corrente_orario;
+					if (giorno == 0) {
+
+						giorno_corrente_orario = data.times[6];
+
+					} else {
+
+						giorno_corrente_orario = data.times[giorno - 1];
+
+					}
+					var orario_apertura = Number(giorno_corrente_orario.open.substr(0, 2));
+					var orario_chiusura = Number(giorno_corrente_orario.close.substr(0, 2));
+					var open_close;
+					if (ora >= orario_apertura && ora < orario_chiusura) {
+
+						open_close = "<strong style='color: green; font-size:14px'>Aperta</strong> : chiude alle <strong>" + giorno_corrente_orario.close + " </strong>";
+
+					} else {
+
+						open_close = "<strong style='color:red'>Chiusa</strong>";
+
+					}
+					var schedule_settimanale = data.times;
+
+					//console.log("orario settimanale", schedule_settimanale);
+					infoWindow.setContent('<div><img src=' + data.img + ' style="width:250px; margin-left: px" alt="immagine"><h4>' + data.name + '</h4><p>Direttore: ' + data.director + '</p><p>' + open_close + '</p><p><i class="fas fa-map-marker-alt" style="color:#4F8AF2"></i>  ' + data.address + '</p><div><i class="far fa-clock" style="color:#4F8AF2"></i> Orari:<br><p class="schedule_week" ><strong>' + schedule_settimanale[0].day + '</strong>: ' + schedule_settimanale[0].open + '-' + schedule_settimanale[0].close + '<br>' + schedule_settimanale[1].day + ': ' + schedule_settimanale[1].open + '-' + schedule_settimanale[1].close + '<br>' + schedule_settimanale[2].day + ': ' + schedule_settimanale[2].open + '-' + schedule_settimanale[2].close + '<br>' + schedule_settimanale[3].day + ': ' + schedule_settimanale[3].open + '-' + schedule_settimanale[3].close + '<br>' + schedule_settimanale[4].day + ': ' + schedule_settimanale[4].open + '-' + schedule_settimanale[4].close + '<br>' + schedule_settimanale[5].day + ': ' + schedule_settimanale[5].open + '-' + schedule_settimanale[5].close + '<br>' + schedule_settimanale[6].day + ': ' + schedule_settimanale[6].open + '-' + schedule_settimanale[6].close + '<br></p></div><p><i class="fas fa-phone" style="color:#4F8AF2"></i> ' + data.phone + '</p><p><i class="far fa-envelope" style="color:#4F8AF2"></i> ' + data.email + '</p><p><img src="https://aquatix.it/wp-content/uploads/2019/12/piscine_azzurre.png" style="width:20px; height:20px">' + data.tags + '</p></div>');
+					infoWindow.open(map, marker);
+
+				});
+
+			})(marker, data);
+		}
+
+	} */
+
+	function open_accordion(id) {
+		var accordion = document.getElementById(id);
+		var icon = accordion.getElementsByClassName("fa fa-chevron-down");
+		console.log("icon", icon);
+		var panel = accordion.nextElementSibling;
+		if (panel.style.display === "block") {
+
+			panel.style.display = "none";
+			icon.className = 'fa-chevron-down';
+		} else {
+			panel.style.display = "block";
+			icon.className = 'rtoate180';
+
+		}
+	}
+</script>
+
+
+</body>
+
+</html>

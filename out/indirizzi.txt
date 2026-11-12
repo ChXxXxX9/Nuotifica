@@ -1,0 +1,53 @@
+							<form method="get" class="searchform" action="https://aquatix.it/" role="search">
+						$('.modal-content').css('background-image', 'url(https://aquatix.it/wp-content/uploads/2020/01/Placeholder_piscine.png)');
+						$.getJSON("https://aquatix.it/wp-json/api/v2/piscina/url?nome_pool=" + nome_pool, function(result_pool) {
+						//$(".img_pool").append("<img class='url_img_pool' src='https://aquatix.it/wp-content/uploads/2020/01/Placeholder_piscine.png' style='width:60%; height:auto; margin-top: 20px'
+					$.getJSON("https://aquatix.it/wp-json/api/v2/primati", function(result3) {
+					$.getJSON("https://aquatix.nextadv.it/admin/gara/" + data_id_gara, function(result) {
+			$.get("https://aquatix.it/wp-json/api/v2/nuotatori/single?fincode=" + $fincode, function(result_atleti) {
+		/*$.get("https://aquatix.it/wp-json/api/v2/nuotatori/", function(result) {
+		<!-- Cookie Notice plugin v1.3.2 by Digital Factory https://dfactory.eu/ -->
+		var icons = 'https://aquatix.it/wp-content/themes/flatsome-child/icon_marker/pin.svg';
+	<img src="https://aquatix.it/wp-content/uploads/2019/11/AquatiX-Neg.png" style="width:100px" alt="immagine"> 
+	<link rel="pingback" href="https://aquatix.it/xmlrpc.php" />
+	<link rel="profile" href="https://gmpg.org/xfn/11" />
+	<link rel='stylesheet' id='wp-block-library-css'  href='https://aquatix.it/wp-includes/css/dist/block-library/style.min.css?ver=5.3.27' type='text/css' media='all' />
+                'url': "https://aquatix.it/wp-json/api/v2/piscine",
+    <img width="183" height="100" src="https://aquatix.it/wp-content/uploads/2019/11/AquatiX-Pos.png" class="header_logo header-logo" alt="AquatiX"/><img  wid
+ + '</p><p><i class="far fa-envelope" style="color:#4F8AF2"></i> ' + data.email + '</p><p><img src="https://aquatix.it/wp-content/uploads/2019/12/piscine_azzurre.png" style="width:20px; height:20px">' + data.tags + '</p
+"accept" class="cn-set-cookie cn-button wp-default button" aria-label="Accetta">Accetta</a><a href="https://www.iubenda.com/privacy-policy/23961157" target="_blank" id="cn-more-info" class="cn-more-info cn-button wp-default 
+';head.appendChild(style);setTimeout(function(){head.removeChild(style);}, 0);</script><script src="https://aquatix.it/wp-content/themes/flatsome/assets/libs/ie-flexibility.js"></script><![endif]--><link rel="icon" href
+<a href="https://aquatix.it/" title="AquatiX" rel="home">
+<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-39"><a href="https://aquatix.it/atleti/" class="nav-top-link"><img width="24" height="24" src="https://aquatix.it/wp-content/uploads
+<li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-40"><a href="https://aquatix.it/gare/" class="nav-top-link"><img width="24" height="24" src="https://aquatix.it/wp-content/uploads/2
+<link rel="EditURI" type="application/rsd+xml" title="RSD" href="https://aquatix.it/xmlrpc.php?rsd" />
+<link rel="alternate" type="application/rss+xml" title="AquatiX &raquo; Feed dei commenti" href="https://aquatix.it/comments/feed/" />
+<link rel="alternate" type="application/rss+xml" title="AquatiX &raquo; Feed" href="https://aquatix.it/feed/" />
+<link rel="apple-touch-icon-precomposed" href="https://aquatix.it/wp-content/uploads/2019/11/cropped-Aquatix_favicon-180x180.png" />
+<link rel="icon" href="https://aquatix.it/wp-content/uploads/2019/11/cropped-Aquatix_favicon-192x192.png" sizes="192x192" />
+<link rel="wlwmanifest" type="application/wlwmanifest+xml" href="https://aquatix.it/wp-includes/wlwmanifest.xml" /> 
+<link rel='https://api.w.org/' href='https://aquatix.it/wp-json/' />
+<link rel='stylesheet' id='cookie-notice-front-css'  href='https://aquatix.it/wp-content/plugins/cookie-notice/css/front.min.css?ver=5.3.27' type='text/css' media='all' />
+<link rel='stylesheet' id='custom-fa-css'  href='https://use.fontawesome.com/releases/v5.0.6/css/all.css?ver=5.3.27' type='text/css' media='all' />
+<link rel='stylesheet' id='flatsome-icons-css'  href='https://aquatix.it/wp-content/themes/flatsome/assets/css/fl-icons.css?ver=3.3' type='text/css' media='all' />
+<link rel='stylesheet' id='flatsome-main-css'  href='https://aquatix.it/wp-content/themes/flatsome/assets/css/flatsome.css?ver=3.10.0' type='text/css' media='all' />
+<link rel='stylesheet' id='flatsome-style-css'  href='https://aquatix.it/wp-content/themes/flatsome-child/style.css?ver=3.0' type='text/css' media='all' />
+<link rel='stylesheet' id='menu-image-css'  href='https://aquatix.it/wp-content/plugins/menu-image/includes/css/menu-image.css?ver=2.9.6' type='text/css' media='all' />
+<meta name="msapplication-TileImage" content="https://aquatix.it/wp-content/uploads/2019/11/cropped-Aquatix_favicon-270x270.png" />
+<script type='text/javascript' src='https://aquatix.it/wp-content/plugins/cookie-notice/js/front.min.js?ver=1.3.2'></script>
+<script type='text/javascript' src='https://aquatix.it/wp-content/themes/flatsome/assets/js/flatsome.js?ver=3.10.0'></script>
+<script type='text/javascript' src='https://aquatix.it/wp-content/themes/flatsome/inc/extensions/flatsome-live-search/flatsome-live-search.js?ver=3.10.0'><
+<script type='text/javascript' src='https://aquatix.it/wp-includes/js/hoverIntent.min.js?ver=1.8.1'></script>
+<script type='text/javascript' src='https://aquatix.it/wp-includes/js/jquery/jquery-migrate.min.js?ver=1.4.1'></script>
+<script type='text/javascript' src='https://aquatix.it/wp-includes/js/jquery/jquery.js?ver=1.12.4-wp'></script>
+<script type='text/javascript' src='https://aquatix.it/wp-includes/js/wp-embed.min.js?ver=5.3.27'></script>
+="https://aquatix.it/wp-content/uploads/2019/11/cropped-Aquatix_favicon-32x32.png" sizes="32x32" />
+="menu-item menu-item-type-post_type menu-item-object-page menu-item-home  menu-item-5517"><a href="https://aquatix.it/" class="nav-top-link">HOME</a></li>
+='text-align:center;width: 48px'><img src='https://aquatix.it/wp-content/uploads/2020/03/time-outline.png' style='width: 20px; height: 20px' /></td></tr>");
+hlete.lastname + athlete.athlete.firstname + "'><td style='text-align:center;width: 48px'><img src='https://aquatix.it/wp-content/uploads/2020/03/code-working-outline.png' style='width:20px; height: 20px' /></td><td sty
+le='text-align:center;width: 48px' ><img src='https://aquatix.it/wp-content/uploads/2020/03/stopwatch-outline.png' style='width: 20px; height: 20px' /></td><td style
+nu-item-39" class="menu-item menu-item-type-post_type menu-item-object-page  menu-item-39"><a href="https://aquatix.it/atleti/" class="nav-top-link"><img width="24" height="24" src="https://aquatix.it/wp-content/uploads
+nu-item-40" class="menu-item menu-item-type-post_type menu-item-object-page  menu-item-40"><a href="https://aquatix.it/gare/" class="nav-top-link"><img width="24" height="24" src="https://aquatix.it/wp-content/uploads/2
+pacity 1s;} .bg-loaded{opacity: 1;}</style><!--[if IE]><link rel="stylesheet" type="text/css" href="https://aquatix.it/wp-content/themes/flatsome/assets/css/ie-fallback.css"><script src="//cdnjs.cloudflare.com/ajax/libs
+s="menu-item menu-item-type-post_type menu-item-object-page menu-item-home menu-item-5517"><a href="https://aquatix.it/" class="nav-top-link">HOME</a></li>
+th="183" height="100" src="https://aquatix.it/wp-content/uploads/2019/11/AquatiX-Pos.png" class="header-logo-dark" alt="AquatiX"/></a>
