@@ -15,16 +15,26 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Script della pagina graduatorie
+      - name: Prova della ricerca graduatorie
         run: |
           mkdir -p "$RUNNER_TEMP/out"; O="$RUNNER_TEMP/out"
-          B=https://www.federnuoto.it
-          for f in templates/ifrit/js/app.js templates/ifrit/svi/svi.js templates/ifrit/svi/override.js templates/ifrit/svi/settebello.js; do
-            n=$(echo "$f" | tr '/' '_')
-            curl -s --http2 -o "$O/$n" -w "$f %{http_code}\n" "$B/$f" >> $O/esiti.txt || true
+          API="https://www.federnuoto.it/index.php?option=com_solrconnect&currentpage=1&format=json"
+          COMUNI=(--data-urlencode "solr[settore]=NUO" --data-urlencode "solr[id_comitato]=12" --data-urlencode "solr[id_lunghezza_vasca]=1" --data-urlencode "solr[limit]=20")
+          for ua in "Nuotifica/1.0 (+https://nuotifica.web.app)" "curl/8.5.0"; do
+            curl -s --http2 -A "$ua" -o "$O/prova-ua.json" -w "UA [$ua] -> %{http_code}\n" -X POST "$API&view=grricerca" "${COMUNI[@]}" \
+              --data-urlencode "solr[sesso]=M" --data-urlencode "solr[kindtime]=3" --data-urlencode "solr[stagione]=2026" --data-urlencode "solr[codice_gara]=01" >> $O/esiti.txt
           done
-          grep -n -o -E ".{0,300}(solrconnect|data-com|graduatori).{0,400}" $O/*.js > $O/trovati.txt || true
-          cat $O/esiti.txt; wc -l $O/trovati.txt
+          UA="Nuotifica/1.0 (+https://nuotifica.web.app)"
+          # 1) graduatoria 100 SL maschi, Lazio, vasca corta, stagione 2026/27
+          curl -s --http2 -A "$UA" -o "$O/grad-100sl.json" -X POST "$API&view=grricerca" "${COMUNI[@]}" \
+            --data-urlencode "solr[sesso]=M" --data-urlencode "solr[kindtime]=3" --data-urlencode "solr[stagione]=2026" --data-urlencode "solr[codice_gara]=01"
+          # 2) tutte le prestazioni del Lazio degli ultimi 15 giorni (tutte le gare)
+          curl -s --http2 -A "$UA" -o "$O/recenti.json" -X POST "$API&view=grricerca" "${COMUNI[@]}" \
+            --data-urlencode "solr[sesso]=F" --data-urlencode "solr[kindtime]=4" --data-urlencode "solr[dal]=28/10/2026" --data-urlencode "solr[al]=12/11/2026" --data-urlencode "solr[all]=1"
+          # 3) vista iniziale
+          curl -s --http2 -A "$UA" -o "$O/iniziale.json" -X POST "$API&view=griniziale" --data-urlencode "solr[settore]=NUO"
+          ls -la $O; cat $O/esiti.txt
+          for f in $O/*.json; do echo "== $f"; head -c 600 "$f"; echo; done
 
       - name: Salva sul ramo indagine
         run: |
