@@ -13,49 +13,27 @@ jobs:
       - name: Pagine e dati
         run: |
           set +e
-          mkdir -p out s; UA="Cloro/1.0 (+https://cloro.web.app)"
-          curl -s --http2 --max-time 30 -A "$UA" -o s/fin.html 'https://www.federnuoto.it/home/nuoto/risultati-e-classifiche-nuoto/2026-2027-2.html'
-          grep -o -E 'https?://[a-z0-9.]*microplustiming[a-z0-9.]*\.com/[^"]+' s/fin.html | sort -u > out/link-fin.txt
-          cat out/link-fin.txt
-          P=$(grep -m1 'NU_2026_11' out/link-fin.txt || head -1 out/link-fin.txt)
-          echo "pagina: $P" > out/esiti.txt
-          curl -s --max-time 30 -A "$UA" -o s/p.html "$P"; echo "pagina $(wc -c < s/p.html)" >> out/esiti.txt
-          grep -o -E '(src|href|location\.href)=["'"'"'][^"'"'"']+' s/p.html | sort -u | head -40 > out/link-pagina.txt
-          W="${P%.php}_web.php"
-          curl -s --max-time 30 -A "$UA" -o s/w.html "$W"; echo "web $(wc -c < s/w.html)" >> out/esiti.txt
-          grep -o -E '[A-Za-z0-9_./-]*(export|json|JSON)[A-Za-z0-9_./ %-]*' s/w.html s/p.html | sort -u | head -60 > out/percorsi.txt
-          grep -o -E '.{0,120}(Contatori|export/).{0,160}' s/w.html | head -20 > out/contesto.txt
-          BASE="${P%/*}"
-          MAN=$(grep -o -E 'export/[^/"'"'"' ]+' s/w.html s/p.html | head -1 | cut -d: -f2)
-          echo "base $BASE man $MAN" >> out/esiti.txt
-          for f in NU/Contatori.json NU/categorie.json NU/orario.json NU/CounterGenerale.json; do
-            n=$(echo "$f" | tr '/' '_')
-            curl -s --max-time 30 -A "$UA" -o "s/$n" "$BASE/$MAN/$f"; echo "$f $(wc -c < s/$n)" >> out/esiti.txt
-            python3 -I scripts/schema.py "s/$n" > "out/schema-$n.txt"
+          rm -rf out; mkdir -p out s; UA="Cloro/1.0 (+https://cloro.web.app)"
+          P='https://fin2026.microplustiming.com/NU_2026_11_12-14_Riccione.php'
+          BASE="${P%/*}"; NOME=$(basename "$P" .php)
+          curl -s --max-time 30 -A "$UA" -o s/w.html "${P%.php}_web.php"
+          curl -s --max-time 30 -A "$UA" -o s/p.html "$P"
+          # come si forma il percorso dei dati
+          grep -n -o -E '.{0,200}pathManifestazione.{0,200}' s/w.html s/p.html | head -20 > out/man.txt
+          grep -n -o -E '.{0,160}(getJSON|\$\.ajax|fetch\(|XMLHttpRequest|url ?:).{0,200}' s/w.html | head -40 > out/caricamenti.txt
+          grep -o -E 'src="[^"]+\.js[^"]*"' s/w.html | sort -u > out/script.txt
+          for js in $(grep -o -E 'src="[^"]+\.js' s/w.html | cut -d'"' -f2 | grep -v -E '^https?://' | sort -u | head -12); do
+            n=$(echo "$js" | tr '/' '_'); curl -s --max-time 20 -A "$UA" -o "s/$n" "$BASE/$js"
+            grep -o -E '.{0,160}(pathExport|pathManifestazione|\.json|NU/).{0,200}' "s/$n" | head -40 > "out/js-$n.txt"
           done
-          python3 - <<'PY' > out/file-elenco.txt
-          import json
-          try:
-              d = json.loads(open('s/NU_Contatori.json','rb').read().decode('utf-8-sig'))
-          except Exception as e:
-              print('errore', e); raise SystemExit
-          def tutti(x, out):
-              if isinstance(x, dict):
-                  for v in x.values(): tutti(v, out)
-              elif isinstance(x, list):
-                  for v in x: tutti(v, out)
-              elif isinstance(x, str) and x.upper().endswith('.JSON'): out.append(x)
-          out = []; tutti(d, out)
-          print(len(out)); print('\n'.join(out[:80]))
-          PY
-          head -30 out/file-elenco.txt
-          # Un file di risultati (CLAS), uno di start list (STAR o STL), un riepilogo (SUM)
-          for chiave in CLAS STAR SUM; do
-            f=$(grep -m1 "$chiave" out/file-elenco.txt)
-            [ -n "$f" ] || continue
-            curl -s --max-time 30 -A "$UA" -o "s/$chiave.json" "$BASE/$MAN/NU/$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))" "$f")"
-            echo "$chiave $f $(wc -c < s/$chiave.json)" >> out/esiti.txt
-            python3 -I scripts/schema.py "s/$chiave.json" > "out/schema-$chiave.txt"
+          # candidati per la cartella della manifestazione
+          for MAN in "$NOME" "${NOME#NU_}" "$(echo $NOME | tr 'a-z' 'A-Z')"; do
+            for f in "export/$MAN/NU/Contatori.json" "export/$MAN/NU/CounterGenerale.json" "export/$MAN/Contatori.json"; do
+              n=$(echo "$f" | tr '/' '_')
+              c=$(curl -s --max-time 20 -A "$UA" -o "s/$n" -w '%{http_code}' "$BASE/$f")
+              echo "$c $(wc -c < s/$n) $f" >> out/esiti.txt
+              if [ "$c" = "200" ]; then python3 -I scripts/schema.py "s/$n" > "out/schema-$n.txt"; fi
+            done
           done
           cat out/esiti.txt
       - name: Salva
