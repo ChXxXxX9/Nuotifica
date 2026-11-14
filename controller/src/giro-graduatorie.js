@@ -8,8 +8,9 @@ import { giroGraduatorie } from './graduatorie.js';
 import { giornoQuota } from './tempi.js';
 
 // Si parte solo se oggi (tutti i lavori insieme) sono state fatte meno scritture di così:
-// una stagione ne usa al massimo 7-8 mila e il piano gratuito ne permette 20.000.
-const SOGLIA = 8_000;
+// una stagione ne usa 1-5 mila e il piano gratuito ne permette 20.000 (il giorno di Firestore
+// finisce alle 9 di mattina italiane: di notte resta poco da fare per il resto del controllore).
+const SOGLIA = 11_000;
 
 function annota(livello, testo) {
   const t = String(testo).replace(/%/g, '%25').replace(/\r?\n/g, '%0A');
