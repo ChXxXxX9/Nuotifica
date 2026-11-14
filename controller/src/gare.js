@@ -280,9 +280,12 @@ export async function aggiornaGare({
         perLettera.get(l).push(`${a.id}|${a.n}|${a.y ?? ''}|${a.s ?? ''}`);
       }
     }
-    await db.commit([...perLettera].map(([l, voci]) => ({
-      percorso: `indici/${l}`, dati: {}, maschera: [], aggiungi: { l: voci }, oraServer: ['agg'],
-    })));
+    await db.commit([
+      ...[...perLettera].map(([l, voci]) => ({
+        percorso: `indici/${l}`, dati: {}, maschera: [], aggiungi: { l: voci }, oraServer: ['agg'],
+      })),
+      { percorso: 'meta/atleti-noti', dati: {}, maschera: [], aggiungi: { k: tutti.map((a) => a.id) } },
+    ]);
     stato.indiceV = 2;
     await db.scrivi('meta/live', stato);
     log(`Indice di ricerca rifatto: ${tutti.length} atleti.`);
@@ -444,6 +447,8 @@ export async function aggiornaGare({
   for (const [lettera, voci] of indici) {
     avanzate.push({ percorso: `indici/${lettera}`, dati: {}, maschera: [], aggiungi: { l: voci }, oraServer: ['agg'] });
   }
+  // Elenco delle chiavi conosciute: serve alle gare di tutta Italia per aggiornare solo i "nostri" atleti.
+  if (tuttiAtleti.size) avanzate.push({ percorso: 'meta/atleti-noti', dati: {}, maschera: [], aggiungi: { k: [...tuttiAtleti.keys()] } });
   if (avanzate.length) await db.commit(avanzate);
 
   // Stato per il prossimo giro.

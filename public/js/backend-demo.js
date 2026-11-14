@@ -146,7 +146,15 @@ export function creaBackendDemo() {
     },
     async disattivaPushQui() { await pausa(); profilo.tokens = []; },
     async leggiAvvisi(settori) { return this.leggiPost(settori); },
-    async leggiGare() { await pausa(150); return elenco; },
+    async leggiGare() {
+      await pausa(150);
+      const tra = (giorni) => new Intl.DateTimeFormat('sv-SE').format(new Date(Date.now() + giorni * 86_400_000));
+      return [
+        ...elenco,
+        { id: 'n900001', nome: 'Trofeo d\'inverno', luogo: 'Bologna (BO)', dal: tra(6), al: tra(7), vasca: 50, fonte: 'italia' },
+        { id: 'n900002', nome: 'Meeting di Natale', luogo: 'Latina (LT)', dal: tra(20), al: tra(20), vasca: 25, fonte: 'italia' },
+      ];
+    },
     async leggiGara(id) {
       await pausa(150);
       const g = DEMO.gare[id];

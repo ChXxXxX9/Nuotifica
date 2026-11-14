@@ -2,7 +2,8 @@
 // Gira su GitHub Actions ogni 5 minuti:
 // 1. avvisi: legge gli ultimi post del sito degli avvisi, li confronta con quelli già visti,
 //    salva i cambiati su Firestore (più un riassunto unico per l'app) e manda le notifiche;
-// 2. gare: legge le gare in diretta e aggiorna gare, schede atleta e notifiche dei tempi.
+// 2. gare: legge le gare in diretta e aggiorna gare, schede atleta e notifiche dei tempi;
+// 3. italia: calendario e risultati ufficiali delle gare di tutta Italia, una gara per giro.
 // Gli indirizzi delle fonti arrivano dal secret FONTI (non stanno nel codice, che è pubblico).
 //
 // Uso:
@@ -13,6 +14,7 @@ import { creaWp } from './wp.js';
 import { leggiPost, mappaCategorie, impostaSito } from './parse.js';
 import { leggiFonti, scarica } from './fonti.js';
 import { aggiornaGare } from './gare.js';
+import { aggiornaNazionali } from './nazionali.js';
 import { oggiRoma } from './tempi.js';
 import {
   confronta, documentoPost, voceIndice, perUtente, messaggiPush,
@@ -325,6 +327,20 @@ async function principale() {
     }
   } catch (e) {
     console.log(`::warning title=Gare::${String(e.message).slice(0, 500)}`);
+  }
+
+  // 3. Gare di tutta Italia (calendario e risultati a gara finita), una gara per giro.
+  try {
+    const esito = await aggiornaNazionali({
+      db, fonti, scarica, adesso,
+      puoScrivere: () => giaScritte + db.conta.scritture < TETTO_SCRITTURE - 2_000,
+    });
+    if (!esito.saltato) console.log(`Italia: ${JSON.stringify(esito)}`);
+    if (process.env.GITHUB_ACTIONS && esito.lette) {
+      console.log(`::notice title=Italia::gare lette ${esito.lette}, schede aggiornate ${esito.atleti}`);
+    }
+  } catch (e) {
+    console.log(`::warning title=Italia::${String(e.message).slice(0, 500)}`);
   }
 
   await db.scrivi('meta/budget', {

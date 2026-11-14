@@ -4,7 +4,7 @@ import {
   percorso, parametriHash, memoria, pocoMovimento,
 } from './nucleo.js';
 import {
-  tempo, differenza, nomeGara, periodo, mese, inCorso, metri, velocita,
+  tempo, differenza, nomeGara, periodo, mese, inCorso, metri, velocita, oggi,
 } from './formato.js';
 import { seguiAtleta, eSeguito } from './viste-atleti.js';
 
@@ -17,43 +17,59 @@ function cartaGara(g) {
       <a class="carta-gara ${live ? 'in-corso' : ''}" href="#/gara/${esc(g.id)}">
         <span class="carta-gara-testa">
           <span class="carta-gara-info">${esc(periodo(g.dal, g.al))} · ${esc(g.luogo ?? '')}</span>
-          ${live ? '<span class="live">LIVE</span>' : ''}
+          ${live ? (g.fonte === 'italia' ? '<span class="badge badge-tenue">IN CORSO</span>' : '<span class="live">LIVE</span>') : ''}
         </span>
         <span class="carta-gara-nome">${esc(g.nome)}</span>
-        <span class="carta-gara-info">Vasca ${esc(g.vasca ?? 25)} m${g.conta ? ` · ${g.conta} risultati` : ''}</span>
+        <span class="carta-gara-info">${g.vasca ? `Vasca ${esc(g.vasca)} m` : ''}${g.conta ? ` · ${g.conta} risultati` : (g.fonte === 'italia' ? ' · risultati a gara finita' : '')}</span>
       </a>
     </li>`;
 }
 
+const PROVINCE_LAZIO = /\((RM|LT|FR|VT|RI)\)/;
+export const delLazio = (g) => g.fonte === 'diretta' || /lazio/i.test(g.regione ?? '') || PROVINCE_LAZIO.test(g.luogo ?? '');
+
 export async function vistaGare() {
   const ridisegna = (aggiornamento = false) => {
-    const gare = stato.gare;
+    const tutte = stato.gare;
+    const filtro = memoria('filtro-gare') ?? 'lazio';
     let corpo;
-    if (!gare) {
+    if (!tutte) {
       corpo = '<p class="caricamento" role="status">Carico le gare…</p>';
-    } else if (!gare.length) {
-      corpo = '<div class="vuoto"><strong>Ancora nessuna gara</strong>Appena iniziano a uscire i risultati le trovi qui.</div>';
     } else {
+      const o = oggi();
+      const gare = tutte.filter((g) => (filtro === 'lazio' ? delLazio(g) : filtro === 'italia' ? !delLazio(g) : true));
       const inGara = gare.filter(inCorso);
-      const altre = gare.filter((g) => !inCorso(g));
+      const prossime = gare.filter((g) => g.dal > o).sort((a, b) => a.dal.localeCompare(b.dal));
+      const passate = gare.filter((g) => !inCorso(g) && g.dal <= o);
       const perMese = new Map();
-      for (const g of altre) {
+      for (const g of passate) {
         const m = mese(g.dal);
         if (!perMese.has(m)) perMese.set(m, []);
         perMese.get(m).push(g);
       }
-      corpo = `
+      corpo = gare.length ? `
         ${inGara.length ? `<h2 class="mese">In vasca adesso</h2><ul class="elenco-gare">${inGara.map(cartaGara).join('')}</ul>` : ''}
-        ${[...perMese].map(([m, elenco]) => `<h2 class="mese">${esc(m)}</h2><ul class="elenco-gare">${elenco.map(cartaGara).join('')}</ul>`).join('')}`;
+        ${prossime.length ? `<h2 class="mese">In programma</h2><ul class="elenco-gare">${prossime.slice(0, 12).map(cartaGara).join('')}</ul>` : ''}
+        ${[...perMese].map(([m, elenco]) => `<h2 class="mese">${esc(m)}</h2><ul class="elenco-gare">${elenco.map(cartaGara).join('')}</ul>`).join('')}`
+        : '<div class="vuoto" style="margin-top:12px"><strong>Ancora nessuna gara</strong>Appena iniziano a uscire i risultati le trovi qui.</div>';
     }
+    const scelte = [['lazio', 'Lazio'], ['italia', 'Resto d\'Italia'], ['tutte', 'Tutte']];
     disegna(`
       ${barraTop()}
       <main class="pagina">
         <h1 class="titolo-pagina">Gare</h1>
-        <p class="sottotitolo">Risultati quasi in diretta: batterie, tempi e parziali.</p>
+        <p class="sottotitolo">Lazio quasi in diretta, con batterie e parziali. Il resto d'Italia a gara finita.</p>
+        <div class="filtri" role="toolbar" aria-label="Quali gare" style="margin-top:14px">
+          ${scelte.map(([id, nome]) => `<button class="chip" data-filtro-gare="${id}" aria-pressed="${filtro === id}">${nome}</button>`).join('')}
+        </div>
         ${corpo}
       </main>
-      ${tabBar('gare')}`, null, { aggiornamento });
+      ${tabBar('gare')}`, (el) => {
+      el.querySelectorAll('[data-filtro-gare]').forEach((b) => b.addEventListener('click', () => {
+        memoria('filtro-gare', b.dataset.filtroGare);
+        ridisegna(true);
+      }));
+    }, { aggiornamento });
   };
   ridisegna();
   try {
@@ -63,6 +79,24 @@ export async function vistaGare() {
   } catch (err) {
     if (!stato.gare) paginaErrore(err, { tab: 'gare', indietro: false });
   }
+}
+
+/** Gara ancora senza risultati (in programma o appena finita): le informazioni che abbiamo. */
+function paginaSenzaRisultati(voce, gara) {
+  const futura = voce.dal > oggi();
+  disegna(`
+    ${barraTop({ indietro: true })}
+    <main class="pagina">
+      <div class="testa-gara">
+        <div class="riga"><span class="sottotitolo">${esc([voce.luogo, periodo(voce.dal, voce.al), voce.vasca ? `vasca ${voce.vasca} m` : ''].filter(Boolean).join(' · '))}</span>${inCorso(voce) ? '<span class="live">IN CORSO</span>' : ''}</div>
+        <h1>${esc(voce.nome)}</h1>
+      </div>
+      ${gara?.categorieAmmesse ? `<p class="nota">Categorie: ${esc(gara.categorieAmmesse)}</p>` : ''}
+      <div class="vuoto" style="margin-top:16px"><strong>${futura ? 'In programma' : 'Risultati in arrivo'}</strong>${futura
+    ? 'I risultati arrivano a gara finita: li trovi qui, e se segui qualcuno che nuota ti avvisiamo.'
+    : 'Per questa gara i risultati escono a gara finita: appena li riceviamo compaiono qui.'}</div>
+    </main>
+    ${tabBar('gare')}`);
 }
 
 /* ---------- una gara ---------- */
@@ -164,10 +198,10 @@ function vistaClassifica(evento) {
   const righe = conTempo.map((r, i) => {
     if (r.t !== ultimo) pos = i + 1;
     ultimo = r.t;
-    return rigaRisultato(r, evento.c, { posizione: pos, sotto: `B${r.batteria}` });
+    return rigaRisultato(r, evento.c, { posizione: pos, sotto: r.batteria ? `B${r.batteria}` : '' });
   });
   return `
-    <ol class="risultati" style="margin-top:12px">${righe.join('')}${senza.map((r) => rigaRisultato(r, evento.c, { posizione: '–', sotto: `B${r.batteria}` })).join('')}</ol>`;
+    <ol class="risultati" style="margin-top:12px">${righe.join('')}${senza.map((r) => rigaRisultato(r, evento.c, { posizione: '–', sotto: r.batteria ? `B${r.batteria}` : '' })).join('')}</ol>`;
 }
 
 export async function vistaGara(id) {
@@ -184,7 +218,12 @@ export async function vistaGara(id) {
     return;
   }
   if (!qui()) return;
-  if (!gara) {
+  const voce = (stato.gare ?? []).find((g) => g.id === id);
+  if (!gara || (!gara.categorie?.length && voce)) {
+    if (voce) {
+      paginaSenzaRisultati(voce, gara);
+      return;
+    }
     disegna(`${barraTop({ indietro: true })}<main class="pagina"><h1 class="titolo-pagina">Gara non trovata</h1><p class="intro">Torna all'<a href="#/gare">elenco delle gare</a>.</p></main>${tabBar('gare')}`);
     return;
   }
@@ -198,7 +237,7 @@ export async function vistaGara(id) {
     return;
   }
   memoria(`cat-${id}`, cat.id);
-  const live = inCorso(gara);
+  const live = inCorso(gara) && gara.fonte !== 'italia';
   const tribuna = memoria('tribuna') === true;
 
   const caricaCategoria = (fresco = false) => Promise.all(cat.docs.map((doc) => {
@@ -223,7 +262,8 @@ export async function vistaGara(id) {
     const eventi = unisciCategoria(docs);
     const p = parametriHash();
     const evento = eventi.find((e) => e.c === p.get('e')) ?? eventi[0];
-    const vista = p.get('v') === 'classifica' ? 'classifica' : 'batterie';
+    const soloClassifica = gara.fonte === 'italia';
+    const vista = soloClassifica || p.get('v') === 'classifica' ? 'classifica' : 'batterie';
     const atleti = evento ? evento.b.reduce((t, b) => t + b.r.length, 0) : 0;
     const link = (params) => {
       const q = new URLSearchParams({ c: cat.id, ...(evento ? { e: evento.c } : {}), v: vista, ...params });
@@ -250,11 +290,12 @@ export async function vistaGara(id) {
             ${eventi.map((e) => `<a class="chip" href="${link({ e: e.c })}" aria-current="${e.c === evento.c}" data-sostituisci>${esc(nomeGara(e.c, { breve: true }))}</a>`).join('')}
           </nav>
           <h2 class="evento-titolo">${esc(evento.n || nomeGara(evento.c))}</h2>
-          <p class="sottotitolo">${esc(cat.nome)} · ${evento.b.length} ${evento.b.length === 1 ? 'batteria' : 'batterie'} · ${atleti} ${atleti === 1 ? 'atleta' : 'atleti'}</p>
+          <p class="sottotitolo">${esc(cat.nome)} · ${soloClassifica ? '' : `${evento.b.length} ${evento.b.length === 1 ? 'batteria' : 'batterie'} · `}${atleti} ${atleti === 1 ? 'atleta' : 'atleti'}</p>
+          ${soloClassifica ? '<p class="nota" style="margin-top:8px">Risultati a gara finita: classifica completa, senza batterie e parziali.</p>' : `
           <div class="segmenti" role="tablist" aria-label="Vista">
             <a class="segmento" role="tab" href="${link({ v: 'batterie' })}" aria-selected="${vista === 'batterie'}" data-sostituisci style="display:grid;place-items:center;text-decoration:none">Batterie</a>
             <a class="segmento" role="tab" href="${link({ v: 'classifica' })}" aria-selected="${vista === 'classifica'}" data-sostituisci style="display:grid;place-items:center;text-decoration:none">Classifica</a>
-          </div>
+          </div>`}
           ${vista === 'classifica' ? vistaClassifica(evento) : vistaBatterie(evento)}
           <p class="nota" style="margin-top:16px">Tocca un nome per i parziali. I punti sono quelli World Aquatics; PB = nuovo personale, SB = migliore della stagione.</p>`
     : '<div class="vuoto" style="margin-top:16px"><strong>Ancora nessun risultato</strong>Appena escono li trovi qui.</div>'}

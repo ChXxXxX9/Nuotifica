@@ -45,7 +45,7 @@ for (const { info, sede, piscina, file } of gareDemo) {
   const doc = documentoGara(info, new Map([[sede, { piscina, cat }]]), new Date().toISOString());
   delete doc.aggiornato;
   uscita.gare[info.id] = doc;
-  uscita.elenco.push({ id: info.id, nome: info.nome, luogo: info.luogo, dal: info.dal, al: info.al, vasca: info.vasca, conta: doc.conta });
+  uscita.elenco.push({ id: info.id, nome: info.nome, luogo: info.luogo, dal: info.dal, al: info.al, vasca: info.vasca, conta: doc.conta, fonte: 'diretta', regione: 'Lazio' });
   for (const [k, a] of atleti) {
     const prima = uscita.atleti[k];
     uscita.atleti[k] = { n: a.n, y: a.y, s: a.s, sx: a.sx, r: [...(prima?.r ?? []), ...a.risultati] };

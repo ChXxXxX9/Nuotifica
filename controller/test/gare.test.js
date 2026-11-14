@@ -220,3 +220,67 @@ test('giro delle gare: primo giro senza notifiche, poi notifica a chi segue l\'a
   assert.match(inviati[0].corpo, /100 DO in 50"01/);
   assert.match(inviati[0].url, /#\/atleta\//);
 });
+
+test('gare di tutta Italia: calendario, dettaglio e classifica', async () => {
+  const { leggiCalendario, leggiEvento, leggiClassifica, somiglianza } = await import('../src/nazionali.js');
+  const cal = leggiCalendario(campione('fin-calendario.json'));
+  assert.ok(cal.length >= 10);
+  const g = cal[0];
+  assert.match(g.id, /^n\d+$/);
+  assert.match(g.dal, /^\d{4}-\d{2}-\d{2}$/);
+  assert.ok([25, 50].includes(g.vasca));
+  assert.ok(cal.some((x) => x.risultati));
+  const ev = leggiEvento(campione('fin-evento.json'));
+  assert.match(ev.comitato, /LAZIO/);
+  assert.equal(ev.vasca, 25);
+  assert.equal(ev.classifiche.length, 34);
+  assert.deepEqual(
+    { c: ev.classifiche[0].gara.codice, s: ev.classifiche[0].sesso, cat: ev.classifiche[0].categoria },
+    { c: '50SL', s: 'M', cat: 'Assoluti' },
+  );
+  assert.ok(ev.classifiche.some((c) => c.sesso === 'F'));
+  const righe = leggiClassifica(campione('fin-dettaglio.json'));
+  assert.equal(righe.length, 44);
+  assert.equal(righe[0].posizione, 1);
+  assert.equal(righe[0].ms, 21_870);
+  assert.match(righe[0].nome, /^[A-Z][a-z]+ [A-Z][a-z]+/);
+  assert.ok(somiglianza('Trofeo Gaetano Lanzi 2026 ES/A - Qualificazioni', 'Qualificazioni "Trofeo Gaetano Lanzi" 2026 Es/A') >= 0.9);
+  assert.ok(somiglianza('1 Meeting ARENA Intercentri', '1° MEETING ARENA INTERCENTRI AQUANIENE') >= 0.6);
+  assert.ok(somiglianza('Campionato Regionale Assoluto', 'Trofeo Città di Rimini') < 0.3);
+});
+
+test('gare di tutta Italia: un giro salva la gara e le schede (gara del Lazio)', async () => {
+  const { aggiornaNazionali } = await import('../src/nazionali.js');
+  const db = dbFinto();
+  const cal = campione('fin-calendario.json');
+  const ev = campione('fin-evento.json');
+  const det = campione('fin-dettaglio.json');
+  const chiamate = [];
+  const scarica = async (url, opz) => {
+    chiamate.push({ url, opz });
+    if (url.includes('view=calendario')) return url.includes('currentpage=1') ? cal : JSON.stringify({ content: '' });
+    if (url.includes('view=risultati')) return ev;
+    return det;
+  };
+  const esito = await aggiornaNazionali({
+    db, fonti: { naz: 'N?x=1' }, scarica, adesso: '2026-11-16T10:00:00Z', log: () => {},
+  });
+  assert.equal(esito.lette, 1);
+  assert.ok(chiamate.every((c) => c.opz.metodo === 'POST' && c.opz.modulo['solr[settore]'] === 'NUO'));
+  const elenco = db.docs.get('meta/gare-italia').gare;
+  assert.ok(elenco.length >= 10);
+  const fatta = elenco.find((g) => g.conta);
+  const gara = db.docs.get(`gare/${fatta.id}`);
+  assert.equal(gara.fonte, 'italia');
+  assert.equal(gara.regione, 'Lazio');
+  assert.ok(gara.categorie.length >= 2);
+  assert.ok(db.docs.get(`gare/${fatta.id}/categorie/${gara.categorie[0].docs[0]}`).eventi[0].b[0].r[0].t);
+  assert.ok(db.docs.get('meta/atleti-noti').k.length > 0);
+  // Secondo giro: la stessa gara non si rilegge.
+  const prima = chiamate.length;
+  const due = await aggiornaNazionali({
+    db, fonti: { naz: 'N?x=1' }, scarica, adesso: '2026-11-16T10:05:00Z', log: () => {},
+  });
+  assert.ok(due.lette <= 1);
+  assert.ok(chiamate.length - prima < 40);
+});

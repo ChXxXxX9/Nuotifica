@@ -8,9 +8,9 @@ import {
   paginaErrore, conCache, radice,
 } from './nucleo.js';
 import {
-  tempo, nomeGara, periodo, quando, inCorso, iniziali, giorno,
+  tempo, nomeGara, periodo, quando, inCorso, iniziali, giorno, oggi,
 } from './formato.js';
-import { vistaGare, vistaGara } from './viste-gare.js';
+import { vistaGare, vistaGara, delLazio } from './viste-gare.js';
 import { vistaAtleti, vistaAtleta, leggiSeguiti } from './viste-atleti.js';
 import { forseBenvenuto } from './benvenuto.js';
 
@@ -549,10 +549,10 @@ function cartaGara(g) {
     <a class="carta-gara ${live ? 'in-corso' : ''}" href="#/gara/${esc(g.id)}">
       <span class="carta-gara-testa">
         <span class="carta-gara-info">${esc(periodo(g.dal, g.al))} · ${esc(g.luogo ?? '')}</span>
-        ${live ? '<span class="live">LIVE</span>' : ''}
+        ${live ? (g.fonte === 'italia' ? '<span class="badge badge-tenue">IN CORSO</span>' : '<span class="live">LIVE</span>') : ''}
       </span>
       <span class="carta-gara-nome">${esc(g.nome)}</span>
-      <span class="carta-gara-info">Vasca ${esc(g.vasca ?? 25)} m${g.conta ? ` · ${g.conta} risultati` : ''}</span>
+      <span class="carta-gara-info">${g.vasca ? `Vasca ${esc(g.vasca)} m` : ''}${g.conta ? ` · ${g.conta} risultati` : (g.fonte === 'italia' ? ' · risultati a gara finita' : '')}</span>
     </a>`;
 }
 
@@ -581,8 +581,10 @@ async function vistaPerTe() {
 
   const sezioneGare = () => {
     if (!stato.gare?.length) return '';
-    const inGara = stato.gare.filter(inCorso);
-    const elenco = inGara.length ? inGara : stato.gare.slice(0, 4);
+    const lazio = stato.gare.filter((g) => delLazio(g) && g.dal <= oggi());
+    const inGara = lazio.filter((g) => inCorso(g) && g.fonte === 'diretta');
+    const elenco = inGara.length ? inGara : lazio.slice(0, 4);
+    if (!elenco.length) return '';
     return `
       <section class="sezione">
         <div class="sezione-testa">
