@@ -28,12 +28,13 @@ Comitato (ammessi, start list, orari) sul telefono.
      e stagionali (SB), aggiorna schede atleta e indice di ricerca senza rileggerli, e manda
      "è uscito il tuo tempo" a chi segue l'atleta;
   3. **Italia**: ogni 6 ore il calendario nazionale; poi una gara finita per giro, con la classifica
-  4. **Graduatorie** (workflow a parte, di notte): migliori tempi di ogni stagione dal 2018/19 per gli atleti del Lazio, primati e pagine delle squadre.
-  5. **Testi dei PDF** degli avvisi, per cercare dentro i documenti dall'app.
-     completa (le schede si aggiornano solo per gli atleti già conosciuti o per le gare del Lazio).
+     completa (le schede si aggiornano solo per gli atleti già conosciuti o per le gare del Lazio);
+  4. **Testi dei PDF** degli avvisi, per cercare dentro i documenti dall'app.
+  - **Graduatorie** (workflow a parte, di notte): migliori tempi di ogni stagione dal 2018/19 per gli
+    atleti del Lazio, primati e pagine delle squadre.
   Un tetto di sicurezza ferma le scritture opzionali vicino al limite gratuito di Firestore
   (20.000 al giorno); il conteggio sta in `meta/budget`.
-- **`public/`**: l'app (PWA) senza build. Sezioni: Per te, Gare, Classifiche (in arrivo), Atleti.
+- **`public/`**: l'app (PWA) senza build. Sezioni: Per te, Gare, Squadre, Atleti.
   Con `?demo` nell'indirizzo parte con dati di esempio (nomi inventati).
 - **`.github/workflows/controllore.yml`**: fa girare il controllore (timer esterno cron-job.org ogni
   5 minuti; quello interno di GitHub resta di riserva con il "segno di vita").
