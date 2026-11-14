@@ -14,27 +14,32 @@ jobs:
         run: |
           set +e
           rm -rf out; mkdir -p out s; UA="Cloro/1.0 (+https://cloro.web.app)"
-          P='https://fin2026.microplustiming.com/NU_2026_11_12-14_Riccione.php'
-          BASE="${P%/*}"; NOME=$(basename "$P" .php)
-          curl -s --max-time 30 -A "$UA" -o s/w.html "${P%.php}_web.php"
-          curl -s --max-time 30 -A "$UA" -o s/p.html "$P"
-          # come si forma il percorso dei dati
-          grep -n -o -E '.{0,200}pathManifestazione.{0,200}' s/w.html s/p.html | head -20 > out/man.txt
-          grep -n -o -E '.{0,160}(getJSON|\$\.ajax|fetch\(|XMLHttpRequest|url ?:).{0,200}' s/w.html | head -40 > out/caricamenti.txt
-          grep -o -E 'src="[^"]+\.js[^"]*"' s/w.html | sort -u > out/script.txt
-          for js in $(grep -o -E 'src="[^"]+\.js' s/w.html | cut -d'"' -f2 | grep -v -E '^https?://' | sort -u | head -12); do
-            n=$(echo "$js" | tr '/' '_'); curl -s --max-time 20 -A "$UA" -o "s/$n" "$BASE/$js"
-            grep -o -E '.{0,160}(pathExport|pathManifestazione|\.json|NU/).{0,200}' "s/$n" | head -40 > "out/js-$n.txt"
-          done
-          # candidati per la cartella della manifestazione
-          for MAN in "$NOME" "${NOME#NU_}" "$(echo $NOME | tr 'a-z' 'A-Z')"; do
-            for f in "export/$MAN/NU/Contatori.json" "export/$MAN/NU/CounterGenerale.json" "export/$MAN/Contatori.json"; do
-              n=$(echo "$f" | tr '/' '_')
-              c=$(curl -s --max-time 20 -A "$UA" -o "s/$n" -w '%{http_code}' "$BASE/$f")
-              echo "$c $(wc -c < s/$n) $f" >> out/esiti.txt
-              if [ "$c" = "200" ]; then python3 -I scripts/schema.py "s/$n" > "out/schema-$n.txt"; fi
-            done
-          done
+          B='https://fin2026.microplustiming.com/export/NU_2026_11_12-14_Riccione/NU'
+          curl -s --max-time 30 -A "$UA" -o s/c.json "$B/Contatori.json"
+          python3 -I - <<'PY' > out/contatori.txt
+          import json, collections
+          d = json.loads(open('s/c.json','rb').read().decode('utf-8-sig'))
+          righe = d['contatori']
+          print(len(righe))
+          per = collections.defaultdict(list)
+          for r in righe: per[r['cod']].append(r)
+          for k, v in per.items():
+              print('##', k, len(v))
+              for r in v[:6]: print(r['c0'], r['c1'], r['c2'], r['c3'], r['od'], r['nomefile'], r['counter'])
+          json.dump({k: [r['nomefile'] for r in v[:2]] for k, v in per.items()}, open('s/scegli.json', 'w'))
+          PY
+          python3 -I - <<'PY' > s/lista.txt
+          import json
+          for k, v in json.load(open('s/scegli.json')).items():
+              for n in v: print(k + '\t' + n)
+          PY
+          while IFS=$'\t' read -r cod nome; do
+            u=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))" "$nome")
+            n="$cod-$(echo "$nome" | tr ' /' '__')"
+            c=$(curl -s --max-time 20 -A "$UA" -o "s/$n" -w '%{http_code}' "$B/$u")
+            echo "$c $(wc -c < "s/$n") $cod $nome" >> out/esiti.txt
+            [ "$c" = "200" ] && python3 -I scripts/schema.py "s/$n" > "out/schema-$n.txt"
+          done < s/lista.txt
           cat out/esiti.txt
       - name: Salva
         if: ${{ always() }}
