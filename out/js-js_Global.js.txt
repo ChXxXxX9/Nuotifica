@@ -1,0 +1,10 @@
+// Numero massimo di tentativi di caricamento del file contatori.json (Numero di chiamate ajax verso il server)
+// Contatore per il numero di retry del file contatori.json per non generare un loop e far ripartire il polling generale
+// Contatore dei file json contenuti in Contatori.json - Mi dice quando tutti i json sono stati caricati nell'Array
+// Array contenente tutti i nomi dei file attualmente disponibili sul server, presi da contatori.json
+var pathManifestazione = "";
+var pathExport = "export/";
+var pathFileNameContatoreGenerale = pathExport + curSport + "/CounterGenerale.json";
+var pathPDF = pathExport + curSport + "/pdf/";
+// Percorso lib per file Traduzioni.json
+// Numero di tentativi per la LoadAllJsonAvailable se non trova subito il file Contatori.json perchè non è ancora stato uploadato

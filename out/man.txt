@@ -1,0 +1,2 @@
+s/w.html:175:					pathManifestazione = "NU_2026_11_12-14_Riccione/";
+s/w.html:176:					pathExport = "export/" + pathManifestazione;

@@ -1,1 +1,0 @@
-					pathExport = "export/" + pathManifestazione;

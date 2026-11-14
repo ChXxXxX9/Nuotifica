@@ -1,0 +1,3 @@
+                    //alert(json.jsonfilename + " " + json.counter + " " + json.tipologia + " " + json + " " + r + " " + td + " " + b + " " + c + " " + ord);
+                    objJson = new FileJSON(json.jsonfilename, json.counter, json.tipologia, json, r, td, b, c, ord);
+                        localStorage.setItem(curSport + c, JSON.stringify(AllJSON[xyz].json));

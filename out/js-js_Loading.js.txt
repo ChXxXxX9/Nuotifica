@@ -1,0 +1,24 @@
+        url: pathExport + curSport + "/categorie.json",
+        url: pathExport + curSport + "/orario.json",
+// Carica in una struttura tutti i file disponibili sul server contenuti in contatori.json (i nomi dei file disponibili)
+// Controllo il numero di tentativi di caricamento di contatori.json - dopo n volte fa ripartire il timer per il polling generale (fermando il caricamento di contatori.json)
+        url: pathExport + curSport + "/Contatori.json?x=" + counterGenerale,
+        url: pathExport + curSport + "/Contatori.json",
+            LoadTraduzioni(pathLib + pathManifestazione + "Traduzioni.json");
+                LoadTraduzioni(pathLib + pathManifestazione + "Traduzioni.json");
+                    LoadTraduzioni(pathLib + pathManifestazione + "Traduzioni.json");
+        //alert("fn: " + jsonCambiato.jsonfilename + " count: " + jsonCambiato.counter + " tipo: " + jsonCambiato.tipologia + " obj: " + jsonCambiato + " round: " + r + " tipodati: " + d + " batteria: " + b + " cat: " + c + " ord: " + ord + "
+        var oJson = new FileJSON(jsonCambiato.jsonfilename, jsonCambiato.counter, jsonCambiato.tipologia, jsonCambiato, r, d, b, c, ord, ct1, ct2);
+        if (objCodaDaElim.filename == jsonCambiato.jsonfilename) {
+// Confronta il file Contatori.json con l'array locale che contiene tutti i json per vedere quale file 
+        url: pathExport + curSport + "/Contatori.json?x=" + counterGenerale,
+            } // ciclo contatori.json
+            // Se sono qui e non ho trovato nessun json cambiato il file contatori.json non 
+                // Sono state trovate differenze tra i jsson locali e quelli presenti in contatori.json - posso lavorare sulla coda
+// Controllo il numero di tentativi di caricamento di contatori.json - dopo n volte fa ripartire il timer per il polling generale (fermando il caricamento di contatori.jsoon)
+        url: pathExport + curSport + "/" + objDaAgg.filename + "?x=" + counterGenerale,
+                if (jsonCambiato.jsonfilename == jsonLocale.filename) {
+    var objJson = new FileJSON(json.jsonfilename, json.counter, json.tipologia, json, r, td, b, c, ord, ct1, ct2);
+        url: pathExport + curSport + "/" + fn + "?x=" + counterGenerale,
+            //alert("fn: " + jsonOnDemand.jsonfilename + " count: " + jsonOnDemand.counter + " tipo: " + jsonOnDemand.tipologia + " obj: " + jsonOnDemand + " round: " + r + " tipodati: " + d + " batteria: " + b + " cat: " + c + " ord: " + ord + "
+            var oJson = new FileJSON(jsonOnDemand.jsonfilename, jsonOnDemand.counter, jsonOnDemand.tipologia, jsonOnDemand, r, d, b, c, ord, ct1, ct2);

@@ -1,8 +1,9 @@
-pagina: https://fin2026.microplustiming.com/NU_2026_11_12-14_Riccione.php
-pagina 529
-web 12665
-base https://fin2026.microplustiming.com man 
-NU/Contatori.json 4894
-NU/categorie.json 4894
-NU/orario.json 4888
-NU/CounterGenerale.json 4906
+200 21904 export/NU_2026_11_12-14_Riccione/NU/Contatori.json
+200 6 export/NU_2026_11_12-14_Riccione/NU/CounterGenerale.json
+404 4965 export/NU_2026_11_12-14_Riccione/Contatori.json
+404 4965 export/2026_11_12-14_Riccione/NU/Contatori.json
+404 4977 export/2026_11_12-14_Riccione/NU/CounterGenerale.json
+404 4959 export/2026_11_12-14_Riccione/Contatori.json
+200 21904 export/NU_2026_11_12-14_RICCIONE/NU/Contatori.json
+200 6 export/NU_2026_11_12-14_RICCIONE/NU/CounterGenerale.json
+404 4965 export/NU_2026_11_12-14_RICCIONE/Contatori.json

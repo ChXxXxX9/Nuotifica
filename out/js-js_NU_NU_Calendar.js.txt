@@ -1,0 +1,3 @@
+    // Funzione helper per ottenere la descrizione della sessione da PdfDownloadGen.json
+                objJ = jAr[iJson].json;
+                j = jAr[iJson].json;
