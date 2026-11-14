@@ -1,0 +1,192 @@
+div class="nat_eve_dates">
+            <div class="nat_eve_date">
+                <span class="nat_eve_d">15</span>
+                <span class="nat_eve_m">Novembre</span>
+                <span class="nat_eve_y">2026</span>
+            </div>
+                    </div>
+        <h4 class="nat_eve_title" 
+            data-com="equalizer" 
+            data-equalizer-id="nat_eve_title" 
+            data-equalizer-start="m2" 
+            data-equalizer-end="none"><span>16° Trofeo Master Aquarius - fuori circuito</span></h4>
+
+        <div class="info"
+             data-com="equalizer" 
+             data-equalizer-id="nat_eve_info" 
+             data-equalizer-start="m2" 
+             data-equalizer-end="none"> 
+
+                        <p class="nat_eve_pool">Vasca da 25m</p>
+            
+                                                <p class="nat_eve_loc">
+                Canosa di Puglia (BT)                
+            </p>
+                                </div>
+        <p class="nat_eve_results" 
+           data-com="equalizer" 
+           data-equalizer-id="nat_eve_results" 
+           data-equalizer-start="m2" 
+           data-equalizer-end="none">
+
+            <span class="results risultati" 
+                  data-value="solr[id_evento]" 
+                  data-id="150099" 
+                  data-alias="risultati/150099:16°-trofeo-master-aquarius-fuori-circuito.html"
+                  data-view="risultati"
+                  data-callbk="_viewDettaglio"
+                  >Risultati</span>
+
+        </p>
+    </div>
+</div>
+<div class="nat_eve_container Extrafederale">
+    <div class="nat_eve">
+        <div class="nat_eve_dates">
+            <div class="nat_eve_date">
+                <span class="nat_eve_d">15</span>
+                <span class="nat_eve_m">Novembre</span>
+                <span class="nat_eve_y">2026</span>
+            </div>
+                    </div>
+        <h4 class="nat_eve_title" 
+            data-com="equalizer" 
+            data-equalizer-id="nat_eve_title" 
+            data-equalizer-start="m2" 
+            data-equalizer-end="none"><span>23° Trofeo De Akker</span></h4>
+
+        <div class="info"
+             data-com="equalizer" 
+             data-equalizer-id="nat_eve_info" 
+             data-equalizer-start="m2" 
+             data-equalizer-end="none"> 
+
+                        <p class="nat_eve_pool">Vasca da 50m</p>
+            
+                                                <p class="nat_eve_loc">
+                Bologna (BO)                
+            </p>
+                                </div>
+        <p class="nat_eve_results" 
+           data-com="equalizer" 
+           data-equalizer-id="nat_eve_results" 
+           data-equalizer-start="m2" 
+           data-equalizer-end="none">
+
+            <span class="results risultati" 
+                  data-value="solr[id_evento]" 
+                  data-id="150100" 
+                  data-alias="risultati/150100:23°-trofeo-de-akker.html"
+                  data-view="risultati"
+                  data-callbk="_viewDettaglio"
+                  >Risultati</span>
+
+        </p>
+    </div>
+</div>
+<div class="nat_eve_container Extrafederale">
+    <div class="nat_eve">
+        <div class="nat_eve_dates">
+            <div class="nat_eve_date">
+                <span class="nat_eve_d">15</span>
+                <span class="nat_eve_m">Novembre</span>
+                <span class="nat_eve_y">2026</span>
+            </div>
+                    </div>
+        <h4 class="nat_eve_title" 
+            data-com="equalizer" 
+            data-equalizer-id="nat_eve_title" 
+            data-equalizer-start="m2" 
+            data-equalizer-end="none"><span>4° BALDESIO SWIM CUP</span></h4>
+
+        <div class="info"
+             data-com="equalizer" 
+             data-equalizer-id="nat_eve_info" 
+             data-equalizer-start="m2" 
+             data-equalizer-end="none"> 
+
+                        <p class="nat_eve_pool">Vasca da 25m</p>
+            
+                                                <p class="nat_eve_loc">
+                Cremona (CR)                
+            </p>
+                                </div>
+        <p class="nat_eve_results" 
+           data-com="equalizer" 
+           data-equalizer-id="nat_eve_results" 
+           data-equalizer-start="m2" 
+           data-equalizer-end="none">
+
+            <span class="results risultati" 
+                  data-value="solr[id_evento]" 
+                  data-id="150165" 
+                  data-alias="risultati/150165:4°-baldesio-swim-cup.html"
+                  data-view="risultati"
+                  data-callbk="_viewDettaglio"
+                  >Risultati</span>
+
+        </p>
+    </div>
+</div>
+<div class="nat_eve_container Extrafederale">
+    <div class="nat_eve">
+        <div class="nat_eve_dates">
+            <div class="nat_eve_date">
+                <span class="nat_eve_d">15</span>
+                <span class="nat_eve_m">Novembre</span>
+                <span class="nat_eve_y">2026</span>
+            </div>
+                    </div>
+        <h4 class="nat_eve_title" 
+            data-com="equalizer" 
+            data-equalizer-id="nat_eve_title" 
+            data-equalizer-start="m2" 
+            data-equalizer-end="none"><span>II° AUTUMN SWIM GIS TROPHY - SOLO PRENOTATI</span></h4>
+
+        <div class="info"
+             data-com="equalizer" 
+             data-equalizer-id="nat_eve_info" 
+             data-equalizer-start="m2" 
+             data-equalizer-end="none"> 
+
+                        <p class="nat_eve_pool">Vasca da 25m</p>
+            
+                                                <p class="nat_eve_loc">
+                Lodi (LO)                
+            </p>
+                                </div>
+        <p class="nat_eve_results" 
+           data-com="equalizer" 
+           data-equalizer-id="nat_eve_results" 
+           data-equalizer-start="m2" 
+           data-equalizer-end="none">
+
+            <span class="results risultati" 
+                  data-value="solr[id_evento]" 
+                  data-id="150188" 
+                  data-alias="risultati/150188:ii°-autumn-swim-gis-trophy-solo-prenotati.html"
+                  data-view="risultati"
+                  data-callbk="_viewDettaglio"
+                  >Risultati</span>
+
+        </p>
+    </div>
+</div>
+<div class="nat_eve_container Extrafederale">
+    <div class="nat_eve">
+        <div class="nat_eve_dates">
+            <div class="nat_eve_date">
+                <span class="nat_eve_d">15</span>
+                <span class="nat_eve_m">Novembre</span>
+                <span class="nat_eve_y">2026</span>
+            </div>
+                    </div>
+        <h4 class="nat_eve_title" 
+            data-com="equalizer" 
+            data-equalizer-id="nat_eve_title" 
+            data-equalizer-start="m2" 
+            data-equalizer-end="none"><span>27° TROFEO CITTA' DI CALENZANO</span></h4>
+
+        <div class="info"
+             data-com="equalizer" 
+             data-equalize

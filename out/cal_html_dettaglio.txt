@@ -1,0 +1,76 @@
+       <div class="nat_eve_date">
+                <span class="nat_eve_d">15</span>
+                <span class="nat_eve_m">Novembre</span>
+                <span class="nat_eve_y">2026</span>
+            </div>
+                    </div>
+        <h4 class="nat_eve_title" 
+            data-com="equalizer" 
+            data-equalizer-id="nat_eve_title" 
+            data-equalizer-start="m2" 
+            data-equalizer-end="none"><span>I Prova qualificazione Campionato Regionale Vasca Corta Concentramento Levante</span></h4>
+
+        <div class="info"
+             data-com="equalizer" 
+             data-equalizer-id="nat_eve_info" 
+             data-equalizer-start="m2" 
+             data-equalizer-end="none"> 
+
+                        <p class="nat_eve_pool">Vasca da 25m</p>
+            
+                                                <p class="nat_eve_loc">
+                Genova (GE)                
+            </p>
+                                </div>
+        <p class="nat_eve_results" 
+           data-com="equalizer" 
+           data-equalizer-id="nat_eve_results" 
+           data-equalizer-start="m2" 
+           data-equalizer-end="none">
+
+            <span class="results dettaglio" 
+                  data-value="solr[id_evento]" 
+                  data-id="150202" 
+                  data-alias="risultati/150202:i-prova-qualificazione-campionato-regionale-vasca-corta-concentramento-levante.html"
+                  data-view="risultati"
+                  data-callbk="_viewDettaglio"
+                  >Dettaglio</span>
+
+        </p>
+    </div>
+</div>
+<div class="nat_eve_container Federale">
+    <div class="nat_eve">
+        <div class="nat_eve_dates">
+            <div class="nat_eve_date">
+                <span class="nat_eve_d">14</span>
+                <span class="nat_eve_m">Novembre</span>
+                <span class="nat_eve_y">2026</span>
+            </div>
+                        <div class="nat_eve_date">
+                <span class="nat_eve_d">15</span>
+                <span class="nat_eve_m">Novembre</span>
+                <span class="nat_eve_y">2026</span>
+            </div>
+                    </div>
+        <h4 class="nat_eve_title" 
+            data-com="equalizer" 
+            data-equalizer-id="nat_eve_title" 
+            data-equalizer-start="m2" 
+            data-equalizer-end="none"><span>I Prova qualificazione Campionato Regionale Vasca Corta Concentramento Ponente</span></h4>
+
+        <div class="info"
+             data-com="equalizer" 
+             data-equalizer-id="nat_eve_info" 
+             data-equalizer-start="m2" 
+             data-equalizer-end="none"> 
+
+                        <p class="nat_eve_pool">Vasca da 25m</p>
+            
+                                                <p class="nat_eve_loc">
+                Genova (GE)                
+            </p>
+                                </div>
+        <p class="nat_eve_results" 
+           data-com="equalizer" 
+           data-equalizer-id="nat_eve_results" 
