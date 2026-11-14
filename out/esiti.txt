@@ -1,5 +1,2 @@
-cal 200 91458
-lanziB=150419
-ris_aquaniene 200 24887
-ris_sapio 200 25556
-ris_lanziB 200 3408
+ris 200 24887
+det 200 15610

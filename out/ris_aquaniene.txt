@@ -1,9 +1,0 @@
-status OK
-caratteri 23632
-classi [('collegamento', 34), ('lbl', 12), ('vle', 12), ('elenco_categorie', 2), ('gare', 2), ('details_nat_eve_list', 1), ('back', 1), ('infos', 1), ('nat_eve_dates', 1), ('nat_eve_date', 1), ('nat_eve_d', 1), ('nat_eve_m', 1), ('nat_eve_y', 1), ('nat_eve_infos', 1), ('risultati', 1)]
-th []
-data-attr [('data-id', 35), ('data-value', 34), ('data-view', 34), ('data-callbk', 34), ('data-alias', 34), ('data-tabbar', 5), ('data-tabbar-id', 4), ('data-com', 1), ('data-loop-timeout', 1), ('data-tabbar-first-id', 1)]
-data-view ['dettagliorisultati']
-data-value ['solr[id_evento];solr[codice_gara];solr[id_categoria];solr[sesso]']
-link ['/component/solrconnect/download.html?file=L3Zhci93d3cvZmluX2ZpbGVzL2V2ZW50aS8wMDAwMTUwMjM5LnBkZg==', '/component/solrconnect/download.html?file=L3Zhci93d3cvZmluX2ZpbGVzL3Jpc3VsdGF0aS8wMDAwMTUwMjM5LnBkZg==', 'http://portale.federnuoto.it']
-TESTO (nomi mascherati):  | X indietro | 1° X X X X | 24 | X | 2026 | X | X | X | X | X X X | X | X X X A.S.D. | X | X | X | X X X, 130 - X (X) | X Vasca | 25m | X X | Assoluti | X/X iscrizioni | 23/10 - 23/10 | X X | X | X on-line | vai | Risultati | X | X | Assoluti | 50 Stile Libero | 100 Stile Libero | 200 Stile Libero | 400 Stile Libero | 1500 Stile Libero | 50 Dorso | 100 Dorso | 200 Dorso | 50 Rana | 100 Rana | 200 Rana | 50 Farfalla | 100 Farfalla | 200 Farfalla | 100 Misti | 200 Misti | 400 Misti | Assoluti | 50 Stile Libero | 100 Stile Libero | 200 Stile Libero | 400 Stile Libero | 800 Stile Libero | 50 Dorso | 100 Dorso | 200 Dorso | 50 Rana | 100 Rana | 200 Rana | 50 Farfalla | 100 Farfalla | 200 Farfalla | 100 Misti | 200 Misti | 400 Misti | 

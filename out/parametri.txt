@@ -1,0 +1,1 @@
+--data-urlencode solr[id_evento]=150239 --data-urlencode solr[codice_gara]=00 --data-urlencode solr[id_categoria]=330 --data-urlencode solr[sesso]=M
