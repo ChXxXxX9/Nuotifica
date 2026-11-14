@@ -1,5 +1,0 @@
-{
- "titolo": "Il nuoto, in diretta. – Cloro",
- "nome": "Cloro",
- "errori": []
-}
