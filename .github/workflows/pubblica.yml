@@ -54,6 +54,20 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: node src/prepara.js
 
+      - name: Indirizzo nuovo (cloro.web.app, o cloro14 se cloro è preso)
+        id: sito
+        working-directory: controller
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node src/sito.js
+
+      - name: Collega i due indirizzi (nuovo e vecchio) all'app
+        run: |
+          cat > .firebaserc <<EOF2
+          {"projects":{"default":"$PROGETTO"},"targets":{"$PROGETTO":{"hosting":{"app":["${{ steps.sito.outputs.sito }}"],"vecchio":["$PROGETTO"]}}}}
+          EOF2
+          cat .firebaserc
+
       - name: Pubblica sito, regole e indici
         run: |
           set -o pipefail
