@@ -10,7 +10,9 @@ import {
 import {
   tempo, nomeGara, periodo, quando, inCorso, iniziali, giorno, oggi,
 } from './formato.js';
-import { vistaGare, vistaGara, delLazio } from './viste-gare.js';
+import { vistaGare, vistaGara, delLazio, cartaGara, statoGara } from './viste-gare.js';
+import { vistaConsigli, vistaAdmin, eAdmin } from './viste-consigli.js';
+import { applicaTema, temaScelto } from './tema.js';
 import { vistaAtleti, vistaAtleta, leggiSeguiti } from './viste-atleti.js';
 import { forseBenvenuto } from './benvenuto.js';
 import { vistaSoloApp, vistaReinstalla, richiamoReinstalla } from './installazione.js';
@@ -348,6 +350,19 @@ function vistaImpostazioni({ primaVolta = false } = {}) {
       ${primaVolta ? '' : `
       ${riquadroNotifiche()}
       <section class="riquadro">
+        <h2>Aspetto</h2>
+        <div class="segmenti" role="radiogroup" aria-label="Tema">
+          ${[['auto', 'Automatico'], ['giorno', 'Giorno'], ['notte', 'Notte']].map(([id, nome]) => `<button class="segmento" role="radio" data-tema="${id}" aria-selected="${temaScelto() === id}" aria-checked="${temaScelto() === id}">${nome}</button>`).join('')}
+        </div>
+        <p class="nota">Automatico segue il telefono: chiaro di giorno, scuro di sera.</p>
+      </section>
+      <section class="riquadro">
+        <h2>Consigli</h2>
+        <p class="nota">Un'idea, un problema, una cosa che manca? Scrivicela.</p>
+        <div class="pila"><a class="bottone bottone-secondario" href="#/consigli">Manda un consiglio</a>
+        ${stato.admin ? '<a class="bottone bottone-secondario" href="#/admin">Apri la sezione admin</a>' : ''}</div>
+      </section>
+      <section class="riquadro">
         <h2>Account</h2>
         <p class="nota">${esc(stato.utente.email ?? '')}</p>
         <div class="pila">
@@ -416,6 +431,13 @@ function vistaImpostazioni({ primaVolta = false } = {}) {
         mostraErrore(el, err);
       }
     });
+    el.querySelectorAll('[data-tema]').forEach((b) => b.addEventListener('click', () => {
+      applicaTema(b.dataset.tema);
+      el.querySelectorAll('[data-tema]').forEach((x) => {
+        x.setAttribute('aria-selected', String(x === b));
+        x.setAttribute('aria-checked', String(x === b));
+      });
+    }));
     el.querySelector('[data-azione="prova"]')?.addEventListener('click', notificaDiProva);
     el.querySelector('[data-azione="spegni-qui"]')?.addEventListener('click', async (e) => {
       try {
@@ -544,19 +566,6 @@ function vistaInstalla() {
 
 /* ---------- Per te ---------- */
 
-function cartaGara(g) {
-  const live = inCorso(g);
-  return `
-    <a class="carta-gara ${live ? 'in-corso' : ''}" href="#/gara/${esc(g.id)}">
-      <span class="carta-gara-testa">
-        <span class="carta-gara-info">${esc(periodo(g.dal, g.al))} · ${esc(g.luogo ?? '')}</span>
-        ${live ? (g.fonte === 'italia' ? '<span class="badge badge-tenue">IN CORSO</span>' : '<span class="live">LIVE</span>') : ''}
-      </span>
-      <span class="carta-gara-nome">${esc(g.nome)}</span>
-      <span class="carta-gara-info">${g.vasca ? `Vasca ${esc(g.vasca)} m` : ''}${g.conta ? ` · ${g.conta} risultati` : (g.fonte === 'italia' ? ' · risultati a gara finita' : '')}</span>
-    </a>`;
-}
-
 function rigaSeguito(a) {
   const ultimo = a.ultimo;
   return `
@@ -583,7 +592,7 @@ async function vistaPerTe() {
   const sezioneGare = () => {
     if (!stato.gare?.length) return '';
     const lazio = stato.gare.filter((g) => delLazio(g) && g.dal <= oggi());
-    const inGara = lazio.filter((g) => inCorso(g) && g.fonte === 'diretta');
+    const inGara = stato.gare.filter((g) => statoGara(g) === 'live');
     const elenco = inGara.length ? inGara : lazio.slice(0, 4);
     if (!elenco.length) return '';
     return `
@@ -592,7 +601,7 @@ async function vistaPerTe() {
           <h2 class="sezione-titolo">${inGara.length ? 'In vasca adesso' : 'Ultime gare'}</h2>
           <a href="#/gare">Tutte</a>
         </div>
-        <div class="carosello">${elenco.map(cartaGara).join('')}</div>
+        <div class="carosello">${elenco.map((g) => cartaGara(g, { li: false })).join('')}</div>
       </section>`;
   };
 
@@ -646,7 +655,12 @@ async function vistaPerTe() {
   const scrollA = stato.scrollHome ?? 0;
   stato.scrollHome = 0;
   const ridisegna = (aggiornamento = false) => disegna(`
-    ${barraTop({ azioni: `<a class="tasto-icona" href="#/impostazioni" aria-label="Impostazioni">${ICONE.ingranaggio}</a>` })}
+    ${barraTop({
+    azioni: `
+      ${stato.admin ? `<a class="tasto-icona" href="#/admin" aria-label="Admin">${ICONE.scudo}</a>` : ''}
+      <button class="tasto-icona" data-azione="tema" aria-label="Cambia giorno o notte">${temaScelto() === 'giorno' ? ICONE.luna : ICONE.sole}</button>
+      <a class="tasto-icona" href="#/impostazioni" aria-label="Impostazioni">${ICONE.ingranaggio}</a>`,
+  })}
     <main class="pagina">
       <h1 class="nascosto">Per te</h1>
       ${richiamoReinstalla()}
@@ -654,9 +668,14 @@ async function vistaPerTe() {
       ${sezioneGare()}
       ${sezioneSeguiti()}
       ${sezioneAvvisi()}
+      <a class="richiamo richiamo-secondario" href="#/consigli" style="margin-top:28px">${ICONE.lampadina}<span><strong>Hai un'idea per Cloro?</strong><small>Mandaci un consiglio o segnala un problema: li leggiamo tutti.</small></span></a>
       ${piede()}
     </main>
     ${tabBar('')}`, (el) => {
+    el.querySelector('[data-azione="tema"]')?.addEventListener('click', () => {
+      applicaTema(temaScelto() === 'giorno' ? 'notte' : 'giorno');
+      ridisegna(true);
+    });
     el.querySelectorAll('[data-filtro]').forEach((b) => b.addEventListener('click', () => {
       stato.filtro = b.dataset.filtro;
       memoria('filtro', stato.filtro);
@@ -674,7 +693,7 @@ async function vistaPerTe() {
     const [posts, statoSito, gare, seguitiDati] = await Promise.all([
       api.leggiAvvisi(p.settori ?? []),
       api.leggiStato(),
-      api.leggiGare().catch(() => stato.gare ?? []),
+      conCache('gare', (fresco) => api.leggiGare(fresco), { durata: 30_000 }).catch(() => stato.gare ?? []),
       leggiSeguiti(p.seguiti ?? []).catch(() => stato.seguitiDati ?? []),
     ]);
     stato.posts = posts;
@@ -853,11 +872,20 @@ async function mostra() {
     }
   }
   if (!stato.profilo) return vistaImpostazioni({ primaVolta: true });
+  if (stato.admin === undefined) {
+    stato.admin = false;
+    eAdmin().then((si) => {
+      stato.admin = si;
+      if (si && ['', 'impostazioni'].includes(percorso())) mostra();
+    });
+  }
 
   forseBenvenuto();
 
   if (p === 'impostazioni') return vistaImpostazioni();
   if (p === 'reinstalla') return vistaReinstalla();
+  if (p === 'consigli') return vistaConsigli();
+  if (p === 'admin') return vistaAdmin();
   if (p === 'installa') return vistaInstalla();
   if (p === 'gare') return vistaGare();
   if ((m = p.match(/^gara\/([\w-]+)$/))) return vistaGara(m[1]);
@@ -902,6 +930,20 @@ async function avvia() {
       stato.aggiornatoIl = 0;
       vistaPerTe();
     }
+  });
+
+  // "Per te" si apre con le copie salvate sul telefono; quando dalla rete arriva qualcosa di più nuovo
+  // (gare o atleti seguiti) si ridisegna, una volta sola anche se arrivano più novità insieme.
+  let attesaFresco = null;
+  window.addEventListener('cloro:fresco', (e) => {
+    const c = e.detail.chiave;
+    if (percorso() !== '' || !stato.profilo || !(c === 'gare' || c.startsWith('atleta:'))) return;
+    clearTimeout(attesaFresco);
+    attesaFresco = setTimeout(() => {
+      if (percorso() !== '') return;
+      stato.aggiornatoIl = 0;
+      vistaPerTe();
+    }, 250);
   });
 
   // 1) Se abbiamo una copia dell'ultima volta, l'app si apre subito con quella.

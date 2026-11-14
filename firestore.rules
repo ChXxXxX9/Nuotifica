@@ -9,6 +9,11 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Chi gestisce Cloro: ha un documento in /admin col suo id (lo crea solo il controllore).
+    function admin() {
+      return request.auth != null && exists(/databases/$(database)/documents/admin/$(request.auth.uid));
+    }
+
     // Avvisi pubblicati dal Comitato: pubblici in lettura, li scrive solo il controllore.
     match /posts/{id} {
       allow read: if true;
@@ -35,9 +40,43 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Tutto il resto di meta (indici e stato interni del controllore).
+    // Tutto il resto di meta (indici e stato interni del controllore): lo legge solo l'admin.
     match /meta/{altro} {
-      allow read, write: if false;
+      allow read: if admin();
+      allow write: if false;
+    }
+
+    match /admin/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // Consigli: ognuno manda i suoi e li rivede; l'admin li legge tutti, li segna e risponde.
+    match /consigli/{id} {
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['uid', 'testo', 'tipo', 'dispositivo', 'stato', 'creato'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.testo is string
+        && request.resource.data.testo.size() >= 3 && request.resource.data.testo.size() <= 1000
+        && request.resource.data.tipo in ['idea', 'problema', 'altro']
+        && request.resource.data.stato == 'nuovo'
+        && request.resource.data.creato == request.time;
+      allow read: if admin() || (request.auth != null && resource.data.uid == request.auth.uid);
+      allow update: if admin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stato', 'risposta'])
+        && request.resource.data.stato in ['nuovo', 'letto', 'fatto'];
+      allow delete: if admin();
+    }
+
+    // Annunci a tutti: li scrive l'admin, li manda il controllore.
+    match /annunci/{id} {
+      allow read: if admin();
+      allow create: if admin()
+        && request.resource.data.keys().hasOnly(['titolo', 'corpo', 'stato', 'creato'])
+        && request.resource.data.titolo is string && request.resource.data.titolo.size() <= 60
+        && request.resource.data.corpo is string && request.resource.data.corpo.size() <= 180
+        && request.resource.data.stato == 'da-inviare';
+      allow update, delete: if false;
     }
 
     // Gare, risultati, schede atleta e indice di ricerca: solo per chi ha fatto l'accesso.
@@ -82,7 +121,8 @@ service cloud.firestore {
           && (!('seguiti' in d) || (d.seguiti is list && d.seguiti.size() <= 10));
       }
 
-      allow read, delete: if proprietario();
+      allow read: if proprietario() || admin();
+      allow delete: if proprietario();
       allow create, update: if proprietario() && valido(request.resource.data);
     }
   }

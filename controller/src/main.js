@@ -15,6 +15,7 @@ import { leggiPost, mappaCategorie, impostaSito } from './parse.js';
 import { leggiFonti, scarica } from './fonti.js';
 import { aggiornaGare } from './gare.js';
 import { aggiornaNazionali } from './nazionali.js';
+import { impostaAdmin, inviaAnnunci } from './admin.js';
 import { oggiRoma } from './tempi.js';
 import {
   confronta, documentoPost, voceIndice, perUtente, messaggiPush,
@@ -327,6 +328,17 @@ async function principale() {
     }
   } catch (e) {
     console.log(`::warning title=Gare::${String(e.message).slice(0, 500)}`);
+  }
+
+  // Admin e annunci a tutti (scritti dall'app dalla sezione Admin).
+  try {
+    await impostaAdmin({
+      db, chiamaGoogle, progetto, email: process.env.ADMIN_EMAIL,
+    });
+    const n = await inviaAnnunci({ db, invio, sito });
+    if (n && process.env.GITHUB_ACTIONS) console.log(`::notice title=Annunci::${n} notifiche mandate`);
+  } catch (e) {
+    console.log(`::warning title=Admin::${String(e.message).slice(0, 300)}`);
   }
 
   // 3. Gare di tutta Italia (calendario e risultati a gara finita), una gara per giro.

@@ -180,6 +180,24 @@ export function creaFirestore(chiamaGoogle, progetto) {
       return documenti;
     },
 
+    /** Documenti di una collezione con un campo uguale a un valore. */
+    async dove(collezione, campo, valore) {
+      const risposte = await chiamaGoogle(`${base}:runQuery`, {
+        method: 'POST',
+        body: {
+          structuredQuery: {
+            from: [{ collectionId: collezione }],
+            where: { fieldFilter: { field: { fieldPath: campo }, op: 'EQUAL', value: codifica(valore) } },
+            limit: 50,
+          },
+        },
+      });
+      const documenti = (risposte ?? []).filter((r) => r.document)
+        .map((r) => ({ id: r.document.name.split('/').pop(), ...decodificaCampi(r.document.fields) }));
+      conta.letture += Math.max(1, documenti.length);
+      return documenti;
+    },
+
     async elenca(collezione) {
       const documenti = [];
       let pagina = '';

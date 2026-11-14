@@ -38,7 +38,40 @@ export async function creaBackendFirebase(config) {
   const app = initializeApp(config.firebase);
   const auth = A.getAuth(app);
   auth.languageCode = 'it';
-  const db = F.getFirestore(app);
+  // Copia dei dati sul telefono (IndexedDB): le pagine già viste si riaprono subito, anche offline.
+  let db;
+  try {
+    db = F.initializeFirestore(app, {
+      localCache: F.persistentLocalCache({ tabManager: F.persistentSingleTabManager() }),
+    });
+  } catch {
+    db = F.getFirestore(app);
+  }
+
+  /**
+   * Legge un documento: se c'è la copia sul telefono risponde subito con quella e intanto chiede
+   * la versione fresca; se è diversa la passa a `fresco`. Senza copia aspetta la rete.
+   */
+  async function leggiVeloce(rif, trasforma, fresco) {
+    const dati = (snap) => (snap.exists() ? trasforma(snap) : null);
+    let copia;
+    try {
+      copia = dati(await F.getDocFromCache(rif));
+    } catch { /* niente copia */ }
+    const dallaRete = F.getDocFromServer(rif).then(dati);
+    if (copia !== undefined && copia !== null) {
+      dallaRete.then((nuovo) => {
+        if (fresco && JSON.stringify(nuovo) !== JSON.stringify(copia)) fresco(nuovo);
+      }).catch(() => {});
+      return copia;
+    }
+    try {
+      return await dallaRete;
+    } catch (e) {
+      // Offline o rete lenta: ultima possibilità, la lettura normale (usa la copia se c'è).
+      return dati(await F.getDoc(rif).catch(() => { throw e; }));
+    }
+  }
 
   // Esito di un eventuale accesso con Google "a redirect".
   let erroreRedirect = null;
@@ -172,33 +205,76 @@ export async function creaBackendFirebase(config) {
     }),
 
     /** Elenco delle gare (Lazio in diretta e, quando ci sono, le altre). */
-    leggiGare: () => avvolgi(async () => {
-      const [diretta, italia] = await Promise.all(['gare-diretta', 'gare-italia'].map((id) => F.getDoc(F.doc(db, 'meta', id))
-        .then((s) => (s.exists() ? s.data().gare ?? [] : []))
-        .catch(() => [])));
-      const perId = new Map([...italia, ...diretta].map((g) => [g.id, g]));
-      return [...perId.values()].sort((a, b) => (b.dal ?? '').localeCompare(a.dal ?? '') || a.nome.localeCompare(b.nome));
+    leggiGare: (fresco) => avvolgi(async () => {
+      const ultimi = { diretta: [], italia: [] };
+      const unisci = () => {
+        const perId = new Map([...ultimi.italia, ...ultimi.diretta].map((g) => [g.id, g]));
+        return [...perId.values()].sort((a, b) => (b.dal ?? '').localeCompare(a.dal ?? '') || a.nome.localeCompare(b.nome));
+      };
+      const leggiElenco = (id, chiave) => leggiVeloce(F.doc(db, 'meta', id), (s) => s.data().gare ?? [], (nuovo) => {
+        ultimi[chiave] = nuovo ?? [];
+        fresco?.(unisci());
+      }).catch(() => []);
+      [ultimi.diretta, ultimi.italia] = await Promise.all([leggiElenco('gare-diretta', 'diretta'), leggiElenco('gare-italia', 'italia')]);
+      ultimi.diretta ??= [];
+      ultimi.italia ??= [];
+      return unisci();
     }),
 
-    leggiGara: (id) => avvolgi(async () => {
-      const snap = await F.getDoc(F.doc(db, 'gare', id));
-      return snap.exists() ? { id, ...snap.data() } : null;
+    leggiGara: (id, fresco) => avvolgi(() => leggiVeloce(F.doc(db, 'gare', id), (s) => ({ id, ...s.data() }), fresco)),
+
+    leggiCategoria: (id, doc, fresco) => avvolgi(() => leggiVeloce(F.doc(db, 'gare', id, 'categorie', doc), (s) => s.data(), fresco)),
+
+    leggiAtleta: (k, fresco) => avvolgi(() => leggiVeloce(F.doc(db, 'atleti', k), (s) => s.data(), fresco)),
+
+    leggiIndice: (lettera) => avvolgi(async () => (await leggiVeloce(F.doc(db, 'indici', lettera), (s) => s.data().l ?? [])) ?? []),
+
+    /* ---------- consigli e admin ---------- */
+
+    sonoAdmin: async (uid) => {
+      try {
+        return (await F.getDoc(F.doc(db, 'admin', uid))).exists();
+      } catch {
+        return false;
+      }
+    },
+
+    mandaConsiglio: (uid, { testo, tipo, dispositivo }) => avvolgi(() => F.addDoc(F.collection(db, 'consigli'), {
+      uid, testo, tipo, dispositivo, stato: 'nuovo', creato: F.serverTimestamp(),
+    })),
+
+    mieiConsigli: (uid) => avvolgi(async () => {
+      const snap = await F.getDocs(F.query(F.collection(db, 'consigli'), F.where('uid', '==', uid)));
+      return snap.docs.map((d) => ({ id: d.id, ...d.data(), creato: comeData(d.data().creato) }))
+        .sort((a, b) => (b.creato?.getTime() ?? 0) - (a.creato?.getTime() ?? 0));
     }),
 
-    leggiCategoria: (id, doc) => avvolgi(async () => {
-      const snap = await F.getDoc(F.doc(db, 'gare', id, 'categorie', doc));
-      return snap.exists() ? snap.data() : null;
+    datiAdmin: () => avvolgi(async () => {
+      const conta = (rif) => F.getCountFromServer(rif).then((r) => r.data().count).catch(() => null);
+      const [utenti, atleti, consigli, annunci, statoSnap, budgetSnap] = await Promise.all([
+        conta(F.collection(db, 'users')),
+        conta(F.collection(db, 'atleti')),
+        F.getDocs(F.query(F.collection(db, 'consigli'), F.orderBy('creato', 'desc'), F.limit(100))),
+        F.getDocs(F.query(F.collection(db, 'annunci'), F.orderBy('creato', 'desc'), F.limit(5))),
+        F.getDoc(F.doc(db, 'meta', 'stato')),
+        F.getDoc(F.doc(db, 'meta', 'budget')).catch(() => null),
+      ]);
+      const s = statoSnap.exists() ? statoSnap.data() : {};
+      return {
+        utenti,
+        atleti,
+        consigli: consigli.docs.map((d) => ({ id: d.id, ...d.data(), creato: comeData(d.data().creato) })),
+        annunci: annunci.docs.map((d) => ({ id: d.id, ...d.data(), inviato: comeData(d.data().inviato) })),
+        stato: { ...s, ultimoControllo: comeData(s.ultimoControllo)?.toISOString() },
+        budget: budgetSnap?.exists() ? budgetSnap.data() : {},
+      };
     }),
 
-    leggiAtleta: (k) => avvolgi(async () => {
-      const snap = await F.getDoc(F.doc(db, 'atleti', k));
-      return snap.exists() ? snap.data() : null;
-    }),
+    aggiornaConsiglio: (id, dati) => avvolgi(() => F.updateDoc(F.doc(db, 'consigli', id), dati)),
 
-    leggiIndice: (lettera) => avvolgi(async () => {
-      const snap = await F.getDoc(F.doc(db, 'indici', lettera));
-      return snap.exists() ? snap.data().l ?? [] : [];
-    }),
+    creaAnnuncio: ({ titolo, corpo }) => avvolgi(() => F.addDoc(F.collection(db, 'annunci'), {
+      titolo, corpo, stato: 'da-inviare', creato: F.serverTimestamp(),
+    })),
 
     segui: (uid, k) => avvolgi(() => F.updateDoc(F.doc(db, 'users', uid), {
       seguiti: F.arrayUnion(k),

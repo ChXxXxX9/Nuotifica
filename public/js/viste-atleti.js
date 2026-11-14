@@ -20,10 +20,8 @@ export function risultatiPuliti(r = []) {
 
 export async function leggiAtleta(k, { fresco = false } = {}) {
   if (fresco) stato.cache.delete(`atleta:${k}`);
-  return conCache(`atleta:${k}`, async () => {
-    const a = await api.leggiAtleta(k);
-    return a ? { ...a, k, r: risultatiPuliti(a.r) } : null;
-  }, { durata: 60_000 });
+  const pulisci = (a) => (a ? { ...a, k, r: risultatiPuliti(a.r) } : null);
+  return conCache(`atleta:${k}`, async (fresco) => pulisci(await api.leggiAtleta(k, (nuovo) => fresco(pulisci(nuovo)))), { durata: 60_000 });
 }
 
 /** Dati brevi degli atleti seguiti, per "Per te". */
@@ -233,6 +231,18 @@ export async function vistaAtleta(k) {
     return;
   }
   if (!qui()) return;
+  // Se dalla rete arriva una scheda più nuova di quella salvata sul telefono, si ridisegna.
+  const fresco = (e) => {
+    if (!qui()) {
+      window.removeEventListener('cloro:fresco', fresco);
+      return;
+    }
+    if (e.detail.chiave === `atleta:${k}`) {
+      window.removeEventListener('cloro:fresco', fresco);
+      vistaAtleta(k);
+    }
+  };
+  window.addEventListener('cloro:fresco', fresco);
   if (!a) {
     disegna(`${barraTop({ indietro: true })}<main class="pagina"><h1 class="titolo-pagina">Atleta non trovato</h1><p class="intro">Torna alla <a href="#/atleti">ricerca</a>.</p></main>${tabBar('atleti')}`);
     return;

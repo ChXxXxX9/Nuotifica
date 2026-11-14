@@ -7,7 +7,7 @@
   <meta name="description" content="Il nuoto, in diretta: gare con batterie e parziali, schede atleta, punti e avvisi, con notifiche sul telefono. Servizio non ufficiale.">
   <meta name="robots" content="noindex">
   <meta name="theme-color" content="#07130f">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="dark light">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Cloro">
@@ -18,6 +18,11 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/favicon-64.png" type="image/png">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <script>
+    // Tema scelto (giorno/notte/automatico) prima di disegnare, così non c'è il lampo di colore sbagliato.
+    try { document.documentElement.dataset.tema = JSON.parse(localStorage.getItem('nuotifica.tema')) || 'notte'; }
+    catch (e) { document.documentElement.dataset.tema = 'notte'; }
+  </script>
   <link rel="preload" href="/fonts/manrope.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/fonts/unbounded.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/css/app.css">
@@ -31,6 +36,8 @@
   <link rel="modulepreload" href="/js/viste-atleti.js">
   <link rel="modulepreload" href="/js/benvenuto.js">
   <link rel="modulepreload" href="/js/installazione.js">
+  <link rel="modulepreload" href="/js/tema.js">
+  <link rel="modulepreload" href="/js/viste-consigli.js">
   <link rel="modulepreload" href="/js/backend-firebase.js">
   <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js" crossorigin>
   <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js" crossorigin>

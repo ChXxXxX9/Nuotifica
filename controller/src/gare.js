@@ -102,7 +102,7 @@ export function costruisciSede({
     if (r.atleta.anno) riga.y = r.atleta.anno;
     if (r.ms) riga.t = r.ms;
     if (r.stato) riga.x = r.stato;
-    if (r.parziali.length) riga.sp = r.parziali.map((p) => ({ m: p.m, t: p.ms }));
+    if (r.parziali.length) riga.sp = r.parziali.map((p) => (p.p ? { m: p.m, t: p.ms, p: p.p } : { m: p.m, t: p.ms }));
     const pt = punti(r.ms, r.gara.codice, r.sesso, gara.vasca, r.data);
     if (pt) riga.pt = pt;
 

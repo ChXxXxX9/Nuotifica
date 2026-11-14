@@ -28,13 +28,31 @@ export const api = new Proxy({}, {
   get: (_, nome) => async (...argomenti) => (await promessaBackend)[nome](...argomenti),
 });
 
-/** Legge un documento una volta per sessione (le pagine si riaprono subito). */
+/**
+ * Legge un dato una volta per un po' (le pagine si riaprono subito). `carica` riceve una funzione
+ * da chiamare se, dopo aver risposto con la copia salvata sul telefono, arriva un dato più fresco:
+ * in quel caso si aggiorna la memoria e si avvisa con l'evento "cloro:fresco".
+ */
+const inCorsoCache = new Map();
 export async function conCache(chiave, carica, { durata = 60_000 } = {}) {
   const c = stato.cache.get(chiave);
   if (c && Date.now() - c.quando < durata) return c.valore;
-  const valore = await carica();
-  stato.cache.set(chiave, { valore, quando: Date.now() });
-  return valore;
+  if (inCorsoCache.has(chiave)) return inCorsoCache.get(chiave);
+  const fresco = (valore) => {
+    stato.cache.set(chiave, { valore, quando: Date.now() });
+    window.dispatchEvent(new CustomEvent('cloro:fresco', { detail: { chiave } }));
+  };
+  const promessa = (async () => {
+    try {
+      const valore = await carica(fresco);
+      stato.cache.set(chiave, { valore, quando: Date.now() });
+      return valore;
+    } finally {
+      inCorsoCache.delete(chiave);
+    }
+  })();
+  inCorsoCache.set(chiave, promessa);
+  return promessa;
 }
 export const giaInCache = (chiave) => stato.cache.get(chiave)?.valore;
 
@@ -146,6 +164,11 @@ export const ICONE = {
   documento: svg('<path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 13h6M9 17h6"/>'),
   tribuna: svg('<path d="M3 20h18M5 20v-4h4v-4h4V8h4v12"/>'),
   aggiorna: svg('<path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/>'),
+  sole: svg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
+  luna: svg('<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>'),
+  scudo: svg('<path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/>'),
+  lampadina: svg('<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>'),
+  invia: svg('<path d="M4 12l16-8-6 16-2-7z"/>'),
   condividi: '<svg viewBox="0 0 24 24" class="icona-inline" role="img" aria-label="Condividi" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M6 11H5v10h14V11h-1"/></svg>',
   piu: '<svg viewBox="0 0 24 24" class="icona-inline" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M12 8v8M8 12h8"/></svg>',
   menu: '<svg viewBox="0 0 24 24" class="icona-inline" role="img" aria-label="Menu"><circle cx="12" cy="5" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="19" r="1.8" fill="currentColor"/></svg>',
@@ -210,11 +233,8 @@ export function disegna(html, collega, { classeBody = '', aggiornamento = false,
     const testo = titolo?.textContent.trim();
     document.title = testo && testo.toLowerCase() !== 'cloro' ? `${testo} – Cloro` : 'Cloro';
   };
-  if (document.startViewTransition && !pocoMovimento && !aggiornamento && radice.childElementCount) {
-    document.startViewTransition(fai);
-  } else {
-    fai();
-  }
+  // Niente animazioni di passaggio tra pagine: la pagina nuova compare subito.
+  fai();
 }
 
 export function caricamento(testo = 'Un attimo…', { tab = null } = {}) {

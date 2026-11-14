@@ -108,6 +108,10 @@ export function creaBackendDemo() {
   const oggi = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Rome' }).format(new Date());
   const elenco = DEMO.elenco.map((g, i) => (i === 0 ? { ...g, dal: oggi, al: oggi } : g));
   const ascoltatori = new Set();
+  const consigli = [
+    { id: 'c1', tipo: 'idea', testo: 'Sarebbe bello vedere anche i tempi limite dei Criteria.', dispositivo: 'iPhone', stato: 'letto', risposta: 'In arrivo con le Classifiche!', creato: new Date(Date.now() - 86_400_000) },
+  ];
+  const annunci = [];
   const avvisa = () => ascoltatori.forEach((cb) => cb(utente));
   const pausa = (ms = 250) => new Promise((r) => setTimeout(r, ms));
 
@@ -164,6 +168,19 @@ export function creaBackendDemo() {
     async leggiCategoria(id, doc) { await pausa(120); return DEMO.categorie[`${id}/${doc}`] ?? null; },
     async leggiAtleta(k) { await pausa(120); return DEMO.atleti[k] ?? null; },
     async leggiIndice(lettera) { await pausa(100); return DEMO.indici[lettera] ?? []; },
+    async sonoAdmin() { return parametri.has('admin'); },
+    async mandaConsiglio(uid, c) { await pausa(); consigli.unshift({ id: String(Date.now()), ...c, uid, stato: 'nuovo', creato: new Date() }); },
+    async mieiConsigli() { await pausa(100); return consigli; },
+    async datiAdmin() {
+      await pausa(200);
+      return {
+        utenti: 128, atleti: Object.keys(DEMO.atleti).length, consigli, annunci,
+        stato: { ultimoControllo: new Date(Date.now() - 180_000).toISOString(), esito: 'ok', messaggio: 'Nessuna novità.' },
+        budget: { scritture: 4210, letture: 380 },
+      };
+    },
+    async aggiornaConsiglio(id, dati) { await pausa(); Object.assign(consigli.find((c) => c.id === id) ?? {}, dati); },
+    async creaAnnuncio(a) { await pausa(); annunci.unshift({ ...a, stato: 'da-inviare', creato: new Date() }); },
     async segui(uid, k) { await pausa(); profilo.seguiti = [...new Set([...(profilo.seguiti ?? []), k])]; },
     async smettiDiSeguire(uid, k) { await pausa(); profilo.seguiti = (profilo.seguiti ?? []).filter((x) => x !== k); },
   };
