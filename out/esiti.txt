@@ -1,0 +1,8 @@
+pagina: https://fin2026.microplustiming.com/NU_2026_11_12-14_Riccione.php
+pagina 529
+web 12665
+base https://fin2026.microplustiming.com man 
+NU/Contatori.json 4894
+NU/categorie.json 4894
+NU/orario.json 4888
+NU/CounterGenerale.json 4906

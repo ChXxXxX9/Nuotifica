@@ -1,0 +1,11 @@
+s/w.html:/CounterGenerale.json
+s/w.html:JSON
+s/w.html:JSON del calendario
+s/w.html:JSON prima di configurare i menu
+s/w.html:LoadCalendarDataFromJSON
+s/w.html:export/
+s/w.html:json
+s/w.html:jsonTraduzioni.caricamento_eng
+s/w.html:jsonTraduzioni.caricamento_fra
+s/w.html:jsonTraduzioni.caricamento_ita
+s/w.html:lib/NU_2026_11_12-14_Riccione/PdfDownloadGen.json
