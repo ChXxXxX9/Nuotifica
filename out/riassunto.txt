@@ -1,0 +1,167 @@
+===== out/cal1.raw
+status OK
+caratteri 84846 link 0
+TESTO:  | 14 | Novembre | 2026 | 15 | Novembre | 2026 | I Prova qualificazione Campionato Regionale Vasca Corta Concentramento Levante | Vasca da 25m | Genova (GE) | Dettaglio | 14 | Novembre | 2026 | 15 | Novembre | 2026 | I Prova qualificazione Campionato Regionale Vasca Corta Concentramento Ponente | Vasca da 25m | Genova (GE) | Dettaglio | 14 | Novembre | 2026 | 15 | Novembre | 2026 | 2° TROFEO DEA FORTUNA | Vasca da 25m | Fano (PU) | Dettaglio | 14 | Novembre | 2026 | 15 | Novembre | 2026 | Qualificazioni "Trofeo Gaetano Lanzi" 2026 Es/B | Vasca da 25m | Roma (RM) | Dettaglio | 14 | Novembre | 2026 | 15 | Novembre | 2026 | 2° TROFEO SARDEGNA | Vasca da 25m | Cagliari (CA) | Sassari (SS) | Dettaglio | 14 | Novembre | 2026 | 15 | Novembre | 2026 | 2° Trofeo di San Martino - Sic. Orientale | Vasca da 25m | Paternò (CT) | Dettaglio | 14 | Novembre | 2026 | 15 | Novembre | 2026 | 2° Trofeo di San Martino - Sic. Occidentale | Vasca da 25m | Palermo (PA) | Dettaglio | 14 | Novembre | 2026 | 15 | Novembre | 2026 | I^ PROVA TEMPI ESORDIENTI A - B VALIDA AI FINI CAMPIONATI REGIONALI | Vasca da 25m | Lamezia Terme (CZ) | Dettaglio | 15 | Novembre | 2026 | 16° Trofeo Master Aquarius - fuori circuito | Vasca da 25m | Canosa di Puglia (BT) | Risultati | 15 | Novembre | 2026 | 23° Trofeo De Akker | Vasca da 50m | Bologna (BO) | Risultati | 15 | Novembre | 2026 | 4° BALDESIO SWIM CUP | Vasca da 25m | Cremona (CR) | Risultati | 15 | Novembre | 2026 | II° AUTUMN SWIM GIS TROPHY - SOLO PRENOTATI | Vasca da 25m | Lodi (LO) | Risultati | 15 | Novembre | 2026 | 27° TROFEO CITTA' DI CALENZANO | Vasca da 25m | Calenzano (FI) | Risultati | 15 | Novembre | 2026 | 1a Giornata Attività Categoria Padova Rovigo Verona Vicenza | Vasca da 25m | Tezze sul Brenta (VI) | Verona (VR) | Risultati | 15 | Novembre | 2026 | 1° prova invernale (prima parte) Esordienti A/B | Vasca da 25m | Bibbiena (AR) | Colle di Val d'Elsa (SI) | Lucca (LU) | Risultati | 15 | Novembre | 2026 | Manifestazione Regionale Invernale Lifesaving Cat. Assoluti | Vasca da 50m | Roma (RM) | Risultati | 15 | Novembre | 2026 | Manifestazione Regionale Invernale Lifesaving Cat. Es/A | Vasca da 50m | Roma (RM) | Risultati | 15 | Novembre | 2026 | Manifestazione Regionale Invernale Lifesaving cat. Es.B | Vasca da 50m | Roma (RM) | Risultati | 15 | Novembre | 2026 | Coppa Los Angeles - 1ª Prova - 1ª Parte | Vasca da 25m | Perugia (PG) | Risultati | 15 | Novembre | 2026 | Acquainsieme 2026 | Vasca da 25m | Trieste (TS) | Risultati
+LINK:
+===== out/cal2.raw
+status OK
+caratteri 85242 link 0
+TESTO:  | Nella stagione 2026/2027 | 11 | Ottobre | 2026 | Re-Start Contest Superba Nuoto | Vasca da 25m | Albenga (SV) | Risultati | 17 | Ottobre | 2026 | 44° Trofeo Enrico Meroni - 43a Coppa Sprinters Amici Nuoto Riva ESORDIENTI | Vasca da 25m | Rovereto (TN) | Risultati | 17 | Ottobre | 2026 | 18 | Ottobre | 2026 | 6º Trofeo Città di Rimini - Pol. Garden Rimini | Vasca da 25m | Rimini (RN) | Risultati | 17 | Ottobre | 2026 | 18 | Ottobre | 2026 | 44° Trofeo Enrico Meroni - 43a Coppa Sprinters Amici Nuoto Riva | Vasca da 25m | Rovereto (TN) | Risultati | 18 | Ottobre | 2026 | Trofeo Maiella - Fase di qualifica | Vasca da 25m | Roseto degli Abruzzi (TE) | San Giovanni Teatino (CH) | Risultati | 18 | Ottobre | 2026 | 1° Trofeo VITTOSPRINT | Vasca da 25m | Lodi (LO) | Risultati | 18 | Ottobre | 2026 | TROFEO RESCUE CUP | Vasca da 25m | Treviso (TV) | Risultati | 24 | Ottobre | 2026 | Distanze Speciali Campania 2026 | Vasca da 50m | Napoli (NA) | Risultati | 24 | Ottobre | 2026 | 1° MEETING ARENA INTERCENTRI AQUANIENE | Vasca da 25m | Roma (RM) | Risultati | 24 | Ottobre | 2026 | 25 | Ottobre | 2026 | 12° TROFEO EXTREMO | Vasca da 25m | Colle di Val d'Elsa (SI) | Risultati | 24 | Ottobre | 2026 | 25 | Ottobre | 2026 | 15° Trofeo Nuoto Riccione | Vasca da 25m | Riccione (RN) | Risultati | 24 | Ottobre | 2026 | 25 | Ottobre | 2026 | XVIII UltraSprint SDS | Vasca da 25m | L'Aquila (AQ) | Risultati | 24 | Ottobre | 2026 | 25 | Ottobre | 2026 | 2° CORRADO ROSSO SWIM CUP | Vasca da 25m | Livorno (LI) | Risultati | 24 | Ottobre | 2026 | 25 | Ottobre | 2026 | 4° Memorial Massimo Borracci | Vasca da 25m | Lamezia Terme (CZ) | Risultati | 24 | Ottobre | 2026 | 25 | Ottobre | 2026 | I TAPPA COPPA LOS ANGELES | Vasca da 25m | Torino (TO) | Risultati | 25 | Ottobre | 2026 | 25° Trofeo Città di Verolanuova | Vasca da 25m | Verolanuova (BS) | Risultati | 25 | Ottobre | 2026 | Trofeo delle lancette | Vasca da 25m | Bassano del Grappa (VI) | Risultati | 25 | Ottobre | 2026 | 17° Meeting Nuoto e Simpatia FISDIR | Vasca da 25m | Formigine (MO) | Risultati | 25 | Ottobre | 2026 | 1^ PROVA TROFEO SARDEGNA - CAGLIARI | Vasca da 25m | Cagliari (CA) | Risultati | 30 | Ottobre | 2026 | 5° MEETING NAZIONALE HALLOSWIMEETING (Sessione Esordienti) | Vasca da 25m | Potenza (PZ) | Risultati | 30 | Ottobre | 2026 | 31 | Ottobre | 2026 | LII Trofeo Nico Sapio | Vasca da 25m | Genova (GE) | Risultati | 31 | Ottobre | 2026 | I TAPPA CAMPIONI CAMPANI | Vasca da 50m | Napoli (NA) | Risultati | 31 | Ot
+LINK:
+===== out/cal3.raw
+status OK
+caratteri 84846 link 0
+TESTO:  | 14 | Novembre | 2026 | 15 | Novembre | 2026 | I Prova qualificazione Campionato Regionale Vasca Corta Concentramento Levante | Vasca da 25m | Genova (GE) | Dettaglio | 14 | Novembre | 2026 | 15 | Novembre | 2026 | I Prova qualificazione Campionato Regionale Vasca Corta Concentramento Ponente | Vasca da 25m | Genova (GE) | Dettaglio | 14 | Novembre | 2026 | 15 | Novembre | 2026 | 2° TROFEO DEA FORTUNA | Vasca da 25m | Fano (PU) | Dettaglio | 14 | Novembre | 2026 | 15 | Novembre | 2026 | Qualificazioni "Trofeo Gaetano Lanzi" 2026 Es/B | Vasca da 25m | Roma (RM) | Dettaglio | 14 | Novembre | 2026 | 15 | Novembre | 2026 | 2° TROFEO SARDEGNA | Vasca da 25m | Cagliari (CA) | Sassari (SS) | Dettaglio | 14 | Novembre | 2026 | 15 | Novembre | 2026 | 2° Trofeo di San Martino - Sic. Orientale | Vasca da 25m | Paternò (CT) | Dettaglio | 14 | Novembre | 2026 | 15 | Novembre | 2026 | 2° Trofeo di San Martino - Sic. Occidentale | Vasca da 25m | Palermo (PA) | Dettaglio | 14 | Novembre | 2026 | 15 | Novembre | 2026 | I^ PROVA TEMPI ESORDIENTI A - B VALIDA AI FINI CAMPIONATI REGIONALI | Vasca da 25m | Lamezia Terme (CZ) | Dettaglio | 15 | Novembre | 2026 | 16° Trofeo Master Aquarius - fuori circuito | Vasca da 25m | Canosa di Puglia (BT) | Risultati | 15 | Novembre | 2026 | 23° Trofeo De Akker | Vasca da 50m | Bologna (BO) | Risultati | 15 | Novembre | 2026 | 4° BALDESIO SWIM CUP | Vasca da 25m | Cremona (CR) | Risultati | 15 | Novembre | 2026 | II° AUTUMN SWIM GIS TROPHY - SOLO PRENOTATI | Vasca da 25m | Lodi (LO) | Risultati | 15 | Novembre | 2026 | 27° TROFEO CITTA' DI CALENZANO | Vasca da 25m | Calenzano (FI) | Risultati | 15 | Novembre | 2026 | 1a Giornata Attività Categoria Padova Rovigo Verona Vicenza | Vasca da 25m | Tezze sul Brenta (VI) | Verona (VR) | Risultati | 15 | Novembre | 2026 | 1° prova invernale (prima parte) Esordienti A/B | Vasca da 25m | Bibbiena (AR) | Colle di Val d'Elsa (SI) | Lucca (LU) | Risultati | 15 | Novembre | 2026 | Manifestazione Regionale Invernale Lifesaving Cat. Assoluti | Vasca da 50m | Roma (RM) | Risultati | 15 | Novembre | 2026 | Manifestazione Regionale Invernale Lifesaving Cat. Es/A | Vasca da 50m | Roma (RM) | Risultati | 15 | Novembre | 2026 | Manifestazione Regionale Invernale Lifesaving cat. Es.B | Vasca da 50m | Roma (RM) | Risultati | 15 | Novembre | 2026 | Coppa Los Angeles - 1ª Prova - 1ª Parte | Vasca da 25m | Perugia (PG) | Risultati | 15 | Novembre | 2026 | Acquainsieme 2026 | Vasca da 25m | Trieste (TS) | Risultati
+LINK:
+===== out/finlive.raw
+caratteri 1385 link 2
+TESTO:  | 404 - Articolo non trovato | 404 - Articolo non trovato | Non è possibile visualizzare questa pagina, potrebbe essere a causa di: | un | bookmark/preferiti scaduto | una ricerca attraverso il motore di ricerca che ha una | indicizzazione non aggiornata di questo sito | un | indirizzo compilato male | non hai accesso | a questa pagina | la risorsa richiesta non esiste. | si è verificato un errore durante l'esecuzione della richiesta. | Prova a visitare una delle seguenti pagine | Home Page | Se persistono delle difficoltà, contatta l'Amministratore di questo sito e riporta l'errore | Articolo non trovato | 
+LINK:
+  /index.php
+  /templates/system/css/error.css
+===== out/finris.raw
+caratteri 76637 link 247
+TESTO:  | var _iub = _iub | []; _iub.csConfiguration = {"askConsentAtCookiePolicyUpdate":true,"cookiePolicyInOtherWindow":true,"floatingPreferencesButtonDisplay":"bottom-left","logLevel":"error","perPurposeConsent":true,"reloadOnConsent":true,"siteId":3388005,"cookiePolicyId":50053366,"lang":"it","cookiePolicyUrl":"https://www.federnuoto.it/home/cookie-policy.html","banner":{"acceptButtonCaptionColor":"#FFFFFF","acceptButtonColor":"#0073CE","acceptButtonDisplay":true,"backgroundColor":"#FFFFFF","closeButtonRejects":true,"customizeButtonCaptionColor":"#4D4D4D","customizeButtonColor":"#DADADA","customizeButtonDisplay":true,"explicitWithdrawal":true,"listPurposes":true,"position":"float-top-center","prependOnBody":true,"rejectButtonDisplay":true,"showPurposesToggles":true,"showTitle":false,"textColor":"#000000"}}; | Federazione Italiana Nuoto - Risultati e classifiche | // WORKAROUND FOR ISSUE: #873 kQuery(function($) { $.magnificPopup.instance._onFocusIn = function(e) { // Do nothing if target element is select2 input if( $(e.target).hasClass('select2-search__field') ) { return true; } // Else call parent method $.magnificPopup.proto._onFocusIn.call(this,e); }; }); kQuery(function($){ $('[data-k-modal]').each(function(idx, el) { var el = $(el); var data = el.data('k-modal'); var options = {"type":"image"}; if (data) { $.extend(true, options, data); } el.magnificPopup(options); }); }); kQuery(function($){ new Docman.Tree.CategoriesSite(".k-js-category-tree", {"selected":"226","data":[{"label":"Nuoto - Risultati e classifiche","id":226,"route":"\/home\/nuoto\/risultati-e-classifiche-nuoto.html","slug":"risultati-1","path":"15\/17\/226","parent":17},{"label":"2026-2027","id":1080,"route":"\/home\/nuoto\/risultati-e-classifiche-nuoto\/2026-2027-2.html","slug":"2026-2027-2","path":"15\/17\/226\/1080","parent":226},{"label":"2025-2026","id":1040,"route":"\/home\/nuoto\/risultati-e-classifiche-nuoto\/2025-2026-3.html","slug":"2025-2026-3","path":"15\/17\/226\/1040","parent":226},{"label":"2024-2025","id":994,"route":"\/home\/nuoto\/risultati-e-classifiche-nuoto\/2024-2025-4.html","slug":"2024-2025-4","path":"15\/17\/226\/994","parent":226},{"label":"2023-2024","id":932,"route":"\/home\/nuoto\/risultati-e-classifiche-nuoto\/2023-2024-2.html","slug":"2023-2024-2","path":"15\/17\/226\/932","parent":226},{"label":"2022-2023","id":842,"route":"\/home\/nuoto\/risultati-e-classifiche-nuoto\/2022-2023-4.html","slug":"2022-2023-4","path":"15\/17\/226\/842","parent":226},{"label":"
+LINK:
+  /
+  /?Itemid=473
+  /?Itemid=626
+  /coordinatori-sit-quadriennio-2025-2028.html
+  /docenti-nazionali-sit.html
+  /federazione-extra/3237-certiquality-certificato-n%C2%B0-22246-per-le-attivit%C3%A0-settore-iaf-35,37,39.html
+  /federazione-extra/3238-iqnet-certificato-n%C2%B0-22246-per-le-attivit%C3%A0-settore-iaf-35,37,39.html
+  /federazione-trasparente.html
+  /feed-rss-fin.feed?type=rss
+  /home/archivio-news.html
+  /home/area-legislativa.html
+  /home/centri-federali.html
+  /home/centri-federali/c-f-acerra-carlo-pedersoli.html
+  /home/centri-federali/c-f-complesso-natatorio-foro-italico.html
+  /home/centri-federali/c-f-crotone.html
+  /home/centri-federali/c-f-imperia.html
+  /home/centri-federali/c-f-livorno.html
+  /home/centri-federali/c-f-milano.html
+  /home/centri-federali/c-f-napoli-felice-scandone.html
+  /home/centri-federali/c-f-palazzo-del-nuoto-torino.html
+  /home/centri-federali/c-f-polo-natatorio-ostia.html
+  /home/centri-federali/c-f-trieste-bruno-bianchi.html
+  /home/centri-federali/c-f-unipol-blustadium-pietralata.html
+  /home/centri-federali/c-f-valco-san-paolo.html
+  /home/centri-federali/c-f-verona-alberto-castagnetti.html
+  /home/centri-federali/c-f-viterbo.html
+  /home/contatti.html
+  /home/cookie-policy.html
+  /home/federazione.html
+  /home/federazione/antidoping.html
+  /home/federazione/assicurazione.html
+  /home/federazione/bandi-di-gara.html
+  /home/federazione/bilanci.html
+  /home/federazione/comitati-regionali.html
+  /home/federazione/convenzioni-enti.html
+  /home/federazione/europei-a-modo-mei.html
+  /home/federazione/flash-news-la-federazione.html
+  /home/federazione/giustizia.html
+  /home/federazione/la-federazione/chi-siamo.html
+  /home/federazione/la-federazione/struttura.html
+  /home/federazione/modello-organizzativo-231.html
+  /home/federazione/news-la-federazione.html
+  /home/federazione/norme-e-documenti-federazione.html
+  /home/federazione/parigi-2026.html
+  /home/federazione/parigi-2026/parigi-2026-azzurri-in-gara.html
+  /home/federazione/parigi-2026/parigi-2026-la-delegazione-italiana.html
+  /home/federazione/parigi-2026/parigi-2026-medagliere-nuoto.html
+  /home/federazione/parigi-2026/parigi-2026-medagliere.html
+  /home/federazione/parigi-2026/parigi-2026-startlists-e-risultati.html
+  /home/federazione/safeguarding-rules.html
+  /home/federazione/settore-impianti/finanziamenti.html
+  /home/federazione/settore-impianti/il-settore-impianti.html
+  /home/federazione/settore-impianti/la-piscina.html
+  /home/federazione/settore-impianti/normative.html
+  /home/federazione/societ%C3%A0-sportive.html
+  /home/flash-news.html
+  /home/fondo.html
+  /home/fondo/azzurri-fondo.html
+  /home/fondo/eventi-fondo.html
+  /home/fondo/flash-news-fondo.html
+  /home/fondo/grand-prix-fondo.html
+  /home/fondo/news-fondo.html
+  /home/fondo/norme-e-documentio-fondo.html
+  /home/fondo/primati.html
+  /home/fondo/risultati-e-classifiche-fondo.html
+  /home/formazione.html
+  /home/formazione/sezione-salvamento.html
+  /home/formazione/sezione-salvamento/albo-assistenti-bagnanti-salvamento.html
+  /home/formazione/sezione-salvamento/assistente-bagnanti-conversione.html
+  /home/formazione/sezione-salvamento/assistente-bagnanti-rinnovo.html
+  /home/formazione/sezione-salvamento/coordinatori-salvamento.html
+  /home/formazione/sezione-salvamento/corsi,-eventi-e-convegni-salvamento.html
+  /home/formazione/sezione-salvamento/diventare-bagnino.html
+  /home/formazione/sezione-salvamento/dove-si-insinua-il-pericolo.html
+  /home/formazione/sezione-salvamento/norme-e-documenti-salvamento.html
+  /home/formazione/sezione-salvamento/sez-salv-eventi-corsi-nazionali.html
+  /home/formazione/sezione-salvamento/sicurezza-acquatica-in-7-messaggi.html
+  /home/formazione/sit.html
+  /home/formazione/sit/docenti-regionali-sit.html
+  /home/formazione/sit/la-tecnica-del-nuoto.html
+  /home/formazione/sit/norme-e-documenti.html
+  /home/formazione/sit/offerta-formativa.html
+  /home/formazione/sit/struttura.html
+  /home/formazione/sit/tecnici-sit.html
+  /home/galleria-fotografica.html
+  /home/gug.html
+  /home/gug/composizione.html
+  /home/gug/designazioni-arbitrali.html
+  /home/gug/formazione-gug.html
+  /home/gug/norme-e-documenti-gug.html
+  /home/gug/sedi-regionali-e-provinciali.html
+  /home/intranet.html
+  /home/mappa-del-sito.html
+  /home/master.html
+  /home/master/approfondimenti.html
+  /home/master/calendario-nazionale-fondo-master.html
+  /home/master/circuito-supermaster/eventi-circuito-supermaster.html
+  /home/master/circuito-supermaster/riepilogo-eventi.html
+  /home/master/eventi-master.html
+  /home/master/flash-news-master.html
+  /home/master/graduatorie.html
+  /home/master/news-master.html
+  /home/master/norme-e-documenti-master.html
+  /home/master/primati.html
+  /home/master/risultati-e-classifiche-master.html
+  /home/nuoto.html
+  /home/nuoto/azzurri-nuoto.html
+  /home/nuoto/calendario-nazionale-nuoto/calendario-nazionale-nuoto-2018-2019.html
+  /home/nuoto/calendario-nazionale-nuoto/calendario-nazionale-nuoto-2019-2020.html
+  /home/nuoto/calendario-nazionale-nuoto/calendario-nazionale-nuoto-2020-2021.html
+  /home/nuoto/calendario-nazionale-nuoto/calendario-nazionale-nuoto-2021-2022.html
+  /home/nuoto/calendario-nazionale-nuoto/calendario-nazionale-nuoto-2022-2023.html
+  /home/nuoto/calendario-nazionale-nuoto/calendario-nazionale-nuoto-2023-2024.html
+  /home/nuoto/calendario-nazionale-nuoto/calendario-nazionale-nuoto-2024-2025.html
+  /home/nuoto/calendario-nazionale-nuoto/calendario-nazionale-nuoto-2025-2026.html
+  /home/nuoto/calendario-nazionale-nuoto/calendario-nazionale-nuoto-2026-2027.html
+  /home/nuoto/eventi-attivita-agonistica-nuoto.html
+  /home/nuoto/flash-news-nuoto.html
+  /home/nuoto/graduatorie-stagione-2026-2027.html
+  /home/nuoto/graduatorie.html
+===== out/live1.raw
+caratteri 1523 link 2
+TESTO:  | 404 - View non trovato [name, type, prefix]: live, json, solrconnectView | 404 - View non trovato [name, type, prefix]: live, json, solrconnectView | Non è possibile visualizzare questa pagina, potrebbe essere a causa di: | un | bookmark/preferiti scaduto | una ricerca attraverso il motore di ricerca che ha una | indicizzazione non aggiornata di questo sito | un | indirizzo compilato male | non hai accesso | a questa pagina | la risorsa richiesta non esiste. | si è verificato un errore durante l'esecuzione della richiesta. | Prova a visitare una delle seguenti pagine | Home Page | Se persistono delle difficoltà, contatta l'Amministratore di questo sito e riporta l'errore | View non trovato [name, type, prefix]: live, json, solrconnectView | 
+LINK:
+  /index.php
+  /templates/system/css/error.css
+===== out/live2.raw
+caratteri 1523 link 2
+TESTO:  | 404 - View non trovato [name, type, prefix]: live, json, solrconnectView | 404 - View non trovato [name, type, prefix]: live, json, solrconnectView | Non è possibile visualizzare questa pagina, potrebbe essere a causa di: | un | bookmark/preferiti scaduto | una ricerca attraverso il motore di ricerca che ha una | indicizzazione non aggiornata di questo sito | un | indirizzo compilato male | non hai accesso | a questa pagina | la risorsa richiesta non esiste. | si è verificato un errore durante l'esecuzione della richiesta. | Prova a visitare una delle seguenti pagine | Home Page | Se persistono delle difficoltà, contatta l'Amministratore di questo sito e riporta l'errore | View non trovato [name, type, prefix]: live, json, solrconnectView | 
+LINK:
+  /index.php
+  /templates/system/css/error.css
+===== out/mplus.raw
+caratteri 71 link 1
+TESTO:  | window.location.href="https://microplus.it/events/"; | 
+LINK:
+  https://microplus.it/events/
+===== out/mplus2026.raw
+caratteri 5103 link 1
+TESTO:  | IIS 10.0 Detailed Error - 403.14 - Forbidden | HTTP Error 403.14 - Forbidden | The Web server is configured to not list the contents of this directory. | Most likely causes: | A default document is not configured for the requested URL, and directory browsing is not enabled on the server. | Things you can try: | If you do not want to enable directory browsing, ensure that a default document is configured and that the file exists. | Enable directory browsing using IIS Manager. | Open IIS Manager. | In the Features view, double-click Directory Browsing. | On the Directory Browsing page, in the Actions pane, click Enable. | Verify that the configuration/system.webServer/directoryBrowse@enabled attribute is set to true in the site or application configuration file. | Detailed Error Information: | Module | DirectoryListingModule | Notification | ExecuteRequestHandler | Handler | StaticFile | Error Code | 0x00000000 | Requested URL | https://fin2026.microplustimingservices.com:443/ | Physical Path | C:\inetpub\wwwroot\FIN\FIN2026 | Logon Method | Anonymous | Logon User | Anonymous | More Information: | This error occurs when a document is not specified in the URL, no default document is specified for the Web site or application, and directory listing is not enabled for the Web site or application. This setting may be disabled on purpose to secure the contents of the server. | View more information » | 
+LINK:
+  https://go.microsoft.com/fwlink/?LinkID=62293&amp;IIS70Error=403,14,0x00000000,17763
