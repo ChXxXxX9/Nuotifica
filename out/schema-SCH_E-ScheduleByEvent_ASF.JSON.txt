@@ -1,0 +1,162 @@
+{
+ "jsonfilename": "xxxxxxxxxxxxxxx_xxx.xxxx",
+ "counter": "6050",
+ "tipologia": "SCH_E",
+ "ord": "1",
+ "codS": "NU",
+ "t_en": "xxxxxxxx",
+ "t_fr": "xxxxxxxx",
+ "t_it": "xxxxx",
+ "e": [
+  {
+   "gi": "14/11/2026",
+   "ng": "3",
+   "h": "10:00",
+   "vict": "0",
+   "c0": "ASF",
+   "c1": "001",
+   "c2": "001",
+   "c3": "001",
+   "st": "2",
+   "ordb": "0",
+   "tb": "5",
+   "numbParz": [
+    "1",
+    "2",
+    "... 5 elementi"
+   ],
+   "tbAll": "5",
+   "numb": [
+    "1",
+    "2",
+    "... 5 elementi"
+   ],
+   "uffb": [
+    "3",
+    "3",
+    "... 5 elementi"
+   ],
+   "ob": [
+    "10:00",
+    "10:00",
+    "... 5 elementi"
+   ],
+   "db_it": [
+    "xxxxxxxx 1 xx 5",
+    "xxxxxxxx 2 xx 5",
+    "... 5 elementi"
+   ],
+   "db_en": [
+    "xxxx 1 xx 5",
+    "xxxx 2 xx 5",
+    "... 5 elementi"
+   ],
+   "db_fr": [
+    "x&#233;xxx 1 xxx 5",
+    "x&#233;xxx 2 xxx 5",
+    "... 5 elementi"
+   ],
+   "dc_it": [],
+   "dc_en": [],
+   "dc_fr": [],
+   "i": "0",
+   "g": "0",
+   "int": "0",
+   "d_en": "50x xxxxxxxxx",
+   "d_fr": "50 x xxxx xxxxx",
+   "d_it": "50 x xxxxx xxxxxx",
+   "d1_en": "xxxxxxxxxxx",
+   "d1_fr": "xxxxxxxxxxxxx",
+   "d1_it": "xxxxxxxxxxxx",
+   "d2_en": "xxxx 1 xx 5,xxxx 2 xx 5,xxxx 3 xx 5,xxxx",
+   "d2_fr": "x&#233;xxx 1 xxx 5,x&#233;xxx 2 xxx 5,x&",
+   "d2_it": "xxxxxxxx 1 xx 5,xxxxxxxx 2 xx 5,xxxxxxxx",
+   "d3_en": "xxxxx",
+   "d3_fr": "",
+   "d3_it": "xxxxxxxx",
+   "comunicato": "25",
+   "dbrange_en": "[]",
+   "dbrange_fr": "[]",
+   "dbrange_it": "[]",
+   "tg": "V",
+   "tab": [
+    {
+     "c": "STL1",
+     "nf": "STAR",
+     "p_en": "xxxxxxxxx",
+     "p_fr": "xxxxxxxxx",
+     "p_it": "xxxxxx xxxxxxxx"
+    },
+    {
+     "c": "CGR1",
+     "nf": "CLAS",
+     "p_en": "xxxxxx",
+     "p_fr": "xxxxxxxxxx",
+     "p_it": "xxxxxxxxxx"
+    },
+    "... 3 elementi"
+   ]
+  },
+  {
+   "gi": "14/11/2026",
+   "ng": "3",
+   "h": "18:00",
+   "vict": "0",
+   "c0": "ASF",
+   "c1": "001",
+   "c2": "005",
+   "c3": "001",
+   "st": "0",
+   "ordb": "1",
+   "tb": "0",
+   "numbParz": [],
+   "tbAll": "0",
+   "numb": [],
+   "uffb": [],
+   "ob": [],
+   "db_it": [],
+   "db_en": [],
+   "db_fr": [],
+   "dc_it": [],
+   "dc_en": [],
+   "dc_fr": [],
+   "i": "0",
+   "g": "0",
+   "int": "0",
+   "d_en": "50x xxxxxxxxx",
+   "d_fr": "50 x xxxx xxxxx",
+   "d_it": "50 x xxxxx xxxxxx",
+   "d1_en": "xxxxx",
+   "d1_fr": "xxxxxx",
+   "d1_it": "xxxxxx",
+   "d2_en": "",
+   "d2_fr": "",
+   "d2_it": "",
+   "d3_en": "xxxxx",
+   "d3_fr": "",
+   "d3_it": "xxxxxxxx",
+   "comunicato": "25",
+   "dbrange_en": "[]",
+   "dbrange_fr": "[]",
+   "dbrange_it": "[]",
+   "tg": "V",
+   "tab": [
+    {
+     "c": "STL1",
+     "nf": "STAR",
+     "p_en": "xxxxxxxxx",
+     "p_fr": "xxxxxxxxx",
+     "p_it": "xxxxxx xxxxxxxx"
+    },
+    {
+     "c": "CGR1",
+     "nf": "CLAS",
+     "p_en": "xxxxxx",
+     "p_fr": "xxxxxxxxxx",
+     "p_it": "xxxxxxxxxx"
+    }
+   ]
+  },
+  "... 32 elementi"
+ ]
+}

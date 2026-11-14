@@ -1,0 +1,233 @@
+{
+ "jsonfilename": "xxxxx001xxxx01 001.xxxx",
+ "counter": "4830",
+ "tipologia": "001",
+ "visSoc": "1",
+ "visNaz": "1",
+ "visCat": "1",
+ "visPunti": "1",
+ "Scorpora": "0",
+ "pdf": "xxx-xxx-50xx-xxx-xxxx.xxx",
+ "Export": {
+  "ExportFormat": "xxxxxx xxxx xxxxxx",
+  "ExpType": "IND",
+  "ExpName": "xxxxxxxxxx xxxxxxxx xxxx",
+  "ExpDescr": "xxxxxxxxxxxx"
+ },
+ "Sport": {
+  "Cod": "NU",
+  "CodDisciplina": "001",
+  "Ita": "xxxxx",
+  "Eng": "xxxxxxxx",
+  "Fra": "xxxxxxxx"
+ },
+ "Competition": {
+  "Cod": "001",
+  "Type": "V",
+  "Ita": "50 x xxxxx xxxxxx",
+  "Eng": "50x xxxxxxxxx",
+  "Fra": "50 x xxxx xxxxx",
+  "Int": "0",
+  "NStaff": "0"
+ },
+ "Document": {
+  "Cod": "SUM",
+  "Ita": "xxxxxxxxx",
+  "Eng": "xxxxxxx",
+  "Fra": "x&#233;xxxxxxxxxxx"
+ },
+ "Category": {
+  "Cod": "ASF",
+  "Ita": "xxxxxxxx",
+  "Eng": "xxxxx",
+  "Fra": ""
+ },
+ "Round": {
+  "Cod": "001",
+  "Ita": "xxxxxxxxxxxx",
+  "Eng": "xxxxxxxxxxx",
+  "Fra": "xxxxxxxxxxxxx"
+ },
+ "Heat": {
+  "Cod": "001",
+  "Ita": "xxxxxxxxx",
+  "Eng": "xxxxxxx",
+  "Fra": "x&#233;xxxxxxxxxxx",
+  "UffDate": "14/11/2026",
+  "UffTime": "10:07"
+ },
+ "DataProcessing": {
+  "Cod": "xxxxxxxxx xxxxxxxxxxx xxx",
+  "Name": "xxxxxxxxx xxxxxxxxxxx xxx"
+ },
+ "Rilev": {
+  "Num": "99",
+  "NameIta": "FINISH",
+  "NameEng": "FINISH",
+  "NameFra": "FINISH"
+ },
+ "Event": {
+  "Date": "14/11/2026",
+  "Part": "1",
+  "Comunicate": "25",
+  "Audience": "",
+  "Place": "xxxxxxxx, 12-14 xxxxxxxx 2026",
+  "Time": "10:00",
+  "Ord": "10"
+ },
+ "ExtraDetails": {
+  "Ita": [
+   {
+    "Field": "T.R."
+   },
+   {
+    "Field": "FINISH"
+   }
+  ],
+  "Eng": [
+   {
+    "Field": "R.T."
+   },
+   {
+    "Field": "FINISH"
+   }
+  ],
+  "Fra": [
+   {
+    "Field": "R.T."
+   },
+   {
+    "Field": "FINISH"
+   }
+  ]
+ },
+ "Records": [
+  {
+   "Cod": "RM",
+   "Prest": "22.75",
+   "Flag": "",
+   "Name": "xxxxx xxxxxxxx",
+   "Born": "2003",
+   "Naz": "USA",
+   "Place": "xxxxxxxxxxxxxxx",
+   "Date": "16/10/2026"
+  },
+  {
+   "Cod": "RM",
+   "Prest": "22.75",
+   "Flag": "",
+   "Name": "xxxxxxxx xxxxxxxxx",
+   "Born": "2001",
+   "Naz": "USA",
+   "Place": "xxxxxxxx (xxx)",
+   "Date": "29/10/2026"
+  },
+  "... 6 elementi"
+ ],
+ "data": [
+  {
+   "b": "0",
+   "PlaCls": "1",
+   "PlaMedal": "",
+   "PlaClsIta": "",
+   "PlaClsRil": "99",
+   "PlaLane": "4",
+   "PlaCod": "866469",
+   "PlaNat": "ITA",
+   "PlaTeamCod": "288597",
+   "TeamDescrIta": "xxxx xxxxxx xxx",
+   "TeamDescrItaVis": "xxxx xxxxxx",
+   "Team2DescrIta": "",
+   "Team2DescrItaVis": "",
+   "PlaSurname": "AMBLER",
+   "PlaName": "xxxxx xxxxx",
+   "PlaSurnameL": "AMBLER",
+   "PlaNameL": "xxxxx xxxxx",
+   "PlaBirth": "2001",
+   "MemIscr": "*",
+   "MemFC": "",
+   "MemNote": "",
+   "PlaCat": "",
+   "DiffIntRec1": "+1.71",
+   "DiffIntRec2": "+0.80",
+   "DiffIntRec3": "+1.53",
+   "DiffIntRec4": "+0.77",
+   "DiffIntRec5": "+1.07",
+   "MemPrest": "24.46",
+   "MemQual": "A",
+   "MemPoint": "",
+   "MemRBattCls": "1.",
+   "MemRBatt": "5",
+   "MemRComment": "",
+   "Gap": "",
+   "Last50": "",
+   "Last100": "",
+   "Last200": "",
+   "Last400": "",
+   "MemFields": [
+    {
+     "V": ""
+    },
+    {
+     "V": "24.46",
+     "T": "",
+     "P": "1"
+    },
+    "... 9 elementi"
+   ]
+  },
+  {
+   "b": "0",
+   "PlaCls": "2",
+   "PlaMedal": "",
+   "PlaClsIta": "",
+   "PlaClsRil": "99",
+   "PlaLane": "4",
+   "PlaCod": "574410",
+   "PlaNat": "ITA",
+   "PlaTeamCod": "114446",
+   "TeamDescrIta": "xx xxxxxx xxx",
+   "TeamDescrItaVis": "xx xxx",
+   "Team2DescrIta": "xx xxxxxx xxx",
+   "Team2DescrItaVis": "xx xxxxxx",
+   "PlaSurname": "CAPRETTA",
+   "PlaName": "xxxxx",
+   "PlaSurnameL": "CAPRETTA",
+   "PlaNameL": "xxxxx",
+   "PlaBirth": "2002",
+   "MemIscr": "*",
+   "MemFC": "",
+   "MemNote": "",
+   "PlaCat": "",
+   "DiffIntRec1": "",
+   "DiffIntRec2": "",
+   "DiffIntRec3": "",
+   "DiffIntRec4": "",
+   "DiffIntRec5": "",
+   "MemPrest": "24.66",
+   "MemQual": "A",
+   "MemPoint": "",
+   "MemRBattCls": "1.",
+   "MemRBatt": "4",
+   "MemRComment": "",
+   "Gap": "0.20",
+   "Last50": "",
+   "Last100": "",
+   "Last200": "",
+   "Last400": "",
+   "MemFields": [
+    {
+     "V": ""
+    },
+    {
+     "V": "24.66",
+     "T": "",
+     "P": "2"
+    },
+    "... 9 elementi"
+   ]
+  },
+  "... 44 elementi"
+ ],
+ "StatoBatt": "1"
+}

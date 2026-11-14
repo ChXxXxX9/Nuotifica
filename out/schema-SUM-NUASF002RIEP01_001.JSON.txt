@@ -1,0 +1,236 @@
+{
+ "jsonfilename": "xxxxx002xxxx01 001.xxxx",
+ "counter": "4043",
+ "tipologia": "002",
+ "visSoc": "1",
+ "visNaz": "1",
+ "visCat": "1",
+ "visPunti": "1",
+ "Scorpora": "0",
+ "pdf": "xxx-xxx-100xx-xxx-xxxx.xxx",
+ "Export": {
+  "ExportFormat": "xxxxxx xxxx xxxxxx",
+  "ExpType": "IND",
+  "ExpName": "xxxxxxxxxx xxxxxxxx xxxx",
+  "ExpDescr": "xxxxxxxxxxxx"
+ },
+ "Sport": {
+  "Cod": "NU",
+  "CodDisciplina": "001",
+  "Ita": "xxxxx",
+  "Eng": "xxxxxxxx",
+  "Fra": "xxxxxxxx"
+ },
+ "Competition": {
+  "Cod": "002",
+  "Type": "V",
+  "Ita": "100 x xxxxx xxxxxx",
+  "Eng": "100x xxxxxxxxx",
+  "Fra": "100 x xxxx xxxxx",
+  "Int": "1",
+  "NStaff": "0"
+ },
+ "Document": {
+  "Cod": "SUM",
+  "Ita": "xxxxxxxxx",
+  "Eng": "xxxxxxx",
+  "Fra": "x&#233;xxxxxxxxxxx"
+ },
+ "Category": {
+  "Cod": "ASF",
+  "Ita": "xxxxxxxx",
+  "Eng": "xxxxx",
+  "Fra": ""
+ },
+ "Round": {
+  "Cod": "001",
+  "Ita": "xxxxxxxxxxxx",
+  "Eng": "xxxxxxxxxxx",
+  "Fra": "xxxxxxxxxxxxx"
+ },
+ "Heat": {
+  "Cod": "001",
+  "Ita": "xxxxxxxxx",
+  "Eng": "xxxxxxx",
+  "Fra": "x&#233;xxxxxxxxxxx",
+  "UffDate": "13/11/2026",
+  "UffTime": "11:14"
+ },
+ "DataProcessing": {
+  "Cod": "xxxxxxxxx xxxxxxxxxxx xxx",
+  "Name": "xxxxxxxxx xxxxxxxxxxx xxx"
+ },
+ "Rilev": {
+  "Num": "99",
+  "NameIta": "FINISH",
+  "NameEng": "FINISH",
+  "NameFra": "FINISH"
+ },
+ "Event": {
+  "Date": "13/11/2026",
+  "Part": "1",
+  "Comunicate": "19",
+  "Audience": "",
+  "Place": "xxxxxxxx, 12-14 xxxxxxxx 2026",
+  "Time": "11:05",
+  "Ord": "70"
+ },
+ "ExtraDetails": {
+  "Ita": [
+   {
+    "Field": "T.R."
+   },
+   {
+    "Field": "50m"
+   },
+   "... 3 elementi"
+  ],
+  "Eng": [
+   {
+    "Field": "R.T."
+   },
+   {
+    "Field": "50m"
+   },
+   "... 3 elementi"
+  ],
+  "Fra": [
+   {
+    "Field": "R.T."
+   },
+   {
+    "Field": "50m"
+   },
+   "... 3 elementi"
+  ]
+ },
+ "Records": [
+  {
+   "Cod": "RM",
+   "Prest": "49.64",
+   "Flag": "",
+   "Name": "xxxxxxxx xxxxxxxxx",
+   "Born": "2001",
+   "Naz": "USA",
+   "Place": "xxxxxxxx (xxx)",
+   "Date": "31/10/2026"
+  },
+  {
+   "Cod": "MJ",
+   "Prest": "51.22",
+   "Flag": "",
+   "Name": "xxxxxxx xxxxx",
+   "Born": "2009",
+   "Naz": "USA",
+   "Place": "xxxxxxxx (xxx)",
+   "Date": "31/10/2026"
+  },
+  "... 5 elementi"
+ ],
+ "data": [
+  {
+   "b": "0",
+   "PlaCls": "1",
+   "PlaMedal": "",
+   "PlaClsIta": "",
+   "PlaClsRil": "99",
+   "PlaLane": "4",
+   "PlaCod": "819391",
+   "PlaNat": "ITA",
+   "PlaTeamCod": "56479",
+   "TeamDescrIta": "xxxxxx xxxxxxxx xxxxxxxx",
+   "TeamDescrItaVis": "xxxxxxxx",
+   "Team2DescrIta": "xx xxxxxx xxx",
+   "Team2DescrItaVis": "xx xxxxxx",
+   "PlaSurname": "MENICUCCI",
+   "PlaName": "xxxx xxxxxxxx",
+   "PlaSurnameL": "MENICUCCI",
+   "PlaNameL": "xxxx xxxxxxxx",
+   "PlaBirth": "2002",
+   "MemIscr": "*",
+   "MemFC": "",
+   "MemNote": "",
+   "PlaCat": "",
+   "DiffIntRec1": "+3.23",
+   "DiffIntRec2": "+1.65",
+   "DiffIntRec3": "+2.55",
+   "DiffIntRec4": "+0.70",
+   "DiffIntRec5": "+1.61",
+   "MemPrest": "52.87",
+   "MemQual": "A",
+   "MemPoint": "",
+   "MemRBattCls": "1.",
+   "MemRBatt": "4",
+   "MemRComment": "",
+   "Gap": "",
+   "Last50": "27.49",
+   "Last100": "",
+   "Last200": "",
+   "Last400": "",
+   "MemFields": [
+    {
+     "V": ""
+    },
+    {
+     "V": "25.38",
+     "T": "",
+     "P": "1"
+    },
+    "... 9 elementi"
+   ]
+  },
+  {
+   "b": "0",
+   "PlaCls": "2",
+   "PlaMedal": "",
+   "PlaClsIta": "",
+   "PlaClsRil": "99",
+   "PlaLane": "4",
+   "PlaCod": "587643",
+   "PlaNat": "ITA",
+   "PlaTeamCod": "37313",
+   "TeamDescrIta": "xxxxxx xxxxxx - xxxxx",
+   "TeamDescrItaVis": "xx xxxxxx",
+   "Team2DescrIta": "xx xxxxx xxxx xxxxx",
+   "Team2DescrItaVis": "xx xxxxx xx",
+   "PlaSurname": "TARANTINO",
+   "PlaName": "xxxxxx",
+   "PlaSurnameL": "TARANTINO",
+   "PlaNameL": "xxxxxx",
+   "PlaBirth": "2003",
+   "MemIscr": "*",
+   "MemFC": "",
+   "MemNote": "",
+   "PlaCat": "",
+   "DiffIntRec1": "",
+   "DiffIntRec2": "",
+   "DiffIntRec3": "",
+   "DiffIntRec4": "",
+   "DiffIntRec5": "",
+   "MemPrest": "53.67",
+   "MemQual": "A",
+   "MemPoint": "",
+   "MemRBattCls": "1.",
+   "MemRBatt": "2",
+   "MemRComment": "",
+   "Gap": "0.80",
+   "Last50": "27.58",
+   "Last100": "",
+   "Last200": "",
+   "Last400": "",
+   "MemFields": [
+    {
+     "V": ""
+    },
+    {
+     "V": "26.09",
+     "T": "",
+     "P": "7"
+    },
+    "... 9 elementi"
+   ]
+  },
+  "... 43 elementi"
+ ],
+ "StatoBatt": "1"
+}

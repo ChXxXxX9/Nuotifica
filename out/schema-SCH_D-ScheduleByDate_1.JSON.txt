@@ -1,0 +1,193 @@
+{
+ "jsonfilename": "xxxxxxxxxxxxxx_1.xxxx",
+ "counter": "6048",
+ "tipologia": "SCH_D",
+ "ord": "1",
+ "gi": "12/11/2026",
+ "p": "1",
+ "codS": "NU",
+ "t_en": "xxxxxxxx",
+ "t_fr": "xxxxxxxx",
+ "t_it": "xxxxx",
+ "e": [
+  {
+   "gi": "12/11/2026",
+   "ng": "1",
+   "h": "10:30",
+   "vict": "0",
+   "c0": "ASM",
+   "c1": "012",
+   "c2": "001",
+   "c3": "001",
+   "st": "2",
+   "ordb": "0",
+   "tb": "4",
+   "numbParz": [
+    "1",
+    "2",
+    "... 4 elementi"
+   ],
+   "tbAll": "4",
+   "numb": [
+    "1",
+    "2",
+    "... 4 elementi"
+   ],
+   "uffb": [
+    "3",
+    "3",
+    "... 4 elementi"
+   ],
+   "ob": [
+    "10:30",
+    "",
+    "... 4 elementi"
+   ],
+   "db_it": [
+    "xxxxxxxx 1 xx 4",
+    "xxxxxxxx 2 xx 4",
+    "... 4 elementi"
+   ],
+   "db_en": [
+    "xxxx 1 xx 4",
+    "xxxx 2 xx 4",
+    "... 4 elementi"
+   ],
+   "db_fr": [
+    "x&#233;xxx 1 xxx 4",
+    "x&#233;xxx 2 xxx 4",
+    "... 4 elementi"
+   ],
+   "dc_it": [],
+   "dc_en": [],
+   "dc_fr": [],
+   "i": "0",
+   "g": "0",
+   "int": "1",
+   "d_en": "100x xxxxxxxxxx",
+   "d_fr": "100 x xxx",
+   "d_it": "100 x xxxxx",
+   "d1_en": "xxxxxxxxxxx",
+   "d1_fr": "xxxxxxxxxxxxx",
+   "d1_it": "xxxxxxxxxxxx",
+   "d2_en": "xxxx 1 xx 4,xxxx 2 xx 4,xxxx 3 xx 4,xxxx",
+   "d2_fr": "x&#233;xxx 1 xxx 4,x&#233;xxx 2 xxx 4,x&",
+   "d2_it": "xxxxxxxx 1 xx 4,xxxxxxxx 2 xx 4,xxxxxxxx",
+   "d3_en": "Men",
+   "d3_fr": "",
+   "d3_it": "xxxxxxxx",
+   "comunicato": "1",
+   "dbrange_en": "[]",
+   "dbrange_fr": "[]",
+   "dbrange_it": "[]",
+   "tg": "V",
+   "tab": [
+    {
+     "c": "STL1",
+     "nf": "STAR",
+     "p_en": "xxxxxxxxx",
+     "p_fr": "xxxxxxxxx",
+     "p_it": "xxxxxx xxxxxxxx"
+    },
+    {
+     "c": "CGR1",
+     "nf": "CLAS",
+     "p_en": "xxxxxx",
+     "p_fr": "xxxxxxxxxx",
+     "p_it": "xxxxxxxxxx"
+    },
+    "... 3 elementi"
+   ]
+  },
+  {
+   "gi": "12/11/2026",
+   "ng": "1",
+   "h": "10:40",
+   "vict": "0",
+   "c0": "ASF",
+   "c1": "011",
+   "c2": "001",
+   "c3": "001",
+   "st": "2",
+   "ordb": "0",
+   "tb": "4",
+   "numbParz": [
+    "1",
+    "2",
+    "... 4 elementi"
+   ],
+   "tbAll": "4",
+   "numb": [
+    "1",
+    "2",
+    "... 4 elementi"
+   ],
+   "uffb": [
+    "3",
+    "3",
+    "... 4 elementi"
+   ],
+   "ob": [
+    "10:40",
+    "",
+    "... 4 elementi"
+   ],
+   "db_it": [
+    "xxxxxxxx 1 xx 4",
+    "xxxxxxxx 2 xx 4",
+    "... 4 elementi"
+   ],
+   "db_en": [
+    "xxxx 1 xx 4",
+    "xxxx 2 xx 4",
+    "... 4 elementi"
+   ],
+   "db_fr": [
+    "x&#233;xxx 1 xxx 4",
+    "x&#233;xxx 2 xxx 4",
+    "... 4 elementi"
+   ],
+   "dc_it": [],
+   "dc_en": [],
+   "dc_fr": [],
+   "i": "0",
+   "g": "0",
+   "int": "0",
+   "d_en": "50x xxxxxxxxxx",
+   "d_fr": "50 x xxx",
+   "d_it": "50 x xxxxx",
+   "d1_en": "xxxxxxxxxxx",
+   "d1_fr": "xxxxxxxxxxxxx",
+   "d1_it": "xxxxxxxxxxxx",
+   "d2_en": "xxxx 1 xx 4,xxxx 2 xx 4,xxxx 3 xx 4,xxxx",
+   "d2_fr": "x&#233;xxx 1 xxx 4,x&#233;xxx 2 xxx 4,x&",
+   "d2_it": "xxxxxxxx 1 xx 4,xxxxxxxx 2 xx 4,xxxxxxxx",
+   "d3_en": "xxxxx",
+   "d3_fr": "",
+   "d3_it": "xxxxxxxx",
+   "comunicato": "2",
+   "dbrange_en": "[]",
+   "dbrange_fr": "[]",
+   "dbrange_it": "[]",
+   "tg": "V",
+   "tab": [
+    {
+     "c": "STL1",
+     "nf": "STAR",
+     "p_en": "xxxxxxxxx",
+     "p_fr": "xxxxxxxxx",
+     "p_it": "xxxxxx xxxxxxxx"
+    },
+    {
+     "c": "CGR1",
+     "nf": "CLAS",
+     "p_en": "xxxxxx",
+     "p_fr": "xxxxxxxxxx",
+     "p_it": "xxxxxxxxxx"
+    },
+    "... 3 elementi"
+   ]
+  },
+  "... 12 elementi"
+ ]
+}

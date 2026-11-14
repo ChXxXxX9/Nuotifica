@@ -1,2 +1,0 @@
-84:				$.ajax({
-85:					url: 'lib/NU_2026_11_12-14_Riccione/PdfDownloadGen.json',

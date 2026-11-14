@@ -1,0 +1,26 @@
+{
+ "jsonfilename": "xxxxxx.xxxx",
+ "counter": "6052",
+ "tipologia": "ORA",
+ "giorni": [
+  {
+   "Data": "12/11/2026",
+   "parte": [
+    "1"
+   ],
+   "descrizione": [
+    ""
+   ]
+  },
+  {
+   "Data": "13/11/2026",
+   "parte": [
+    "1"
+   ],
+   "descrizione": [
+    ""
+   ]
+  },
+  "... 3 elementi"
+ ]
+}
