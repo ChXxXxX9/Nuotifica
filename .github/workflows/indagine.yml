@@ -18,13 +18,11 @@ jobs:
         run: |
           rm -rf out; mkdir -p out; UA="Nuotifica/1.0 (+https://nuotifica.web.app)"
           F='https://www.federnuoto.it/index.php?option=com_solrconnect&currentpage=1&format=json'
-          prova() { n=$1; shift; curl -s --http2 --max-time 25 -A "$UA" -o "out/$n.raw" -w "$n %{http_code} %{size_download}\n" "$@" >> out/esiti.txt || echo "$n ERRORE" >> out/esiti.txt; }
-          prova cal -X POST "$F&view=calendario" --data-urlencode 'solr[settore]=NUO' --data-urlencode 'solr[stagione]=2026' --data-urlencode 'solr[limit]=200'
-          python3 -I scripts/eventi.py out/cal.raw > out/eventi.txt; wc -l out/eventi.txt
-          scegli() { grep -i -m1 -E "$1" out/eventi.txt | cut -d' ' -f1; }
-          A=$(scegli 'INTERCENTRI AQUANIENE'); B=$(scegli 'Nico Sapio'); C=$(scegli 'Gaetano Lanzi.*Es/B'); E=$(scegli 'Gaetano Lanzi.*Es/A')
-          echo "aquaniene=$A sapio=$B lanziB=$C lanziA=$E" | tee -a out/esiti.txt
-          for x in "aquaniene:$A" "sapio:$B" "lanziB:$C" "lanziA:$E"; do
+          prova() { local nome=$1; shift; curl -s --http2 --max-time 25 -A "$UA" -o "out/$nome.raw" -w "$nome %{http_code} %{size_download}\n" "$@" >> out/esiti.txt || echo "$nome ERRORE" >> out/esiti.txt; }
+          prova cal -X POST "$F&view=calendario" --data-urlencode 'solr[settore]=NUO'
+          python3 -I scripts/eventi.py out/cal.raw > out/eventi_oggi.txt
+          L=$(grep -i -m1 'Gaetano Lanzi' out/eventi_oggi.txt | cut -d' ' -f1); echo "lanziB=$L" >> out/esiti.txt
+          for x in "aquaniene:150239" "sapio:150090" "lanziB:$L"; do
             n=${x%%:*}; id=${x#*:}; [ -n "$id" ] && [ "$id" != "-" ] || continue
             prova "ris_$n" -X POST "$F&view=risultati" --data-urlencode 'solr[settore]=NUO' --data-urlencode "solr[id_evento]=$id"
             python3 -I scripts/risultati.py "out/ris_$n.raw" > "out/ris_$n.txt" 2>&1 || true
