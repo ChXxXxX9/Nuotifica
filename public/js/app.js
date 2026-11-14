@@ -15,7 +15,13 @@ import { vistaConsigli, vistaAdmin, eAdmin } from './viste-consigli.js';
 import { applicaTema, temaScelto } from './tema.js';
 import { vistaAtleti, vistaAtleta, leggiSeguiti } from './viste-atleti.js';
 import { forseBenvenuto } from './benvenuto.js';
-import { vistaSoloApp, vistaReinstalla, richiamoReinstalla } from './installazione.js';
+import {
+  vistaSoloApp, vistaReinstalla, richiamoReinstalla, gestisciTrasloco,
+} from './installazione.js';
+import { vistaDocumento, ePdf } from './viste-documento.js';
+import { vistaSquadre, vistaSquadra } from './viste-squadre.js';
+
+const DATA_TRASLOCO = Date.parse('2026-11-16T00:00:00+01:00');
 
 stato.filtro = memoria('filtro') ?? 'tutto';
 
@@ -788,6 +794,7 @@ function disegnaPost(post, { aggiornamento = false } = {}) {
                   </span>
                   ${ICONE.freccia}
                 </a>
+                ${ePdf(f.url) ? `<a class="documento-cerca" href="#/documento/${encodeURIComponent(post.id)}/${post.file.indexOf(f)}">${ICONE.cerca}<span>Cerca nel documento</span></a>` : ''}
               </li>`).join('')}
           </ul>` : '<p class="nota" style="margin:14px 0">Questo avviso non ha documenti allegati: il testo completo è nella pagina originale.</p>'}
         <a class="bottone bottone-secondario" href="${esc(post.link)}"${destinazione}>Apri la pagina originale</a>
@@ -797,25 +804,6 @@ function disegnaPost(post, { aggiornamento = false } = {}) {
 }
 
 /* ---------- classifiche (in arrivo) ---------- */
-
-function vistaClassifiche() {
-  disegna(`
-    ${barraTop()}
-    <main class="pagina">
-      <div class="presto">
-        ${tessera()}
-        <h1>Classifiche in arrivo</h1>
-        <p class="intro">Stiamo preparando la prossima parte di Cloro.</p>
-        <ul>
-          <li>Graduatorie del Lazio con chi sale e chi scende, come le classifiche musicali</li>
-          <li>Tempi limite di Regionali, Criteria e Assoluti: quanto ti manca</li>
-          <li>"Quanto vale questo tempo?": punti e posizione di un tempo qualsiasi</li>
-          <li>"Sei in start list": ti avvisiamo quando compare il tuo nome</li>
-        </ul>
-      </div>
-    </main>
-    ${tabBar('classifiche')}`);
-}
 
 /* ---------- privacy ---------- */
 
@@ -880,7 +868,9 @@ async function mostra() {
     });
   }
 
-  forseBenvenuto();
+  // Chi usava già Nuotifica (account creato prima del trasloco) vede l'animazione anche sul nuovo indirizzo.
+  const creato = stato.profilo.creato?.toMillis?.() ?? (stato.profilo.creato?.seconds ? stato.profilo.creato.seconds * 1000 : null);
+  forseBenvenuto({ giaUtente: Boolean(creato && creato < DATA_TRASLOCO) });
 
   if (p === 'impostazioni') return vistaImpostazioni();
   if (p === 'reinstalla') return vistaReinstalla();
@@ -891,7 +881,9 @@ async function mostra() {
   if ((m = p.match(/^gara\/([\w-]+)$/))) return vistaGara(m[1]);
   if (p === 'atleti') return vistaAtleti();
   if ((m = p.match(/^atleta\/(.+)$/))) return vistaAtleta(decodeURIComponent(m[1]));
-  if (p === 'classifiche') return vistaClassifiche();
+  if (p === 'classifiche' || p === 'squadre') return vistaSquadre(new URLSearchParams(location.hash.split('?')[1] ?? '').get('q') ?? '');
+  if ((m = p.match(/^squadra\/(.+)$/))) return vistaSquadra(decodeURIComponent(m[1]));
+  if ((m = p.match(/^documento\/([^/]+)\/(\d+)$/))) return vistaDocumento(decodeURIComponent(m[1]), m[2]);
   return vistaPerTe();
 }
 export { mostra };
@@ -909,6 +901,8 @@ async function aggiornaProfiloInSilenzio() {
 }
 
 async function avvia() {
+  // Dal vecchio indirizzo: nel browser si va al nuovo, nell'app installata va rimessa (obbligatorio).
+  if (gestisciTrasloco()) return;
   // Nel browser Cloro non si usa: si mostra solo come installarla (e la pagina Privacy).
   if (deveInstallare()) {
     const pagina = () => (percorso() === 'privacy' ? vistaPrivacy() : vistaSoloApp());

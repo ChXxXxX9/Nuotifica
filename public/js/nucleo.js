@@ -193,7 +193,7 @@ export function barraTop({ indietro = false, titolo = '', azioni = '' } = {}) {
 const SCHEDE = [
   { id: '', nome: 'Per te', icona: 'cuore' },
   { id: 'gare', nome: 'Gare', icona: 'cronometro' },
-  { id: 'classifiche', nome: 'Classifiche', icona: 'barre' },
+  { id: 'classifiche', nome: 'Squadre', icona: 'barre' },
   { id: 'atleti', nome: 'Atleti', icona: 'persone' },
 ];
 

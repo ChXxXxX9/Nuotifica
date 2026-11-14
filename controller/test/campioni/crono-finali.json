@@ -1,0 +1,6 @@
+{"Competition":{"Cod":"002","Ita":"100 m Stile Libero"},"Category":{"Cod":"ASM","Ita":"Assoluti"},"Round":{"Cod":"005","Ita":"Finale"},"Heat":{"Cod":"001","Ita":"Finale B","UffDate":"13/11/2026"},"Document":{"Cod":"CGR1"},"Event":{"Date":"13/11/2026"},
+"ExtraDetails":{"Ita":[{"Field":"T.R."},{"Field":"50m"},{"Field":"FINISH"}]},
+"data":[
+{"b":"2","PlaCls":"1","PlaLane":"5","PlaCod":"200001","PlaSurname":"ESEMPIO","PlaName":"Marco","PlaBirth":"2003","TeamDescrIta":"Societa Uno","MemPrest":"49.32","MemFields":[{"V":""},{"V":"23.91","P":"1"},{"V":"49.32","P":"1"}]},
+{"b":"1","PlaCls":"1","PlaLane":"4","PlaCod":"200002","PlaSurname":"PROVA","PlaName":"Luca","PlaBirth":"2002","TeamDescrIta":"Societa Due","MemPrest":"48.06","MemFields":[{"V":""},{"V":"23.03","P":"1"},{"V":"48.06","P":"1"}]}
+]}

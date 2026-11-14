@@ -5,7 +5,7 @@
 //   gare/{gara}                         riassunto della gara (categorie, gare, sedi)
 //   gare/{gara}/categorie/{sede~cat}    batterie e risultati di una categoria in una sede
 //   atleti/{chiave}                     scheda dell'atleta (si aggiungono i risultati, senza rileggerla)
-//   indici/{lettera}                    elenco per la ricerca degli atleti
+//   ricerca/{xx}, noti/{x}              indice per la ricerca degli atleti e chiavi conosciute
 //   primati/{vasca}-{gara}-{sesso}      personale e stagionale di ogni atleta (per i badge PB/SB)
 //   stato-live/{sede}                   righe già viste di una sede (per capire cosa è nuovo)
 //   meta/live                           stato delle sedi e delle gare
@@ -18,6 +18,10 @@ import {
   formatta, oggiRoma, piuGiorni, impronta, slug, ordineGara,
 } from './tempi.js';
 import { comeData } from './firestore.js';
+import { gruppiNazionali, righeGara } from './cronometraggio.js';
+import {
+  migraRicerca, scrittureRicerca, scrittureNoti, chiaveSquadra,
+} from './ricerca.js';
 
 export const MAX_NUOVE_SEDI = 2;
 const GIORNI_ELENCO = 400;
@@ -94,7 +98,14 @@ export function costruisciSede({
     const evento = cat.eventi.get(r.gara.codice);
     const chiaveBatt = `${r.turno}|${r.batteria}`;
     if (!evento.b.has(chiaveBatt)) {
-      evento.b.set(chiaveBatt, { n: r.batteria, tu: r.turno, d: r.data, r: [] });
+      evento.b.set(chiaveBatt, {
+        n: r.batteria,
+        tu: r.turno,
+        d: r.data,
+        ...(r.nomeBatteria ? { nb: r.nomeBatteria, nc: r.sigla } : {}),
+        ...(r.finale ? { fi: r.finale } : {}),
+        r: [],
+      });
     }
 
     const riga = { n: r.atleta.nome, s: r.societa, c: r.corsia, p: r.posizione };
@@ -222,7 +233,7 @@ export function documentoGara(info, sediStato, adesso) {
     dal: info.dal,
     al: info.al,
     vasca: info.vasca,
-    regione: 'Lazio',
+    regione: info.regione ?? 'Lazio',
     fonte: 'diretta',
     master: /master/i.test(info.nome),
     sedi,
@@ -251,6 +262,18 @@ export function messaggioTempo(atleta, voce, gara, sito) {
   };
 }
 
+const PAROLE_COMUNI = new Set(['nuoto', 'asd', 'ssd', 'srl', 'arl', 'sd', 'sport', 'sports', 'sportiva', 'sportivo', 'polisportiva',
+  'club', 'team', 'roma', 'societa', 'associazione', 'dilettantistica', 'aquatic', 'aquatics', 'nuotatori', 'swim', 'swimming']);
+
+/** Quanto due nomi di società sembrano la stessa (0-1), senza contare le parole generiche. */
+export function stessaSquadra(a, b) {
+  const parole = (t) => new Set(slug(t).split('-').filter((p) => p.length > 1 && !PAROLE_COMUNI.has(p)));
+  const x = parole(a);
+  const y = parole(b);
+  if (!x.size || !y.size) return slug(a) === slug(b) ? 1 : 0;
+  return [...x].filter((p) => y.has(p)).length / Math.max(x.size, y.size);
+}
+
 /** Un giro sulle gare in diretta. */
 export async function aggiornaGare({
   db, fonti, scarica, invio, sito, adesso = new Date().toISOString(), log = console.log, puoScrivere = () => true,
@@ -259,38 +282,37 @@ export async function aggiornaGare({
     log('Gare in diretta: fonte non configurata, salto.');
     return { saltato: true };
   }
-  const voci = leggiElenco(await scarica(fonti.live));
-  if (!voci.length) {
-    log('Gare in diretta: elenco vuoto o non riconosciuto.');
-    return { gare: 0 };
-  }
-  const gruppi = raggruppa(voci);
   const oggi = oggiRoma(adesso);
+  const voci = leggiElenco(await scarica(fonti.live));
+  if (!voci.length) log('Gare in diretta: elenco vuoto o non riconosciuto.');
+  const gruppi = raggruppa(voci);
   const stato = (await db.leggi('meta/live')) ?? {};
   stato.sedi ??= {};
   stato.gare ??= {};
+  let salvaStato = false;
 
-  // Una volta sola: l'indice di ricerca passa a "un'iniziale per ogni parola del nome".
-  if (stato.indiceV !== 2 && Object.keys(stato.sedi).length && db.elenca) {
-    const tutti = await db.elenca('atleti');
-    const perLettera = new Map();
-    for (const a of tutti) {
-      for (const l of iniziali(a.n)) {
-        if (!perLettera.has(l)) perLettera.set(l, []);
-        perLettera.get(l).push(`${a.id}|${a.n}|${a.y ?? ''}|${a.s ?? ''}`);
+  // Gare nazionali con cronometraggio in diretta (batterie, finali, parziali).
+  // L'elenco si rilegge ogni mezz'ora; intanto si usa quello ricordato.
+  if (fonti.elencoNaz) {
+    const vecchio = !stato.naz?.letto || Date.parse(adesso) - Date.parse(stato.naz.letto) > 30 * 60_000;
+    if (vecchio) {
+      try {
+        stato.naz = { letto: adesso, gruppi: await gruppiNazionali({ db, fonti, scarica, oggi, log }) };
+        salvaStato = true;
+      } catch (e) {
+        log(`Cronometraggio nazionale: elenco non letto (${e.message}).`);
       }
     }
-    await db.commit([
-      ...[...perLettera].map(([l, voci]) => ({
-        percorso: `indici/${l}`, dati: {}, maschera: [], aggiungi: { l: voci }, oraServer: ['agg'],
-      })),
-      { percorso: 'meta/atleti-noti', dati: {}, maschera: [], aggiungi: { k: tutti.map((a) => a.id) } },
-    ]);
-    stato.indiceV = 2;
-    await db.scrivi('meta/live', stato);
-    log(`Indice di ricerca rifatto: ${tutti.length} atleti.`);
+    gruppi.push(...(stato.naz?.gruppi ?? []));
   }
-  stato.indiceV = 2;
+  if (!gruppi.length) return { gare: 0 };
+
+  // Una volta sola: l'indice di ricerca passa a "due lettere per pezzo" (ricerca più veloce).
+  if (stato.indiceV !== 3 && db.elenca) {
+    await migraRicerca(db, log);
+    stato.indiceV = 3;
+    await db.scrivi('meta/live', stato);
+  }
 
   // Quali sedi scaricare: quelle in gara (fino al giorno dopo) e, poche per volta, quelle mai lette.
   const inGara = [];
@@ -309,6 +331,7 @@ export async function aggiornaGare({
   const nuoviTempi = [];
   const primati = new Map();
   const primatiToccati = new Set();
+  const staffette = [];
   let scritture = [];
 
   for (const { g, s } of daLeggere) {
@@ -316,9 +339,10 @@ export async function aggiornaGare({
       log('Gare in diretta: tetto giornaliero di scritture quasi raggiunto, mi fermo.');
       break;
     }
+    const nazionale = g.tipo === 'naz';
     let corpo;
     try {
-      corpo = await scarica(fonti.liveGara + s.sede);
+      corpo = await scarica(nazionale ? `${s.dati}Contatori.json` : fonti.liveGara + s.sede);
     } catch (e) {
       log(`Sede ${sedeBreve(s.sede)} non letta: ${e.message}`);
       continue;
@@ -329,11 +353,12 @@ export async function aggiornaGare({
 
     let righe;
     try {
-      righe = leggiRisultati(corpo);
+      righe = nazionale ? await righeGara(s.dati, corpo, scarica) : leggiRisultati(corpo);
     } catch (e) {
       log(`Sede ${sedeBreve(s.sede)}: risultati non leggibili (${e.message}).`);
       continue;
     }
+    if (nazionale && !righe.length) continue; // gara non ancora iniziata
     const noti = prima ? leggiNoti((await db.leggi(`stato-live/${s.sede}`))?.righe) : new Map();
 
     // Personali e stagionali: si leggono le tabelle delle gare coinvolte (una lettura ciascuna).
@@ -364,13 +389,28 @@ export async function aggiornaGare({
     scritture.push({ percorso: `stato-live/${s.sede}`, dati: { righe: ricorda, aggiornato: comeData(adesso) } });
     stato.sedi[s.sede] = riassunto;
     stato.gare[g.id] = {
-      nome: g.nome, luogo: g.luogo, dal: g.dal, al: g.al, vasca: g.vasca, sedi: g.sedi.map((x) => x.sede),
+      nome: g.nome,
+      luogo: g.luogo,
+      dal: g.dal,
+      al: g.al,
+      vasca: g.vasca,
+      sedi: g.sedi.map((x) => x.sede),
+      ...(g.regione ? { regione: g.regione } : {}),
+      ...(g.tipo ? { tipo: g.tipo } : {}),
     };
     garaToccata.add(g.id);
 
     for (const [k, a] of atleti) {
       if (!tuttiAtleti.has(k)) tuttiAtleti.set(k, { ...a, risultati: [] });
       tuttiAtleti.get(k).risultati.push(...a.risultati);
+    }
+    // Staffette: vanno nelle pagine delle squadre.
+    for (const { riga: r } of righeNuove) {
+      if (r.gara.staffetta && r.ms && r.societa) {
+        staffette.push({
+          squadra: r.societa, voce: [r.gara.codice, r.sesso, g.vasca, r.ms, r.data ?? g.dal, g.id, nomeCat(r.categoria)].join('|'),
+        });
+      }
     }
     // Avvisi solo per le sedi già lette in passato (niente notifiche per i risultati vecchi).
     if (prima) {
@@ -412,7 +452,7 @@ export async function aggiornaGare({
         al: info.al,
         vasca: info.vasca,
         fonte: 'diretta',
-        regione: 'Lazio',
+        regione: info.regione ?? 'Lazio',
         conta: (info.sedi ?? []).reduce((t, sd) => t + (stato.sedi[sd]?.conta ?? 0), 0),
       }))
       .filter((x) => x.conta > 0)
@@ -426,7 +466,6 @@ export async function aggiornaGare({
 
   // Schede degli atleti e indice di ricerca: si aggiunge senza rileggere.
   const avanzate = [];
-  const indici = new Map();
   for (const [k, a] of tuttiAtleti) {
     const dati = { n: a.n, s: a.s, sx: a.sx };
     if (a.y) dati.y = a.y;
@@ -438,21 +477,25 @@ export async function aggiornaGare({
       aggiungi: { r: a.risultati, ...(a.cod ? { cod: [a.cod] } : {}) },
       oraServer: ['agg'],
     });
-    // Una voce per l'iniziale di ogni parola del nome: si trova cercando sia il nome sia il cognome.
-    for (const lettera of iniziali(a.n)) {
-      if (!indici.has(lettera)) indici.set(lettera, []);
-      indici.get(lettera).push(`${k}|${a.n}|${a.y ?? ''}|${a.s}`);
+  }
+  // Ricerca (due lettere per pezzo) e chiavi conosciute: servono alle gare di tutta Italia e alle graduatorie.
+  avanzate.push(...scrittureRicerca(tuttiAtleti), ...scrittureNoti(tuttiAtleti.keys()));
+  // Staffette nelle squadre (si riconosce la squadra dal nome, anche se scritto un po' diverso).
+  if (staffette.length) {
+    const elenco = Object.entries((await db.leggi('meta/squadre'))?.squadre ?? {}).map(([id, riga]) => [id, riga.split('|')[0]]);
+    const perSquadra = new Map();
+    for (const x of staffette) {
+      const migliore = elenco.map(([id, nome]) => [id, stessaSquadra(nome, x.squadra)]).sort((a, b) => b[1] - a[1])[0];
+      const id = migliore && migliore[1] >= 0.5 ? migliore[0] : chiaveSquadra(x.squadra);
+      if (!perSquadra.has(id)) perSquadra.set(id, []);
+      perSquadra.get(id).push(x.voce);
     }
+    for (const [id, voci] of perSquadra) avanzate.push({ percorso: `squadre/${id}`, dati: {}, maschera: [], aggiungi: { sf: voci } });
   }
-  for (const [lettera, voci] of indici) {
-    avanzate.push({ percorso: `indici/${lettera}`, dati: {}, maschera: [], aggiungi: { l: voci }, oraServer: ['agg'] });
-  }
-  // Elenco delle chiavi conosciute: serve alle gare di tutta Italia per aggiornare solo i "nostri" atleti.
-  if (tuttiAtleti.size) avanzate.push({ percorso: 'meta/atleti-noti', dati: {}, maschera: [], aggiungi: { k: [...tuttiAtleti.keys()] } });
   if (avanzate.length) await db.commit(avanzate);
 
   // Stato per il prossimo giro.
-  if (garaToccata.size) await db.scrivi('meta/live', stato);
+  if (garaToccata.size || salvaStato) await db.scrivi('meta/live', stato);
 
   // Notifiche a chi segue gli atleti con tempi nuovi.
   let conteggi = { push: 0, errori: 0, utenti: 0 };

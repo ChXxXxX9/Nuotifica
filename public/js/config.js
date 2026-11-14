@@ -21,7 +21,7 @@ export const CONFIG = {
   // Indirizzo principale dell'app. Con "trasferimento" attivo, chi la usa dal vecchio indirizzo
   // viene invitato a reinstallarla da quello nuovo.
   indirizzo: 'cloro.web.app',
-  trasferimento: false,
+  trasferimento: true,
   // Chi gestisce il servizio, mostrato nella pagina Privacy.
   titolare: '',
   contatto: '',

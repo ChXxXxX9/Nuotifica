@@ -1,0 +1,37 @@
+name: Graduatorie
+
+# Di notte completa le schede degli atleti con i migliori tempi di ogni stagione
+# (prima quella in corso, poi indietro fino al 2018/19) e aggiorna le squadre.
+# Una stagione per giro, solo se nel tetto giornaliero di Firestore c'è spazio.
+on:
+  schedule:
+    - cron: '41 0,2,4 * * *'
+  workflow_dispatch:
+    inputs:
+      stagione:
+        description: 'Stagione da leggere subito (es. 2025 per 2025/26). Vuoto = la prossima da fare.'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: graduatorie
+  cancel-in-progress: false
+
+jobs:
+  graduatorie:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Una stagione
+        working-directory: controller
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FONTI: ${{ secrets.FONTI }}
+        run: node src/giro-graduatorie.js ${{ inputs.stagione }}

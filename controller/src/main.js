@@ -16,7 +16,8 @@ import { leggiFonti, scarica } from './fonti.js';
 import { aggiornaGare } from './gare.js';
 import { aggiornaNazionali } from './nazionali.js';
 import { impostaAdmin, inviaAnnunci } from './admin.js';
-import { oggiRoma } from './tempi.js';
+import { aggiornaTesti } from './testi.js';
+import { oggiRoma, giornoQuota } from './tempi.js';
 import {
   confronta, documentoPost, voceIndice, perUtente, messaggiPush,
 } from './logica.js';
@@ -293,9 +294,11 @@ async function principale() {
   const invio = creaInvio({ chiamaGoogle, progetto });
 
   const adesso = new Date().toISOString();
-  const giorno = oggiRoma(adesso);
-  const budget = (await db.leggi('meta/budget')) ?? {};
-  const giaScritte = budget.giorno === giorno ? (budget.scritture ?? 0) : 0;
+  const giorno = giornoQuota(adesso);
+  const [budget, budgetGrad] = [...(await db.leggiTanti(['meta/budget', 'meta/budget-grad'])).values()].map((x) => x ?? {});
+  // Le scritture delle graduatorie (di notte) contano nello stesso tetto.
+  const scritteGrad = budgetGrad.giorno === giorno ? (budgetGrad.scritture ?? 0) : 0;
+  const giaScritte = (budget.giorno === giorno ? (budget.scritture ?? 0) : 0) + scritteGrad;
   const giaLette = budget.giorno === giorno ? (budget.letture ?? 0) : 0;
   let errore = null;
 
@@ -330,6 +333,14 @@ async function principale() {
     console.log(`::warning title=Gare::${String(e.message).slice(0, 500)}`);
   }
 
+  // Testo dei PDF del Comitato (per cercare dentro i documenti dall'app).
+  try {
+    const n = await aggiornaTesti({ db, adesso });
+    if (n) console.log(`Testi: ${n} documenti letti.`);
+  } catch (e) {
+    console.log(`::warning title=Testi::${String(e.message).slice(0, 300)}`);
+  }
+
   // Admin e annunci a tutti (scritti dall'app dalla sezione Admin).
   try {
     await impostaAdmin({
@@ -357,7 +368,7 @@ async function principale() {
 
   await db.scrivi('meta/budget', {
     giorno,
-    scritture: giaScritte + db.conta.scritture + 1,
+    scritture: giaScritte - scritteGrad + db.conta.scritture + 1,
     letture: giaLette + db.conta.letture,
   }).catch(() => {});
   console.log(`Firestore in questo giro: ${db.conta.letture} letture, ${db.conta.scritture} scritture `

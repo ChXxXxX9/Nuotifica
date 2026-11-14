@@ -229,6 +229,17 @@ export async function creaBackendFirebase(config) {
 
     leggiIndice: (lettera) => avvolgi(async () => (await leggiVeloce(F.doc(db, 'indici', lettera), (s) => s.data().l ?? [])) ?? []),
 
+    /** Pezzo dell'indice di ricerca: atleti con una parola del nome che inizia con queste due lettere. */
+    leggiRicerca: (prefisso) => avvolgi(async () => (await leggiVeloce(F.doc(db, 'ricerca', prefisso), (s) => s.data().l ?? [])) ?? []),
+
+    leggiSquadre: (fresco) => avvolgi(async () => (await leggiVeloce(F.doc(db, 'meta', 'squadre'), (s) => s.data().squadre ?? {}, fresco)) ?? {}),
+
+    leggiSquadra: (id, fresco) => avvolgi(() => leggiVeloce(F.doc(db, 'squadre', id), (s) => ({ id, ...s.data() }), fresco)),
+
+    leggiStagioneSquadra: (id, st) => avvolgi(() => leggiVeloce(F.doc(db, 'squadre', id, 'stagioni', String(st)), (s) => s.data())),
+
+    leggiTesto: (id) => avvolgi(() => leggiVeloce(F.doc(db, 'testi', id), (s) => s.data())),
+
     /* ---------- consigli e admin ---------- */
 
     sonoAdmin: async (uid) => {

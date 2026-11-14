@@ -143,6 +143,10 @@ function dbFinto() {
         docs.set(w.percorso, dopo);
       }
     },
+    async elenca(collezione) {
+      return [...docs.entries()].filter(([p]) => p.startsWith(`${collezione}/`) && p.split('/').length === 2)
+        .map(([p, d]) => ({ id: p.split('/')[1], ...copia(d) }));
+    },
     async contieneUno(collezione, campo, valori) {
       return [...docs.entries()]
         .filter(([p, d]) => p.startsWith(`${collezione}/`) && (d[campo] ?? []).some((v) => valori.includes(v)))
@@ -190,11 +194,13 @@ test('giro delle gare: primo giro senza notifiche, poi notifica a chi segue l\'a
   const scheda = db.docs.get(`atleti/${scelta.atleta.chiave}`);
   assert.equal(scheda.n, scelta.atleta.nome);
   assert.ok(scheda.r.some((v) => v.c === '100DO' && v.t === scelta.ms && v.pt > 0));
-  const indice = db.docs.get(`indici/${scelta.atleta.chiave[0]}`);
-  assert.ok(indice.l.some((v) => v.startsWith(`${scelta.atleta.chiave}|`)));
-  // Si trova anche dal nome di battesimo.
-  const nome = scelta.atleta.nome.split(' ')[0].toLowerCase()[0];
-  assert.ok(db.docs.get(`indici/${nome}`).l.some((v) => v.startsWith(`${scelta.atleta.chiave}|`)));
+  // Si trova sia dal cognome sia dal nome di battesimo (due lettere per pezzo dell'indice).
+  for (const parola of scelta.atleta.nome.split(' ')) {
+    const p = parola.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '').slice(0, 2);
+    if (p.length < 2) continue;
+    assert.ok(db.docs.get(`ricerca/${p}`).l.some((v) => v.startsWith(`${scelta.atleta.chiave}|`)), p);
+  }
+  assert.ok(db.docs.get(`noti/${scelta.atleta.chiave[0]}`).k.includes(scelta.atleta.chiave));
 
   // Qualcuno segue quell'atleta.
   db.docs.set('users/u1', { seguiti: [scelta.atleta.chiave], tokens: ['tok'], pushOn: true });
@@ -275,7 +281,7 @@ test('gare di tutta Italia: un giro salva la gara e le schede (gara del Lazio)',
   assert.equal(gara.regione, 'Lazio');
   assert.ok(gara.categorie.length >= 2);
   assert.ok(db.docs.get(`gare/${fatta.id}/categorie/${gara.categorie[0].docs[0]}`).eventi[0].b[0].r[0].t);
-  assert.ok(db.docs.get('meta/atleti-noti').k.length > 0);
+  assert.ok([...db.docs.keys()].some((p) => p.startsWith('noti/')));
   // Secondo giro: la stessa gara non si rilegge.
   const prima = chiamate.length;
   const due = await aggiornaNazionali({

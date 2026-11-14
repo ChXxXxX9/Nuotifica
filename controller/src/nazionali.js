@@ -5,7 +5,8 @@ import {
 } from './tempi.js';
 import { punti } from './punti.js';
 import { comeData } from './firestore.js';
-import { stagione, leggiPrimato, iniziali } from './gare.js';
+import { stagione, leggiPrimato } from './gare.js';
+import { scrittureRicerca, scrittureNoti, leggiNotiTutti } from './ricerca.js';
 
 const MESI = {
   gennaio: 1, febbraio: 2, marzo: 3, aprile: 4, maggio: 5, giugno: 6,
@@ -172,7 +173,8 @@ export async function aggiornaNazionali({
 
   // Le gare del Lazio già seguite in diretta non si ripetono.
   const diretta = (await db.leggi('meta/gare-diretta'))?.gare ?? [];
-  const doppia = (g) => diretta.some((d) => d.dal === g.dal && somiglianza(d.nome, g.nome) >= 0.6);
+  // (anche le gare nazionali seguite con il cronometraggio in diretta, che hanno lo stesso id).
+  const doppia = (g) => diretta.some((d) => d.id === g.id || (d.dal === g.dal && somiglianza(d.nome, g.nome) >= 0.6));
 
   // 2. Una gara finita (con i risultati) non ancora letta, dalla più vecchia.
   const daFare = Object.values(stato.gare)
@@ -228,7 +230,7 @@ async function leggiGaraNazionale({
   const regione = nomeProprio(evento.comitato.replace(/comitato\s+regionale\s*/i, '').trim()) || null;
 
   // Atleti già conosciuti (le schede si aggiornano solo per loro, a meno che la gara sia del Lazio).
-  const noti = new Set((await db.leggi('meta/atleti-noti'))?.k ?? []);
+  const noti = await leggiNotiTutti(db);
   const primati = new Map();
   const categorie = new Map();
   const atleti = new Map();
@@ -339,7 +341,6 @@ async function leggiGaraNazionale({
 
   // Schede degli atleti, indice di ricerca ed elenco dei conosciuti.
   const avanzate = [];
-  const indici = new Map();
   for (const [k, a] of atleti) {
     const dati = { n: a.n, s: a.s, sx: a.sx };
     if (a.y) dati.y = a.y;
@@ -347,18 +348,9 @@ async function leggiGaraNazionale({
     avanzate.push({
       percorso: `atleti/${k}`, dati, maschera: Object.keys(dati), aggiungi: { r: a.risultati }, oraServer: ['agg'],
     });
-    if (!noti.has(k)) {
-      for (const l of iniziali(a.n)) {
-        if (!indici.has(l)) indici.set(l, []);
-        indici.get(l).push(`${k}|${a.n}|${a.y ?? ''}|${a.s}`);
-      }
-    }
   }
-  for (const [l, voci] of indici) {
-    avanzate.push({ percorso: `indici/${l}`, dati: {}, maschera: [], aggiungi: { l: voci }, oraServer: ['agg'] });
-  }
-  const nuovi = [...atleti.keys()].filter((k) => !noti.has(k));
-  if (nuovi.length) avanzate.push({ percorso: 'meta/atleti-noti', dati: {}, maschera: [], aggiungi: { k: nuovi } });
+  const nuovi = new Map([...atleti].filter(([k]) => !noti.has(k)));
+  avanzate.push(...scrittureRicerca(nuovi), ...scrittureNoti(nuovi.keys()));
   if (avanzate.length) await db.commit(avanzate);
   g.conta = conta;
   g.regione = regione;

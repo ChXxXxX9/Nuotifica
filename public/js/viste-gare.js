@@ -48,7 +48,7 @@ export function cartaGara(g, { li = true } = {}) {
 }
 
 const PROVINCE_LAZIO = /\((RM|LT|FR|VT|RI)\)/;
-export const delLazio = (g) => g.fonte === 'diretta' || /lazio/i.test(g.regione ?? '') || PROVINCE_LAZIO.test(g.luogo ?? '');
+export const delLazio = (g) => /lazio/i.test(g.regione ?? '') || (g.fonte === 'diretta' && !g.regione) || PROVINCE_LAZIO.test(g.luogo ?? '');
 
 /* ---------- elenco ---------- */
 
@@ -82,7 +82,7 @@ export async function vistaGare() {
       ${barraTop()}
       <main class="pagina">
         <h1 class="titolo-pagina">Gare</h1>
-        <p class="sottotitolo">Lazio quasi in diretta, con batterie e parziali. Il resto d'Italia a gara finita.</p>
+        <p class="sottotitolo">Lazio e grandi gare nazionali in diretta, con batterie, finali e parziali.</p>
         <div class="filtri" role="toolbar" aria-label="Quali gare" style="margin-top:14px">
           ${scelte.map(([id, nome]) => `<button class="chip" data-filtro-gare="${id}" aria-pressed="${filtro === id}">${nome}</button>`).join('')}
         </div>
@@ -183,13 +183,47 @@ function unisciCategoria(documenti) {
 }
 
 /** Posizione di ogni tempo nella classifica complessiva della gara. */
-function posizioniClassifica(evento) {
-  const tutti = evento.b.flatMap((b) => b.r).filter((r) => r.t).map((r) => r.t).sort((a, b) => a - b);
-  return (t) => (t ? tutti.indexOf(t) + 1 : null);
+/**
+ * Classifica di una gara. Se ci sono finali: prima chi le ha nuotate (A, poi B…) nell'ordine d'arrivo,
+ * poi gli altri con il tempo delle batterie. Ogni atleta compare una volta sola.
+ */
+function classificaEvento(evento) {
+  const tutte = evento.b.flatMap((b) => b.r.map((r) => ({ r, b })));
+  const chi = (r) => r.k || `${r.n}|${r.s ?? ''}`;
+  const finali = tutte.filter((x) => x.b.fi).sort((x, y) => x.b.fi - y.b.fi || (x.r.t ?? 9e9) - (y.r.t ?? 9e9));
+  const inFinale = new Set(finali.map((x) => chi(x.r)));
+  const altre = tutte.filter((x) => !x.b.fi && !inFinale.has(chi(x.r)));
+  // Più turni senza finali (es. serie e spareggi): vale il miglior tempo di ognuno.
+  const migliore = new Map();
+  for (const x of altre) {
+    const prima = migliore.get(chi(x.r));
+    if (!prima || (x.r.t && (!prima.r.t || x.r.t < prima.r.t))) migliore.set(chi(x.r), x);
+  }
+  const resto = [...migliore.values()];
+  const conTempo = [...finali.filter((x) => x.r.t), ...resto.filter((x) => x.r.t).sort((a, b) => a.r.t - b.r.t)];
+  const senza = [...finali, ...resto].filter((x) => !x.r.t);
+  const posizioni = new Map();
+  let pos = 0;
+  let ultimo = null;
+  conTempo.forEach((x, i) => {
+    // A pari tempo stessa posizione (nelle finali conta l'ordine d'arrivo).
+    if (x.b.fi || x.r.t !== ultimo) pos = i + 1;
+    ultimo = x.r.t;
+    posizioni.set(x.r, pos);
+  });
+  return { conTempo, senza, posizioni };
 }
 
+function posizioniClassifica(evento) {
+  const { posizioni } = classificaEvento(evento);
+  return (r) => posizioni.get(r) ?? null;
+}
+
+const nomeBatteria = (b, conTurni) => b.nb ?? `${conTurni ? `Turno ${Number(b.tu) || b.tu} · ` : ''}Batteria ${b.n}`;
+const siglaBatteria = (b) => b.nc ?? (b.n ? `B${b.n}` : '');
+
 /** Scheda di un risultato: tempo, posizioni, punti e parziali disegnati. */
-function schedaRisultato({ r, codice, batteria, posTot }) {
+function schedaRisultato({ r, codice, batteria, nomeBatt, posTot }) {
   const dist = metri(codice);
   const passaggi = r.t ? [...(r.sp ?? []).map((p) => ({ m: p.m, t: p.t, p: p.p })), { m: dist, t: r.t }] : [];
   const conParziali = passaggi.length > 1;
@@ -218,7 +252,7 @@ function schedaRisultato({ r, codice, batteria, posTot }) {
   }
   const cifre = [
     r.pt ? `<div><b>${r.pt}</b><small>punti</small></div>` : '',
-    r.p ? `<div><b>${r.p}°</b><small>in batteria</small></div>` : '',
+    r.p ? `<div><b>${r.p}°</b><small>${/finale/i.test(nomeBatt ?? '') ? 'in finale' : /serie/i.test(nomeBatt ?? '') ? 'nella serie' : 'in batteria'}</small></div>` : '',
     posTot ? `<div><b>${posTot}°</b><small>in classifica</small></div>` : '',
     r.t && dist ? `<div><b>${esc(velocita(dist, r.t).replace(' km/h', ''))}</b><small>km/h di media</small></div>` : '',
   ].filter(Boolean);
@@ -230,7 +264,7 @@ function schedaRisultato({ r, codice, batteria, posTot }) {
           <span class="dettaglio-tempo">${r.t ? esc(tempo(r.t)) : esc(r.x ?? '–')}</span>
           ${r.b ? `<span class="badge ${r.b === 'PB' ? 'badge-pb' : 'badge-sb'}">${r.b === 'PB' ? 'PERSONALE' : 'STAGIONALE'}</span>` : ''}
         </div>
-        <span class="dettaglio-dove">${esc([batteria ? `Batteria ${batteria}` : '', r.c ? `corsia ${r.c}` : ''].filter(Boolean).join(' · '))}</span>
+        <span class="dettaglio-dove">${esc([nomeBatt ?? (batteria ? `Batteria ${batteria}` : ''), r.c ? `corsia ${r.c}` : ''].filter(Boolean).join(' · '))}</span>
       </div>
       ${r.b === 'PB' && r.dp ? `<p class="dettaglio-pb">${esc(differenza(r.dp))} sul personale di prima</p>` : ''}
       ${cifre.length ? `<div class="cifre-piccole" style="grid-template-columns:repeat(${cifre.length},minmax(0,1fr))">${cifre.join('')}</div>` : ''}
@@ -279,30 +313,25 @@ function rigaRisultato(i, r, { posizione, sotto } = {}) {
 function costruisciElenco(evento, vista) {
   const righe = [];
   const posTot = posizioniClassifica(evento);
+  const conTurni = new Set(evento.b.map((b) => b.tu)).size > 1;
   if (vista === 'batterie') {
-    const conTurni = new Set(evento.b.map((b) => b.tu)).size > 1;
     const html = evento.b.map((b) => `
-      <h3 class="batteria-titolo"><span>${conTurni ? `Turno ${Number(b.tu) || b.tu} · ` : ''}Batteria ${b.n}</span><span>${esc([b.sede, b.d ? periodo(b.d) : ''].filter(Boolean).join(' · '))}</span></h3>
+      <h3 class="batteria-titolo ${b.fi ? 'titolo-finale' : ''}"><span>${esc(nomeBatteria(b, conTurni))}</span><span>${esc([b.sede, b.d ? periodo(b.d) : ''].filter(Boolean).join(' · '))}</span></h3>
       <ol class="risultati">${b.r.map((r) => {
-    righe.push({ r, codice: evento.c, batteria: b.n, posTot: posTot(r.t) });
+    righe.push({ r, codice: evento.c, batteria: b.n, nomeBatt: nomeBatteria(b, conTurni), posTot: posTot(r) });
     return rigaRisultato(righe.length - 1, r);
   }).join('')}</ol>`).join('');
     return { righe, html };
   }
-  const tutte = evento.b.flatMap((b) => b.r.map((r) => ({ r, batteria: b.n })));
-  const conTempo = tutte.filter((x) => x.r.t).sort((a, b) => a.r.t - b.r.t);
-  const senza = tutte.filter((x) => !x.r.t);
-  let pos = 0;
-  let ultimo = null;
-  const pezzi = conTempo.map((x, i) => {
-    if (x.r.t !== ultimo) pos = i + 1;
-    ultimo = x.r.t;
-    righe.push({ r: x.r, codice: evento.c, batteria: x.batteria, posTot: pos });
-    return rigaRisultato(righe.length - 1, x.r, { posizione: pos, sotto: x.batteria ? `B${x.batteria}` : '' });
+  const { conTempo, senza, posizioni } = classificaEvento(evento);
+  const pezzi = conTempo.map((x) => {
+    const pos = posizioni.get(x.r);
+    righe.push({ r: x.r, codice: evento.c, batteria: x.b.n, nomeBatt: nomeBatteria(x.b, conTurni), posTot: pos });
+    return rigaRisultato(righe.length - 1, x.r, { posizione: pos, sotto: siglaBatteria(x.b) });
   });
   for (const x of senza) {
-    righe.push({ r: x.r, codice: evento.c, batteria: x.batteria, posTot: null });
-    pezzi.push(rigaRisultato(righe.length - 1, x.r, { posizione: '–', sotto: x.batteria ? `B${x.batteria}` : '' }));
+    righe.push({ r: x.r, codice: evento.c, batteria: x.b.n, nomeBatt: nomeBatteria(x.b, conTurni), posTot: null });
+    pezzi.push(rigaRisultato(righe.length - 1, x.r, { posizione: '–', sotto: siglaBatteria(x.b) }));
   }
   return { righe, html: `<ol class="risultati" style="margin-top:12px">${pezzi.join('')}</ol>` };
 }

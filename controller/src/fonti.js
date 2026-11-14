@@ -5,7 +5,7 @@ import { promisify } from 'node:util';
 
 const esegui = promisify(execFile);
 
-export const USER_AGENT = 'Cloro/1.0 (+https://nuotifica.web.app)';
+export const USER_AGENT = 'Cloro/1.0 (+https://cloro.web.app)';
 
 export function leggiFonti(testo = process.env.FONTI) {
   if (!testo) return {};

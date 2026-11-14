@@ -28,6 +28,8 @@ Comitato (ammessi, start list, orari) sul telefono.
      e stagionali (SB), aggiorna schede atleta e indice di ricerca senza rileggerli, e manda
      "è uscito il tuo tempo" a chi segue l'atleta;
   3. **Italia**: ogni 6 ore il calendario nazionale; poi una gara finita per giro, con la classifica
+  4. **Graduatorie** (workflow a parte, di notte): migliori tempi di ogni stagione dal 2018/19 per gli atleti del Lazio, primati e pagine delle squadre.
+  5. **Testi dei PDF** degli avvisi, per cercare dentro i documenti dall'app.
      completa (le schede si aggiornano solo per gli atleti già conosciuti o per le gare del Lazio).
   Un tetto di sicurezza ferma le scritture opzionali vicino al limite gratuito di Firestore
   (20.000 al giorno); il conteggio sta in `meta/budget`.
@@ -50,7 +52,7 @@ Comitato (ammessi, start list, orari) sul telefono.
 | Nome | Tipo | Valore |
 |---|---|---|
 | `FIREBASE_SERVICE_ACCOUNT` | Secret | il contenuto del file JSON dell'account di servizio |
-| `FONTI` | Secret | JSON con gli indirizzi delle fonti: chiavi `avvisi`, `live`, `liveGara`, `naz` |
+| `FONTI` | Secret | JSON con gli indirizzi delle fonti: chiavi `avvisi`, `live`, `liveGara`, `naz` e (facoltativa) `elencoNaz`, la pagina con le gare nazionali in diretta |
 | `SITO_URL` | Variable | es. `https://nome-progetto.web.app` (facoltativo) |
 
 Gli indirizzi delle fonti stanno solo nel secret: nel codice e nei log non compaiono.

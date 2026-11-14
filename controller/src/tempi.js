@@ -123,3 +123,8 @@ export function piuGiorni(data, giorni) {
 export function impronta(testo) {
   return createHash('sha1').update(typeof testo === 'string' ? testo : JSON.stringify(testo)).digest('hex').slice(0, 16);
 }
+
+/** Giorno del "conteggio" di Firestore: il piano gratuito si azzera a mezzanotte in California. */
+export function giornoQuota(adesso = new Date().toISOString()) {
+  return new Date(adesso).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+}

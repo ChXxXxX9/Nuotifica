@@ -39,6 +39,10 @@ service cloud.firestore {
       allow read: if registrato();
       allow write: if false;
     }
+    match /meta/squadre {
+      allow read: if registrato();
+      allow write: if false;
+    }
 
     // Tutto il resto di meta (indici e stato interni del controllore): lo legge solo l'admin.
     match /meta/{altro} {
@@ -93,6 +97,24 @@ service cloud.firestore {
       allow write: if false;
     }
     match /indici/{lettera} {
+      allow read: if registrato();
+      allow write: if false;
+    }
+
+    // Ricerca degli atleti (due lettere per documento), squadre e testi dei documenti del Comitato.
+    match /ricerca/{prefisso} {
+      allow read: if registrato();
+      allow write: if false;
+    }
+    match /squadre/{squadra} {
+      allow read: if registrato();
+      allow write: if false;
+      match /stagioni/{stagione} {
+        allow read: if registrato();
+        allow write: if false;
+      }
+    }
+    match /testi/{documento} {
       allow read: if registrato();
       allow write: if false;
     }

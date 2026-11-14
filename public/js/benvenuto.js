@@ -15,9 +15,9 @@ export const eraNuotifica = (() => {
 
 const CHIAVE = 'benvenuto-cloro';
 
-export function forseBenvenuto({ forza = false } = {}) {
+export function forseBenvenuto({ forza = false, giaUtente = false } = {}) {
   if (!forza && memoria(CHIAVE)) return;
-  if (!forza && !eraNuotifica) {
+  if (!forza && !eraNuotifica && !giaUtente) {
     memoria(CHIAVE, true);
     return;
   }

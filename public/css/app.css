@@ -828,6 +828,7 @@ p { margin: 0; }
   color: var(--tenue);
 }
 .batteria-titolo span:last-child { letter-spacing: 0; text-transform: none; font-weight: 600; }
+.batteria-titolo.titolo-finale span:first-child { color: var(--cloro-testo); }
 
 .risultati { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .risultato {
@@ -1223,3 +1224,133 @@ legend { font-size: 12px; font-weight: 800; letter-spacing: 2px; text-transform:
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0s !important; transition: none !important; }
   .bolle, .vecchio-nome { display: none; }
 }
+
+/* ---------- storico: voci senza pagina di gara (graduatorie) ---------- */
+
+.storico .voce-storico {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--piastrella);
+  border: 1px solid var(--linea);
+  color: var(--testo);
+}
+.testa-atleta .info a { color: var(--cloro-testo); text-decoration: none; font-weight: 700; }
+
+/* ---------- squadre ---------- */
+
+.elenco-squadre a {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--piastrella);
+  border: 1px solid var(--linea);
+  text-decoration: none;
+  color: var(--testo);
+}
+.elenco-squadre .chi, .classifica-squadra .chi { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.elenco-squadre .chi b, .classifica-squadra .chi b { font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.elenco-squadre .chi small, .classifica-squadra .chi small { color: var(--tenue); font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.classifica-squadra > li {
+  border-radius: 14px;
+  background: var(--piastrella);
+  border: 1px solid var(--linea);
+  overflow: hidden;
+}
+.classifica-squadra > li.aperta { border-color: var(--linea-forte); }
+.classifica-squadra .riga-gara {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 12px 14px;
+  background: none;
+  border: 0;
+  color: var(--testo);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.classifica-squadra .gara-nome { font-family: var(--titoli); font-weight: 700; font-size: 13px; color: var(--cloro-testo); }
+.classifica-squadra .quanto { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.classifica-squadra .quanto b { font-family: var(--titoli); font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; }
+.classifica-squadra .quanto small { color: var(--tenue); font-size: 11px; font-weight: 600; }
+.classifica-interna { list-style: none; margin: 0; padding: 0 8px 8px; display: flex; flex-direction: column; gap: 2px; }
+.classifica-interna a {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 8px;
+  border-radius: 10px;
+  color: var(--testo);
+  text-decoration: none;
+  border-top: 1px solid var(--linea);
+}
+.classifica-interna .pos b { font-family: var(--titoli); font-size: 13px; color: var(--tenue); }
+.classifica-interna li:first-child .pos b { color: var(--cloro-testo); }
+.classifica-interna .chi { display: flex; flex-direction: column; min-width: 0; }
+.classifica-interna .chi b { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.classifica-interna .chi small { color: var(--tenue); font-size: 12px; font-weight: 600; }
+.classifica-interna .quanto b { font-family: var(--titoli); font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; }
+
+/* ---------- cerca nel documento ---------- */
+
+.documento-cerca {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 2px 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--linea);
+  color: var(--cloro-testo);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.documento-cerca svg { width: 15px; height: 15px; }
+.barra-cerca-doc {
+  position: sticky;
+  top: calc(60px + var(--sopra));
+  z-index: 5;
+  margin: 0 -16px;
+  padding: 6px 16px 8px;
+  background: var(--barra-sfondo);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--linea);
+}
+.barra-cerca-doc .cerca { margin: 6px 0; }
+.naviga-doc { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.naviga-doc [data-conto] { margin-right: auto; color: var(--tenue); font-size: 13px; font-weight: 700; }
+.naviga-doc .tasto-icona { width: 38px; height: 38px; }
+.naviga-doc [data-su] svg { transform: rotate(90deg); }
+.naviga-doc .giu svg { transform: rotate(-90deg); }
+.naviga-doc .tasto-icona:disabled { opacity: 0.35; }
+.testo-doc { margin-top: 12px; }
+.pagina-doc h2 { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--tenue); margin: 18px 0 6px; font-weight: 800; }
+.pagina-doc pre {
+  margin: 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--piastrella);
+  border: 1px solid var(--linea);
+  color: var(--tenue-2);
+  font: 500 11.5px/1.5 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  overflow-x: auto;
+  white-space: pre;
+  -webkit-overflow-scrolling: touch;
+}
+.pagina-doc mark { background: rgba(200, 255, 61, 0.35); color: var(--testo); border-radius: 3px; padding: 0 1px; }
+.pagina-doc mark.attuale { background: var(--cloro); color: var(--su-cloro); }
+
+.trasloco h1 em { color: var(--cloro-testo); font-style: normal; }

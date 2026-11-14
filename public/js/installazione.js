@@ -4,8 +4,16 @@ import {
   stato, esc, ICONE, tessera, barraTop, disegna, piede, dispositivo, memoria, avviso, installata,
 } from './nucleo.js';
 import { eraNuotifica } from './benvenuto.js';
+import { CONFIG } from './config.js';
 
-const indirizzo = () => location.host;
+const indirizzo = () => (vecchioIndirizzo() ? CONFIG.indirizzo : location.host);
+
+/** L'app è aperta dal vecchio indirizzo (prima del trasloco)? */
+export function vecchioIndirizzo() {
+  const host = location.hostname;
+  return Boolean(CONFIG.trasferimento && CONFIG.indirizzo && host !== CONFIG.indirizzo
+    && /\.(web\.app|firebaseapp\.com)$/.test(host));
+}
 
 const bottoneCopia = () => `
   <button class="bottone bottone-secondario" data-copia>
@@ -146,4 +154,50 @@ export function vistaReinstalla() {
       location.hash = '#/';
     });
   }, { classeBody: 'senza-tab' });
+}
+
+/* ---------- trasloco: dal vecchio indirizzo si passa per forza a quello nuovo ---------- */
+
+/** Nel browser si va subito al nuovo indirizzo; nell'app installata si spiega come rimetterla. */
+export function gestisciTrasloco() {
+  if (!vecchioIndirizzo()) return false;
+  if (!installata()) {
+    location.replace(`https://${CONFIG.indirizzo}/${location.search}${location.hash}`);
+    return true;
+  }
+  vistaTrasloco();
+  return true;
+}
+
+export function vistaTrasloco() {
+  const d = dispositivo();
+  const nuovo = CONFIG.indirizzo;
+  const passi = d.ios ? `
+      <li><span>Tocca <strong>Copia l'indirizzo</strong> qui sotto.</span></li>
+      <li><span>Apri <strong>Safari</strong>, incolla l'indirizzo in alto e vai.</span></li>
+      <li><span>Tocca Condividi ${ICONE.condividi} → <strong>Aggiungi alla schermata Home</strong> ${ICONE.piu} → <strong>Aggiungi</strong>.</span></li>
+      <li><span>Apri la nuova <strong>Cloro</strong>, entra con lo stesso account (Google o email) e tocca <strong>Attiva le notifiche</strong>.</span></li>
+      <li><span>Infine togli questa: tieni premuta la vecchia icona → <strong>Rimuovi app</strong> → <strong>Elimina app</strong>.</span></li>`
+    : d.android ? `
+      <li><span>Tocca <strong>Copia l'indirizzo</strong> qui sotto.</span></li>
+      <li><span>Apri <strong>Chrome</strong>, incolla l'indirizzo in alto e vai.</span></li>
+      <li><span>Tocca ${ICONE.menu} in alto a destra → <strong>Installa app</strong> → <strong>Installa</strong>.</span></li>
+      <li><span>Apri la nuova <strong>Cloro</strong>, entra con lo stesso account e tocca <strong>Attiva le notifiche</strong>.</span></li>
+      <li><span>Infine togli questa: tieni premuta la vecchia icona → <strong>Disinstalla</strong>.</span></li>`
+    : `
+      <li><span>Apri <strong>${esc(nuovo)}</strong> dal browser e installa l'app da lì.</span></li>
+      <li><span>Entra con lo stesso account, poi disinstalla questa versione.</span></li>`;
+  disegna(`
+    <main class="ospite trasloco">
+      <div class="ospite-marchio">${tessera()}<span class="logo-parola">cloro</span></div>
+      <h1>Cloro ha <em>cambiato casa</em>.</h1>
+      <p class="intro">Ora si apre da <strong>${esc(nuovo)}</strong>. Questa versione non si aggiorna più: rimetti Cloro sulla Home dal nuovo indirizzo, ci vuole un minuto.</p>
+      <section class="scheda" style="padding:16px">
+        <ol class="passi">${passi}</ol>
+        <button class="bottone" data-copia><span>Copia l'indirizzo <b>${esc(nuovo)}</b></span></button>
+        <a class="link" style="display:block;text-align:center;margin-top:12px" href="https://${esc(nuovo)}/" target="_blank" rel="noopener">Oppure apri ${esc(nuovo)}</a>
+      </section>
+      <p class="nota">Atleti seguiti, avvisi scelti e preferenze restano: sono salvati nel tuo account, non sul telefono.</p>
+      ${piede()}
+    </main>`, collegaCopia, { classeBody: 'senza-tab' });
 }

@@ -70,6 +70,56 @@
       "collectionGroup": "meta",
       "fieldPath": "fatte",
       "indexes": []
+    },
+    {
+      "collectionGroup": "ricerca",
+      "fieldPath": "l",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "noti",
+      "fieldPath": "k",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "testi",
+      "fieldPath": "p",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "squadre",
+      "fieldPath": "m",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "squadre",
+      "fieldPath": "t",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "squadre",
+      "fieldPath": "st",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "stagioni",
+      "fieldPath": "t",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "meta",
+      "fieldPath": "squadre",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "meta",
+      "fieldPath": "eventi",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "atleti",
+      "fieldPath": "f",
+      "indexes": []
     }
   ]
 }

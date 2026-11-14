@@ -91,6 +91,42 @@ const POST = [
   },
 ];
 
+/** Squadre di prova costruite dagli atleti di esempio (come fa il controllore con le graduatorie). */
+let cacheSquadre = null;
+function squadreDemo() {
+  if (cacheSquadre) return cacheSquadre;
+  const slug = (t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const docs = new Map();
+  const stagioni = new Map();
+  const elenco = {};
+  for (const [k, a] of Object.entries(DEMO.atleti)) {
+    if (!a.s) continue;
+    const id = slug(a.s);
+    if (!docs.has(id)) docs.set(id, { n: a.s, m: [], t: {}, st: ['2026', '2025'], sf: [] });
+    const sq = docs.get(id);
+    sq.m.push(`${k}|${a.n}|${a.y ?? ''}|${a.sx}|2024|2026`);
+    for (const v of a.r ?? []) {
+      if (!v.t) continue;
+      const kt = `${v.v}|${v.c}|${a.sx}`;
+      for (const st of ['2026', '2025']) {
+        const chiave = `${id}/${st}`;
+        if (!stagioni.has(chiave)) stagioni.set(chiave, { t: {}, m: 0 });
+        const t = st === '2026' ? v.t : v.t + 900;
+        const tab = stagioni.get(chiave).t;
+        tab[kt] = [...(tab[kt] ?? []).filter((x) => !x.startsWith(`${k}|`)), `${k}|${t}|${st}-11-01`].sort((x, y) => x.split('|')[1] - y.split('|')[1]);
+      }
+      sq.t[kt] = [...(sq.t[kt] ?? []).filter((x) => !x.startsWith(`${k}|`)), `${k}|${v.t}|${v.d}|2026`].sort((x, y) => x.split('|')[1] - y.split('|')[1]);
+    }
+  }
+  for (const [id, sq] of docs) {
+    sq.sf = [`4x50SL|M|25|${105_420 + id.length * 37}|2026-10-31|l20261031-campionato-regionale-assoluto-v-c-2026-8c6401|Assoluti`,
+      `4x100MI|F|25|${262_100 + id.length * 51}|2026-11-08|l20261107-trofeo-gaetano-lanzi-2026-es-a-qualificazioni-2cd761|Esordienti A`];
+    elenco[id] = `${sq.n}|${sq.m.length}|${sq.m.length + 3}|2026`;
+  }
+  cacheSquadre = { docs, stagioni, elenco };
+  return cacheSquadre;
+}
+
 export function creaBackendDemo() {
   const parametri = new URLSearchParams(location.search);
   let utente = parametri.has('ospite') ? null : {
@@ -168,6 +204,25 @@ export function creaBackendDemo() {
     async leggiCategoria(id, doc) { await pausa(120); return DEMO.categorie[`${id}/${doc}`] ?? null; },
     async leggiAtleta(k) { await pausa(120); return DEMO.atleti[k] ?? null; },
     async leggiIndice(lettera) { await pausa(100); return DEMO.indici[lettera] ?? []; },
+    async leggiRicerca(prefisso) {
+      await pausa(60);
+      const tutte = [...new Set(Object.values(DEMO.indici).flat())];
+      return tutte.filter((v) => v.split('|')[1].normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+        .split(/[\s'’-]+/).some((p) => p.replace(/[^a-z]/g, '').startsWith(prefisso)));
+    },
+    async leggiSquadre() { await pausa(60); return squadreDemo().elenco; },
+    async leggiSquadra(id) { await pausa(80); const sq = squadreDemo().docs.get(id); return sq ? { id, ...sq } : null; },
+    async leggiStagioneSquadra(id, st) { await pausa(60); return squadreDemo().stagioni.get(`${id}/${st}`) ?? null; },
+    async leggiTesto() {
+      await pausa(80);
+      return {
+        n: 2,
+        p: [
+          'COMITATO REGIONALE LAZIO\n\nCAMPIONATO REGIONALE INVERNALE - ELENCO AMMESSI\n\n  100 Stile Libero Maschi\n  1  ROSSI MARCO          2008  NUOTO ESEMPIO       52.10\n  2  BIANCHI LUCA         2009  POLISPORTIVA PROVA  52.88\n  3  VERDI ANDREA         2008  AQUA CLUB ESEMPIO   53.40',
+          '  200 Dorso Femmine\n  1  GALLI VIOLA          2010  DELFINI TIBURTINA   2:18.40\n  2  TESTA ELENA          2009  NUOTO ESEMPIO       2:19.02\n  3  ROSSI GIULIA         2011  POLISPORTIVA PROVA  2:21.75',
+        ],
+      };
+    },
     async sonoAdmin() { return parametri.has('admin'); },
     async mandaConsiglio(uid, c) { await pausa(); consigli.unshift({ id: String(Date.now()), ...c, uid, stato: 'nuovo', creato: new Date() }); },
     async mieiConsigli() { await pausa(100); return consigli; },

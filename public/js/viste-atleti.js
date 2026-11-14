@@ -15,7 +15,15 @@ const normalizza = (t = '') => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowe
 export function risultatiPuliti(r = []) {
   const perId = new Map();
   for (const v of r) perId.set(v.i ?? `${v.g}|${v.c}|${v.d}|${v.t}`, v);
-  return [...perId.values()].sort((a, b) => (b.d ?? '').localeCompare(a.d ?? ''));
+  // Lo stesso tempo arrivato da più fonti (gara letta in diretta e graduatorie): si tiene il più completo.
+  const ricchezza = (v) => (v.sp ? 4 : 0) + (v.ci ? 2 : 0) + (v.f ? 0 : 1);
+  const perTempo = new Map();
+  for (const v of perId.values()) {
+    const chiave = v.t ? `${v.d}|${v.c}|${v.v}|${v.t}` : `${v.i}`;
+    const prima = perTempo.get(chiave);
+    if (!prima || ricchezza(v) > ricchezza(prima)) perTempo.set(chiave, v);
+  }
+  return [...perTempo.values()].sort((a, b) => (b.d ?? '').localeCompare(a.d ?? ''));
 }
 
 export async function leggiAtleta(k, { fresco = false } = {}) {
@@ -70,44 +78,58 @@ export async function seguiAtleta(k, nome, bottone) {
 
 const ORE_INDICE = 12;
 
-async function leggiIndice(lettera) {
-  const salvato = memoria(`indice-${lettera}`);
+/** Le due lettere che dicono quale pezzo dell'indice leggere (come le calcola il controllore). */
+const prefisso = (parola) => normalizza(parola).replace(/[^a-z]/g, '').slice(0, 2);
+const testoCerca = (t) => normalizza(t).replace(/['’`-]/g, ' ');
+
+async function leggiPezzo(p) {
+  const chiave = `ricerca-${p}`;
+  const salvato = memoria(chiave);
   if (salvato && Date.now() - salvato.quando < ORE_INDICE * 3_600_000) return salvato.voci;
-  const elenco = await conCache(`indice:${lettera}`, () => api.leggiIndice(lettera), { durata: 600_000 });
+  const elenco = await conCache(`ricerca:${p}`, () => api.leggiRicerca(p), { durata: 600_000 });
   // Una voce per atleta (vale l'ultima: ad esempio se ha cambiato società).
   const perChiave = new Map();
   for (const riga of elenco ?? []) {
-    const [k, n, y, s] = riga.split('|');
-    perChiave.set(k, { k, n, y, s, cerca: normalizza(`${n} ${s}`) });
+    const [k, n, y, sq] = riga.split('|');
+    perChiave.set(k, { k, n, y, s: sq, cerca: `${testoCerca(n)} ${testoCerca(n).replace(/\s+/g, '')} ${testoCerca(sq ?? '')}` });
   }
   const voci = [...perChiave.values()];
   try {
-    memoria(`indice-${lettera}`, { quando: Date.now(), voci });
+    memoria(chiave, { quando: Date.now(), voci });
   } catch { /* poco spazio: si rilegge la prossima volta */ }
   return voci;
 }
 
+/** Atleti: si legge un solo pezzo piccolo dell'indice (quello della parola più lunga scritta). */
 async function cerca(testo) {
-  const parole = normalizza(testo).split(/\s+/).filter((p) => p.length >= 2);
+  const parole = testoCerca(testo).split(/\s+/).filter((p) => p.length >= 2);
   if (!parole.length) return [];
-  // La chiave inizia dal cognome: proviamo la prima lettera di ogni parola scritta.
-  const lettere = [...new Set(parole.map((p) => (/^[a-z]/.test(p) ? p[0] : '_')))].slice(0, 3);
-  const elenchi = await Promise.all(lettere.map((l) => leggiIndice(l).catch(() => [])));
-  const visti = new Set();
-  const trovati = [];
-  for (const v of elenchi.flat()) {
-    if (visti.has(v.k)) continue;
-    if (parole.every((p) => v.cerca.includes(p))) {
-      visti.add(v.k);
-      trovati.push(v);
-    }
-  }
+  const guida = [...parole].sort((x, y) => y.length - x.length)[0];
+  const voci = await leggiPezzo(prefisso(guida));
+  const trovati = voci.filter((v) => parole.every((p) => v.cerca.includes(p)));
   const primo = parole[0];
+  const iniziaCon = (v) => testoCerca(v.n).split(' ').some((x) => x.startsWith(primo));
   return trovati
-    .sort((a, b) => Number(!normalizza(a.n).split(' ').some((x) => x.startsWith(primo)))
-      - Number(!normalizza(b.n).split(' ').some((x) => x.startsWith(primo))) || a.n.localeCompare(b.n, 'it'))
+    .sort((a, b) => Number(!iniziaCon(a)) - Number(!iniziaCon(b)) || a.n.localeCompare(b.n, 'it'))
     .slice(0, 40);
 }
+
+/** Squadre con il nome che contiene tutte le parole scritte. */
+export async function cercaSquadre(testo) {
+  const parole = testoCerca(testo).split(/\s+/).filter((p) => p.length >= 2);
+  if (!parole.length) return [];
+  const elenco = await conCache('squadre', (fresco) => api.leggiSquadre(fresco), { durata: 600_000 });
+  return Object.entries(elenco ?? {})
+    .map(([id, riga]) => {
+      const [n, attivi, totale, ultima] = riga.split('|');
+      return { id, n, attivi: Number(attivi), totale: Number(totale), ultima };
+    })
+    .filter((x) => parole.every((p) => testoCerca(x.n).includes(p)))
+    .sort((a, b) => b.attivi - a.attivi)
+    .slice(0, 8);
+}
+
+const voceSquadra = (x) => `<li><a href="#/squadra/${encodeURIComponent(x.id)}"><b>${esc(x.n)}</b><small>Squadra · ${x.attivi} ${x.attivi === 1 ? 'atleta' : 'atleti'} nell'ultima stagione</small></a></li>`;
 
 export async function vistaAtleti() {
   const seguiti = stato.profilo?.seguiti ?? [];
@@ -119,7 +141,7 @@ export async function vistaAtleti() {
       <label class="cerca">
         <span class="nascosto">Cerca un atleta</span>
         ${ICONE.cerca}
-        <input type="search" placeholder="Nome e cognome, o società" autocomplete="off" enterkeyhint="search" value="${esc(testoPrima)}">
+        <input type="search" placeholder="Atleta o squadra" autocomplete="off" enterkeyhint="search" value="${esc(testoPrima)}">
       </label>
       <div data-risultati></div>
       ${seguiti.length ? `
@@ -127,7 +149,11 @@ export async function vistaAtleti() {
           <div class="sezione-testa"><h2 class="sezione-titolo">Che segui</h2><span class="nota">${seguiti.length}/${MAX_SEGUITI}</span></div>
           <ul class="elenco risultati-ricerca" data-elenco-seguiti><li class="caricamento">Carico…</li></ul>
         </section>` : ''}
-      <p class="nota" style="margin-top:24px">Ci sono gli atleti delle gare che abbiamo letto: l'elenco cresce gara dopo gara.</p>
+      <a class="richiamo richiamo-secondario" href="#/squadre" style="margin-top:18px">
+        ${ICONE.squadra ?? ICONE.atleti ?? ''}
+        <span><strong>Squadre</strong><small>Componenti, migliori tempi di sempre e di ogni stagione, staffette.</small></span>
+      </a>
+      <p class="nota" style="margin-top:18px">Ci sono gli atleti del Lazio dal 2018/19 e quelli delle gare che leggiamo: l'elenco cresce gara dopo gara.</p>
     </main>
     ${tabBar('atleti')}`, (el) => {
     const input = el.querySelector('input');
@@ -144,19 +170,19 @@ export async function vistaAtleti() {
       }
       box.innerHTML = '<p class="caricamento">Cerco…</p>';
       try {
-        const trovati = await cerca(testo);
+        const [trovati, squadre] = await Promise.all([cerca(testo), cercaSquadre(testo).catch(() => [])]);
         if (mio !== giro) return;
-        box.innerHTML = trovati.length
-          ? `<ul class="elenco risultati-ricerca">${trovati.map((v) => `
+        box.innerHTML = trovati.length || squadre.length
+          ? `<ul class="elenco risultati-ricerca">${squadre.map(voceSquadra).join('')}${trovati.map((v) => `
               <li><a href="#/atleta/${encodeURIComponent(v.k)}"><b>${esc(v.n)}</b><small>${esc([v.y, v.s].filter(Boolean).join(' · '))}</small></a></li>`).join('')}</ul>`
-          : '<div class="vuoto"><strong>Nessuno trovato</strong>Prova con il cognome, oppure aspetta la sua prossima gara.</div>';
+          : '<div class="vuoto"><strong>Nessuno trovato</strong>Prova con il cognome (o il nome della squadra).</div>';
       } catch (err) {
         if (mio === giro) box.innerHTML = `<p class="errore">${esc(err.message)}</p>`;
       }
     };
     input.addEventListener('input', () => {
       clearTimeout(attesa);
-      attesa = setTimeout(esegui, 220);
+      attesa = setTimeout(esegui, 120);
     });
     if (testoPrima) esegui();
     else if (!seguiti.length) input.focus();
@@ -251,6 +277,7 @@ export async function vistaAtleta(k) {
   const risultati = a.r ?? [];
   const best = personali(risultati);
   const vasche = [...new Set([...best.values()].map((v) => v.v))].sort();
+  let mostraTutte = false;
   const disegnaScheda = ({ vasca, gara, aggiornamento = false } = {}) => {
     const v = vasca ?? (vasche.includes(25) ? 25 : vasche[0]);
     const pb = [...best.values()].filter((x) => x.v === v).sort((x, y) => ordineGara(x.c) - ordineGara(y.c));
@@ -269,7 +296,7 @@ export async function vistaAtleta(k) {
         <section class="testa-atleta">
           <span class="iniziali" style="width:56px;height:56px;border-radius:18px;font-size:18px" aria-hidden="true">${esc(iniziali(a.n))}</span>
           <h1>${esc(a.n)}</h1>
-          <p class="info">${esc([a.y, a.s, a.sx === 'F' ? 'Femmine' : a.sx === 'M' ? 'Maschi' : ''].filter(Boolean).join(' · '))}</p>
+          <p class="info">${esc([a.y, a.sx === 'F' ? 'Femmine' : a.sx === 'M' ? 'Maschi' : ''].filter(Boolean).join(' · '))}${a.s ? ` · <a href="#/squadre?q=${encodeURIComponent(a.s)}">${esc(a.s)}</a>` : ''}</p>
           <button class="bottone ${seguito ? 'bottone-secondario' : ''}" data-segui aria-pressed="${seguito}">${seguito ? 'Seguito ✓' : 'Segui'}</button>
           <div class="cifre">
             <div class="cifra"><b>${gare}</b><small>Gare</small></div>
@@ -304,12 +331,12 @@ export async function vistaAtleta(k) {
           <div class="sezione-testa"><h2 class="sezione-titolo">Tutte le gare</h2></div>
           ${risultati.length ? `
             <ul class="storico">
-              ${risultati.map((x) => `
+              ${risultati.slice(0, mostraTutte ? Infinity : 60).map((x) => `
                 <li>
-                  <a href="#/gara/${encodeURIComponent(x.g)}?c=${encodeURIComponent(x.ci ?? '')}&e=${encodeURIComponent(x.c)}">
+                  <${x.ci ? 'a' : 'div'} class="voce-storico" ${x.ci ? `href="#/gara/${encodeURIComponent(x.g)}?c=${encodeURIComponent(x.ci ?? '')}&e=${encodeURIComponent(x.c)}"` : ''}>
                     <span style="min-width:0">
                       <span class="cosa" style="display:block">${esc(nomeGara(x.c, { breve: true }))} <span class="nota" style="font-weight:600">· vasca ${x.v}</span></span>
-                      <span class="dove" style="display:block">${esc(giorno(x.d))} · ${esc(x.gn ?? '')}</span>
+                      <span class="dove" style="display:block">${esc(giorno(x.d))} · ${esc(x.gn ?? '')}${x.f ? ' <span class="nota">· migliore della stagione</span>' : ''}</span>
                     </span>
                     <span class="quanto">
                       ${x.t ? `<b>${esc(tempo(x.t))}</b>` : `<b class="nota">${esc(x.x ?? '–')}</b>`}
@@ -318,16 +345,21 @@ export async function vistaAtleta(k) {
                         ${x.b === 'PB' && x.dp ? `<span class="punti">${esc(differenza(x.dp))}</span>` : (x.pt ? `<span class="punti">${x.pt} pt</span>` : '')}
                       </span>
                     </span>
-                  </a>
+                  </${x.ci ? 'a' : 'div'}>
                 </li>`).join('')}
-            </ul>` : '<div class="vuoto"><strong>Ancora nessun tempo</strong>Appena nuota una gara la trovi qui.</div>'}
+            </ul>
+            ${!mostraTutte && risultati.length > 60 ? `<button class="bottone bottone-secondario" data-tutte style="margin-top:10px">Mostra tutti i ${risultati.length} tempi</button>` : ''}` : '<div class="vuoto"><strong>Ancora nessun tempo</strong>Appena nuota una gara la trovi qui.</div>'}
         </section>
-        <p class="nota" style="margin-top:20px">I tempi sono quelli delle gare che abbiamo letto: lo storico cresce gara dopo gara. Vuoi che questa scheda non compaia? Scrivici dalla pagina <a href="#/privacy">Privacy</a>.</p>
+        <p class="nota" style="margin-top:20px">Ci sono i tempi delle gare che leggiamo e, dal 2018/19, il migliore di ogni stagione per gara e vasca. Vuoi che questa scheda non compaia? Scrivici dalla pagina <a href="#/privacy">Privacy</a>.</p>
       </main>
       ${tabBar('atleti')}`, (el) => {
       el.querySelector('[data-segui]').addEventListener('click', (e) => seguiAtleta(k, a.n, e.currentTarget));
       el.querySelectorAll('[data-vasca]').forEach((b) => b.addEventListener('click', () => disegnaScheda({ vasca: Number(b.dataset.vasca), aggiornamento: true })));
       el.querySelectorAll('[data-gara]').forEach((b) => b.addEventListener('click', () => disegnaScheda({ vasca: v, gara: b.dataset.gara, aggiornamento: true })));
+      el.querySelector('[data-tutte]')?.addEventListener('click', () => {
+        mostraTutte = true;
+        disegnaScheda({ vasca: v, gara: g, aggiornamento: true });
+      });
     }, { aggiornamento });
   };
   disegnaScheda();

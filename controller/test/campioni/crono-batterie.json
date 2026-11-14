@@ -1,0 +1,8 @@
+{"Competition":{"Cod":"003","Ita":"200 m Stile Libero"},"Category":{"Cod":"ASF","Ita":"Assolute"},"Round":{"Cod":"001","Ita":"Eliminatorie"},"Heat":{"Cod":"001","Ita":"Riepilogo","UffDate":"13/11/2026"},"Document":{"Cod":"SUM"},"Event":{"Date":"13/11/2026","Place":"Esempio, 12-14 Novembre 2026"},
+"ExtraDetails":{"Ita":[{"Field":"T.R."},{"Field":"50m"},{"Field":"100m"},{"Field":"150m"},{"Field":"FINISH"}]},
+"data":[
+{"b":"0","PlaCls":"1","PlaLane":"4","PlaCod":"100001","PlaNat":"ITA","TeamDescrIta":"NUOTO ESEMPIO","PlaSurname":"BIANCHI","PlaName":"Anna","PlaBirth":"2002","MemPrest":"1'58.87","MemRBattCls":"1.","MemRBatt":"4","MemFields":[{"V":"0.65"},{"V":"27.38","P":"1"},{"V":"57.50","P":"1"},{"V":"1'28.21","P":"2"},{"V":"1'58.87","P":"1"}]},
+{"b":"0","PlaCls":"2","PlaLane":"5","PlaCod":"100002","PlaNat":"ITA","TeamDescrIta":"Polisportiva Prova","PlaSurname":"ROSSI","PlaName":"Giulia Maria","PlaBirth":"2008","MemPrest":"1'59.40","MemRBattCls":"2.","MemRBatt":"4","MemFields":[{"V":""},{"V":"27.90","P":"3"},{"V":"58.10","P":"2"},{"V":"1'28.00","P":"1"},{"V":"1'59.40","P":"2"}]},
+{"b":"0","PlaCls":"","PlaLane":"3","PlaCod":"100003","PlaNat":"ITA","TeamDescrIta":"Polisportiva Prova","PlaSurname":"VERDI","PlaName":"Sara","PlaBirth":"2007","MemPrest":"SQ","MemRBattCls":"","MemRBatt":"3","MemFields":[]},
+{"b":"0","PlaCls":"","PlaLane":"2","PlaCod":"100004","PlaSurname":"NERI","PlaName":"Luca","PlaBirth":"2007","MemPrest":"","MemRBatt":"5","MemFields":[]}
+]}
