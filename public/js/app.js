@@ -5,7 +5,7 @@ import {
 import {
   stato, api, backendCaricato, modoDemo, pocoMovimento, esc, memoria, dispositivo, percorso,
   avviso, mostraErrore, conAttesa, ICONE, tessera, barraTop, tabBar, piede, disegna, caricamento,
-  paginaErrore, conCache, radice,
+  paginaErrore, conCache, radice, deveInstallare,
 } from './nucleo.js';
 import {
   tempo, nomeGara, periodo, quando, inCorso, iniziali, giorno, oggi,
@@ -13,6 +13,7 @@ import {
 import { vistaGare, vistaGara, delLazio } from './viste-gare.js';
 import { vistaAtleti, vistaAtleta, leggiSeguiti } from './viste-atleti.js';
 import { forseBenvenuto } from './benvenuto.js';
+import { vistaSoloApp, vistaReinstalla, richiamoReinstalla } from './installazione.js';
 
 stato.filtro = memoria('filtro') ?? 'tutto';
 
@@ -648,6 +649,7 @@ async function vistaPerTe() {
     ${barraTop({ azioni: `<a class="tasto-icona" href="#/impostazioni" aria-label="Impostazioni">${ICONE.ingranaggio}</a>` })}
     <main class="pagina">
       <h1 class="nascosto">Per te</h1>
+      ${richiamoReinstalla()}
       ${mancaPush ? `<a class="richiamo" href="#/installa">${ICONE.campana}<span><strong>Attiva le notifiche</strong><small>Tempi dei tuoi atleti e avvisi appena escono.</small></span></a>` : ''}
       ${sezioneGare()}
       ${sezioneSeguiti()}
@@ -855,6 +857,7 @@ async function mostra() {
   forseBenvenuto();
 
   if (p === 'impostazioni') return vistaImpostazioni();
+  if (p === 'reinstalla') return vistaReinstalla();
   if (p === 'installa') return vistaInstalla();
   if (p === 'gare') return vistaGare();
   if ((m = p.match(/^gara\/([\w-]+)$/))) return vistaGara(m[1]);
@@ -878,6 +881,14 @@ async function aggiornaProfiloInSilenzio() {
 }
 
 async function avvia() {
+  // Nel browser Cloro non si usa: si mostra solo come installarla (e la pagina Privacy).
+  if (deveInstallare()) {
+    const pagina = () => (percorso() === 'privacy' ? vistaPrivacy() : vistaSoloApp());
+    window.addEventListener('hashchange', pagina);
+    window.addEventListener('cloro:installabile', pagina);
+    pagina();
+    return;
+  }
   let percorsoAttuale = percorso();
   window.addEventListener('hashchange', () => {
     stato.passi++;
@@ -964,10 +975,12 @@ if ('serviceWorker' in navigator) {
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   stato.eventoInstalla = e;
+  // Sulla pagina "si usa come app" compare il tasto Installa.
+  window.dispatchEvent(new Event('cloro:installabile'));
 });
 window.addEventListener('appinstalled', () => {
   stato.eventoInstalla = null;
-  avviso('Cloro è installata: aprila dalla schermata Home.');
+  avviso('Cloro è installata: chiudi il browser e aprila dall\'icona sulla schermata Home.');
 });
 
 // Per i moduli delle sezioni (evita import circolari): ridisegna la pagina corrente.

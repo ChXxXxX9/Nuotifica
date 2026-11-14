@@ -3,7 +3,7 @@
 import { memoria, pocoMovimento, ICONE, esc } from './nucleo.js';
 
 // Va letto subito, prima che l'app sovrascriva i dati salvati con il formato nuovo.
-const eraNuotifica = (() => {
+export const eraNuotifica = (() => {
   try {
     const copia = JSON.parse(localStorage.getItem('nuotifica.copia') ?? 'null');
     return Boolean((copia && copia.v === 1) || localStorage.getItem('nuotifica.token')

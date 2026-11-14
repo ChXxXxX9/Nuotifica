@@ -455,6 +455,16 @@ p { margin: 0; }
 .richiamo strong { display: block; font-size: 15px; }
 .richiamo small { font-weight: 600; font-size: 13px; }
 
+.richiamo-secondario {
+  background: var(--piastrella);
+  color: var(--testo);
+  border: 1px solid rgba(200, 255, 61, 0.55);
+}
+.richiamo-secondario:hover { color: var(--testo); }
+.richiamo-secondario svg { color: var(--cloro); }
+.richiamo-secondario small { color: var(--tenue-2); }
+.richiamo + .richiamo { margin-top: 10px; }
+
 .barra-stato {
   display: flex;
   align-items: center;

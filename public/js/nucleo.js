@@ -53,14 +53,36 @@ export function memoria(chiave, valore) {
   return null;
 }
 
+/** L'app è aperta dalla schermata Home (installata) e non in una scheda del browser? */
+export function installata() {
+  return ['standalone', 'fullscreen', 'minimal-ui', 'window-controls-overlay']
+    .some((m) => window.matchMedia(`(display-mode: ${m})`).matches) || navigator.standalone === true;
+}
+
+/** Cloro si usa solo come app installata. Con ?demo si può provare nel browser (?soloapp per vedere il blocco). */
+export function deveInstallare() {
+  return (!modoDemo || parametri.has('soloapp')) && !installata();
+}
+
 export function dispositivo() {
   const ua = navigator.userAgent;
   const ios = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const android = /android/i.test(ua);
-  const inApp = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-  const browserInterno = /Instagram|FBAN|FBAV|TikTok|Line\/|Snapchat|WhatsApp/i.test(ua);
+  const inApp = installata();
+  const browserInterno = /Instagram|FBAN|FBAV|TikTok|Line\/|Snapchat|WhatsApp|Telegram|LinkedInApp/i.test(ua);
+  const browser = /CriOS/.test(ua) ? 'chrome-ios'
+    : /FxiOS/.test(ua) ? 'firefox-ios'
+      : /EdgiOS/.test(ua) ? 'edge-ios'
+        : /SamsungBrowser/.test(ua) ? 'samsung'
+          : /Firefox/.test(ua) ? 'firefox'
+            : /EdgA?\//.test(ua) ? 'edge'
+              : /Chrome/.test(ua) ? 'chrome'
+                : /Safari/.test(ua) ? 'safari' : 'altro';
+  const telefono = ios || android;
   const pushPossibile = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
-  return { ios, android, inApp, browserInterno, pushPossibile };
+  return {
+    ios, android, inApp, browserInterno, browser, telefono, pushPossibile,
+  };
 }
 
 export function percorso() {
