@@ -1,0 +1,39 @@
+name: Indagine fonti nazionali (temporaneo)
+
+# Guarda solo pagine pubbliche: calendario e "live" FIN, pagina risultati FIN, Microplus.
+on:
+  push:
+    branches: [indagine]
+
+permissions:
+  contents: write
+
+jobs:
+  indagine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+      - name: Richieste
+        run: |
+          mkdir -p out; UA="Nuotifica/1.0 (+https://nuotifica.web.app)"
+          F='https://www.federnuoto.it/index.php?option=com_solrconnect&currentpage=1&format=json'
+          prova() { n=$1; shift; curl -s --http2 --max-time 25 -A "$UA" -o "out/$n.raw" -w "$n %{http_code} %{size_download}\n" "$@" >> out/esiti.txt || echo "$n ERRORE" >> out/esiti.txt; }
+          prova cal1 -X POST "$F&view=calendario" --data-urlencode 'solr[settore]=NUO'
+          prova cal2 -X POST "$F&view=calendario" --data-urlencode 'solr[settore]=NUO' --data-urlencode 'solr[stagione]=2026' --data-urlencode 'solr[limit]=50'
+          prova cal3 -X POST "$F&view=calendario" --data-urlencode 'solr[settore]=NUO' --data-urlencode 'solr[dal]=07/11/2026' --data-urlencode 'solr[al]=15/11/2026' --data-urlencode 'solr[limit]=50'
+          prova live1 -X POST "$F&view=live" --data-urlencode 'solr[settore]=NUO'
+          prova live2 -X POST "$F&view=live" --data-urlencode 'solr[settore]=NUO' --data-urlencode 'solr[limit]=50'
+          prova finris 'https://www.federnuoto.it/home/nuoto/risultati-e-classifiche-nuoto.html'
+          prova finlive 'https://www.federnuoto.it/home/nuoto/live.html'
+          prova mplus 'https://www.microplustiming.com/'
+          prova mplus2026 'https://fin2026.microplustiming.com/'
+          cat out/esiti.txt
+          for f in out/*.raw; do echo "===== $f"; python3 -I scripts/estrai.py "$f"; done > out/riassunto.txt 2>&1
+          rm out/*.raw
+          head -c 60000 out/riassunto.txt > out/r.txt && mv out/r.txt out/riassunto.txt
+      - name: Salva
+        run: |
+          git config user.name "nuotifica-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A out && git commit -qm "Esiti indagine fonti nazionali" && git push origin HEAD:indagine
