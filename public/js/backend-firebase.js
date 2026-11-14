@@ -21,6 +21,7 @@ function messaggioErrore(e) {
     'auth/cancelled-popup-request': 'Accesso con Google annullato.',
     'auth/requires-recent-login': 'Per sicurezza esci, rientra e ripeti l\'operazione.',
     'auth/unauthorized-domain': 'Questo indirizzo non è autorizzato per l\'accesso (Firebase → Authentication → Impostazioni → Domini autorizzati).',
+    'unavailable': 'Connessione assente. Controlla internet e riprova.',
     'permission-denied': 'Operazione non permessa.',
   };
   const err = new Error(codici[e?.code] ?? `Qualcosa non ha funzionato (${e?.code ?? e?.message ?? e}).`);
@@ -44,17 +45,17 @@ export async function creaBackendFirebase(config) {
   A.getRedirectResult(auth).catch((e) => { erroreRedirect = messaggioErrore(e); });
 
   const comeData = (v) => (v?.toDate ? v.toDate() : v ? new Date(v) : null);
-  const postDaDoc = (snap) => {
-    const p = snap.data();
+  const postDaDoc = (snap) => postDaDati(snap.data(), snap.id);
+  function postDaDati(p, id) {
     return {
       ...p,
-      id: snap.id,
+      id: String(id),
       data: comeData(p.data),
       ultimoCambio: comeData(p.ultimoCambio),
       novita: p.novita ? { ...p.novita, quando: comeData(p.novita.quando) } : null,
       file: (p.file ?? []).map((f) => ({ ...f, aggiuntoIl: comeData(f.aggiuntoIl) })),
     };
-  };
+  }
 
   async function avvolgi(fn) {
     try {
@@ -77,7 +78,7 @@ export async function creaBackendFirebase(config) {
       } : null));
     },
 
-    prendiErroreAccesso() {
+    async prendiErroreAccesso() {
       const e = erroreRedirect;
       erroreRedirect = null;
       return e;
@@ -153,6 +154,61 @@ export async function creaBackendFirebase(config) {
       const snap = await F.getDocs(q);
       return snap.docs.map(postDaDoc);
     }),
+
+    /** Avvisi: un solo documento riassuntivo (una lettura); se manca, la ricerca di prima. */
+    leggiAvvisi: (settori) => avvolgi(async () => {
+      const snap = await F.getDoc(F.doc(db, 'meta', 'avvisi'));
+      if (!snap.exists()) {
+        if (!settori?.length) return [];
+        const q = F.query(
+          F.collection(db, 'posts'),
+          F.where('settori', 'array-contains-any', settori.slice(0, 30)),
+          F.orderBy('ultimoCambio', 'desc'),
+          F.limit(40),
+        );
+        return (await F.getDocs(q)).docs.map(postDaDoc);
+      }
+      return (snap.data().posts ?? []).map((p) => postDaDati(p, p.id));
+    }),
+
+    /** Elenco delle gare (Lazio in diretta e, quando ci sono, le altre). */
+    leggiGare: () => avvolgi(async () => {
+      const [diretta, italia] = await Promise.all(['gare-diretta', 'gare-italia'].map((id) => F.getDoc(F.doc(db, 'meta', id))
+        .then((s) => (s.exists() ? s.data().gare ?? [] : []))
+        .catch(() => [])));
+      const perId = new Map([...italia, ...diretta].map((g) => [g.id, g]));
+      return [...perId.values()].sort((a, b) => (b.dal ?? '').localeCompare(a.dal ?? '') || a.nome.localeCompare(b.nome));
+    }),
+
+    leggiGara: (id) => avvolgi(async () => {
+      const snap = await F.getDoc(F.doc(db, 'gare', id));
+      return snap.exists() ? { id, ...snap.data() } : null;
+    }),
+
+    leggiCategoria: (id, doc) => avvolgi(async () => {
+      const snap = await F.getDoc(F.doc(db, 'gare', id, 'categorie', doc));
+      return snap.exists() ? snap.data() : null;
+    }),
+
+    leggiAtleta: (k) => avvolgi(async () => {
+      const snap = await F.getDoc(F.doc(db, 'atleti', k));
+      return snap.exists() ? snap.data() : null;
+    }),
+
+    leggiIndice: (lettera) => avvolgi(async () => {
+      const snap = await F.getDoc(F.doc(db, 'indici', lettera));
+      return snap.exists() ? snap.data().l ?? [] : [];
+    }),
+
+    segui: (uid, k) => avvolgi(() => F.updateDoc(F.doc(db, 'users', uid), {
+      seguiti: F.arrayUnion(k),
+      aggiornato: F.serverTimestamp(),
+    })),
+
+    smettiDiSeguire: (uid, k) => avvolgi(() => F.updateDoc(F.doc(db, 'users', uid), {
+      seguiti: F.arrayRemove(k),
+      aggiornato: F.serverTimestamp(),
+    })),
 
     leggiUnPost: (id) => avvolgi(async () => {
       const snap = await F.getDoc(F.doc(db, 'posts', id));

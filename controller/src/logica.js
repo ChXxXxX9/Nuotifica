@@ -132,7 +132,7 @@ export function messaggioPush(cambio, sito) {
 export function messaggiPush(cambi, sito) {
   if (cambi.length > MAX_PUSH_PER_GIRO) {
     return [{
-      titolo: `${cambi.length} novità sul sito FIN Lazio`,
+      titolo: `${cambi.length} nuovi avvisi del Comitato`,
       corpo: cambi.slice(0, 3).map((c) => accorcia(c.post.titolo, 40)).join(' · '),
       url: `${sito}/#/`,
       tag: 'riepilogo',

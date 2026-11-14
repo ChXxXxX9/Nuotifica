@@ -3,24 +3,33 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Nuotifica</title>
-  <meta name="description" content="Ammessi, start list, orari e risultati della FIN Lazio: una notifica appena escono. Servizio non ufficiale.">
-  <meta name="theme-color" content="#03182e">
+  <title>Cloro</title>
+  <meta name="description" content="Il nuoto, in diretta: gare con batterie e parziali, schede atleta, punti e avvisi, con notifiche sul telefono. Servizio non ufficiale.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#07130f">
   <meta name="color-scheme" content="dark">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Nuotifica">
+  <meta name="apple-mobile-web-app-title" content="Cloro">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta property="og:title" content="Cloro">
+  <meta property="og:description" content="Il nuoto, in diretta.">
+  <meta property="og:image" content="/icons/anteprima.png">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="icon" href="/icons/icon-192.png" type="image/png">
+  <link rel="icon" href="/icons/favicon-64.png" type="image/png">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-  <link rel="preload" href="/fonts/saira-italic.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="/fonts/saira.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/manrope.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/unbounded.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/css/app.css">
   <!-- Tutto quello che serve all'avvio parte insieme, invece che uno dopo l'altro.
        La versione di Firebase deve essere la stessa di js/backend-firebase.js -->
   <link rel="modulepreload" href="/js/config.js">
   <link rel="modulepreload" href="/js/costanti.js">
+  <link rel="modulepreload" href="/js/nucleo.js">
+  <link rel="modulepreload" href="/js/formato.js">
+  <link rel="modulepreload" href="/js/viste-gare.js">
+  <link rel="modulepreload" href="/js/viste-atleti.js">
+  <link rel="modulepreload" href="/js/benvenuto.js">
   <link rel="modulepreload" href="/js/backend-firebase.js">
   <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js" crossorigin>
   <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js" crossorigin>
@@ -30,8 +39,7 @@
   <script type="module" src="/js/app.js"></script>
 </head>
 <body>
-  <div class="acqua" aria-hidden="true"></div>
   <div id="app"></div>
-  <noscript>Per usare Nuotifica attiva JavaScript.</noscript>
+  <noscript>Per usare Cloro attiva JavaScript.</noscript>
 </body>
 </html>

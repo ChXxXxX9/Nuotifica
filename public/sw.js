@@ -1,5 +1,5 @@
-// Service worker di Nuotifica: mostra le notifiche e tiene in cache l'app per aprirla subito.
-const VERSIONE = 'nuotifica-v3';
+// Service worker di Cloro: mostra le notifiche e tiene in cache l'app per aprirla subito.
+const VERSIONE = 'cloro-v1';
 // Librerie di Firebase: l'indirizzo contiene la versione, quindi non cambiano mai e si tengono in memoria.
 const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/';
 const CACHE_SDK = 'nuotifica-sdk';
@@ -11,14 +11,17 @@ const GUSCIO = [
   '/js/config.js',
   '/js/costanti.js',
   '/js/backend-firebase.js',
+  '/js/nucleo.js',
+  '/js/formato.js',
+  '/js/viste-gare.js',
+  '/js/viste-atleti.js',
+  '/js/benvenuto.js',
   '/manifest.webmanifest',
   '/icons/icon-192.png',
   '/icons/badge-96.png',
-  '/fonts/saira.woff2',
-  '/fonts/saira-italic.woff2',
-  '/fonts/doto.woff2',
-  '/img/caustiche-a.png',
-  '/img/caustiche-b.png',
+  '/icons/favicon-64.png',
+  '/fonts/unbounded.woff2',
+  '/fonts/manrope.woff2',
 ];
 
 self.addEventListener('install', (evento) => {
@@ -83,8 +86,8 @@ function leggiMessaggio(evento) {
   // Firebase Cloud Messaging mette i nostri campi in "data".
   const d = dati.data ?? dati.notification ?? dati;
   return {
-    titolo: d.titolo ?? d.title ?? 'Nuotifica',
-    corpo: d.corpo ?? d.body ?? 'C\'è una novità sul sito della FIN Lazio.',
+    titolo: d.titolo ?? d.title ?? 'Cloro',
+    corpo: d.corpo ?? d.body ?? 'C\'è una novità: apri Cloro per vederla.',
     url: d.url ?? dati.fcmOptions?.link ?? '/',
     tag: d.tag ?? undefined,
   };

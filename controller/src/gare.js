@@ -30,6 +30,11 @@ export function stagione(data = '') {
 }
 
 const sedeBreve = (sede) => sede.slice(0, 8);
+
+/** Iniziali (senza accenti) delle parole di un nome: le "lettere" dell'indice di ricerca. */
+export function iniziali(nome = '') {
+  return [...new Set(slug(nome).split('-').filter((p) => p.length > 1).map((p) => (/^[a-z]/.test(p) ? p[0] : '_')))];
+}
 const docCategoria = (sede, cat) => `${sedeBreve(sede)}~${cat}`;
 const percorsoPrimati = (vasca, codice, sesso) => `primati/${vasca}-${codice}-${sesso}`;
 
@@ -151,6 +156,7 @@ export function costruisciSede({
         c: r.gara.codice,
         v: gara.vasca,
         cat: nomeCat(r.categoria),
+        ci: idCat,
       };
       if (r.ms) voce.t = r.ms;
       if (r.stato) voce.x = r.stato;
@@ -263,6 +269,25 @@ export async function aggiornaGare({
   const stato = (await db.leggi('meta/live')) ?? {};
   stato.sedi ??= {};
   stato.gare ??= {};
+
+  // Una volta sola: l'indice di ricerca passa a "un'iniziale per ogni parola del nome".
+  if (stato.indiceV !== 2 && Object.keys(stato.sedi).length && db.elenca) {
+    const tutti = await db.elenca('atleti');
+    const perLettera = new Map();
+    for (const a of tutti) {
+      for (const l of iniziali(a.n)) {
+        if (!perLettera.has(l)) perLettera.set(l, []);
+        perLettera.get(l).push(`${a.id}|${a.n}|${a.y ?? ''}|${a.s ?? ''}`);
+      }
+    }
+    await db.commit([...perLettera].map(([l, voci]) => ({
+      percorso: `indici/${l}`, dati: {}, maschera: [], aggiungi: { l: voci }, oraServer: ['agg'],
+    })));
+    stato.indiceV = 2;
+    await db.scrivi('meta/live', stato);
+    log(`Indice di ricerca rifatto: ${tutti.length} atleti.`);
+  }
+  stato.indiceV = 2;
 
   // Quali sedi scaricare: quelle in gara (fino al giorno dopo) e, poche per volta, quelle mai lette.
   const inGara = [];
@@ -410,9 +435,11 @@ export async function aggiornaGare({
       aggiungi: { r: a.risultati, ...(a.cod ? { cod: [a.cod] } : {}) },
       oraServer: ['agg'],
     });
-    const lettera = /^[a-z]/.test(k) ? k[0] : '_';
-    if (!indici.has(lettera)) indici.set(lettera, []);
-    indici.get(lettera).push(`${k}|${a.n}|${a.y ?? ''}|${a.s}`);
+    // Una voce per l'iniziale di ogni parola del nome: si trova cercando sia il nome sia il cognome.
+    for (const lettera of iniziali(a.n)) {
+      if (!indici.has(lettera)) indici.set(lettera, []);
+      indici.get(lettera).push(`${k}|${a.n}|${a.y ?? ''}|${a.s}`);
+    }
   }
   for (const [lettera, voci] of indici) {
     avanzate.push({ percorso: `indici/${lettera}`, dati: {}, maschera: [], aggiungi: { l: voci }, oraServer: ['agg'] });

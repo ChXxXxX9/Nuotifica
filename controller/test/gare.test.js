@@ -192,6 +192,9 @@ test('giro delle gare: primo giro senza notifiche, poi notifica a chi segue l\'a
   assert.ok(scheda.r.some((v) => v.c === '100DO' && v.t === scelta.ms && v.pt > 0));
   const indice = db.docs.get(`indici/${scelta.atleta.chiave[0]}`);
   assert.ok(indice.l.some((v) => v.startsWith(`${scelta.atleta.chiave}|`)));
+  // Si trova anche dal nome di battesimo.
+  const nome = scelta.atleta.nome.split(' ')[0].toLowerCase()[0];
+  assert.ok(db.docs.get(`indici/${nome}`).l.some((v) => v.startsWith(`${scelta.atleta.chiave}|`)));
 
   // Qualcuno segue quell'atleta.
   db.docs.set('users/u1', { seguiti: [scelta.atleta.chiave], tokens: ['tok'], pushOn: true });

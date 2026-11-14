@@ -48,5 +48,5 @@ export const TIPO_BREVE = {
 // Per quanti giorni un file o un post resta segnato come nuovo.
 export const GIORNI_NOVITA = 7;
 
-export const AVVISO_NON_UFFICIALE = 'Nuotifica è un servizio non ufficiale: non è collegato '
-  + 'alla Federazione Italiana Nuoto né al Comitato Regionale Lazio. Fa fede solo il sito finlazio.it.';
+export const AVVISO_NON_UFFICIALE = 'Cloro è un servizio non ufficiale, non collegato a federazioni, '
+  + 'comitati o organizzatori. Fanno fede solo i risultati e le comunicazioni ufficiali.';
