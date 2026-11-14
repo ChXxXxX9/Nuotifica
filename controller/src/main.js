@@ -1,16 +1,19 @@
-// Nuotifica – controllore.
-// Gira su GitHub Actions ogni 15 minuti:
-// 1. legge gli ultimi post del sito finlazio.it (API WordPress pubbliche);
-// 2. li confronta con quelli già visti (indice su Firestore);
-// 3. salva i post cambiati su Firestore (l'app li mostra da lì);
-// 4. manda una notifica a chi è interessato.
+// Cloro – controllore.
+// Gira su GitHub Actions ogni 5 minuti:
+// 1. avvisi: legge gli ultimi post del sito degli avvisi, li confronta con quelli già visti,
+//    salva i cambiati su Firestore (più un riassunto unico per l'app) e manda le notifiche;
+// 2. gare: legge le gare in diretta e aggiorna gare, schede atleta e notifiche dei tempi.
+// Gli indirizzi delle fonti arrivano dal secret FONTI (non stanno nel codice, che è pubblico).
 //
 // Uso:
-//   node src/main.js              giro normale (serve FIREBASE_SERVICE_ACCOUNT)
+//   node src/main.js              giro normale (servono FIREBASE_SERVICE_ACCOUNT e FONTI)
 //   node src/main.js --anteprima  mostra cosa riconosce negli ultimi post, senza salvare né inviare
 import { pathToFileURL } from 'node:url';
 import { creaWp } from './wp.js';
-import { leggiPost, mappaCategorie } from './parse.js';
+import { leggiPost, mappaCategorie, impostaSito } from './parse.js';
+import { leggiFonti, scarica } from './fonti.js';
+import { aggiornaGare } from './gare.js';
+import { oggiRoma } from './tempi.js';
 import {
   confronta, documentoPost, voceIndice, perUtente, messaggiPush,
 } from './logica.js';
@@ -66,6 +69,34 @@ async function scriviStato(db, stato) {
   });
 }
 
+const POST_NEL_RIASSUNTO = 40;
+
+/** Riassunto unico degli ultimi post: l'app lo legge con una sola lettura invece di 40. */
+async function aggiornaRiassunto(db, cambiati, adesso, { daZero = false } = {}) {
+  let posts;
+  if (daZero) {
+    posts = await db.elenca('posts');
+  } else {
+    posts = (await db.leggi('meta/avvisi'))?.posts ?? [];
+    const nuovi = new Map(cambiati.map((p) => [String(p.id), p]));
+    posts = [...posts.filter((p) => !nuovi.has(String(p.id))), ...nuovi.values()];
+  }
+  const tempo = (v) => new Date(v ?? 0).getTime();
+  posts = posts
+    .map((p) => ({ ...p, id: String(p.id) }))
+    .sort((a, b) => tempo(b.ultimoCambio) - tempo(a.ultimoCambio))
+    .slice(0, POST_NEL_RIASSUNTO)
+    .map((p) => ({
+      ...p,
+      data: comeData(p.data),
+      modificato: comeData(p.modificato),
+      ultimoCambio: comeData(p.ultimoCambio),
+      novita: p.novita ? { ...p.novita, quando: comeData(p.novita.quando) } : null,
+      file: (p.file ?? []).map((f) => ({ ...f, aggiuntoIl: comeData(f.aggiuntoIl) })),
+    }));
+  await db.scrivi('meta/avvisi', { posts, aggiornato: comeData(adesso) });
+}
+
 /** Manda le notifiche agli utenti interessati. */
 export async function avvisa({ db, invio, cambi, sito, log = console.log }) {
   const utenti = await db.elenca('users');
@@ -115,6 +146,12 @@ export async function controlla({ wp, db, invio, sito, adesso = new Date().toISO
   } catch (e) {
     throw new ErroreSito(e.message);
   }
+  // Il riassunto per l'app si crea una volta sola con tutti i post già salvati.
+  if (indice.avviato && indice.riassunto !== 1) {
+    await aggiornaRiassunto(db, [], adesso, { daZero: true });
+    indice.riassunto = 1;
+    await db.scrivi('meta/indice', { ...indice, aggiornato: comeData(adesso) });
+  }
   if (indice.avviato && firma && indice.firma === firma) {
     await scriviStato(db, { adesso, esito: 'ok', messaggio: 'Nessuna novità.' });
     log('Nessuna novità (controllo rapido).');
@@ -148,8 +185,9 @@ export async function controlla({ wp, db, invio, sito, adesso = new Date().toISO
       indice.posts[post.id] = voceIndice(post);
     }
     await db.scriviTanti(scritture);
+    await aggiornaRiassunto(db, scritture.map((x) => x.dati), adesso);
     await db.scrivi('meta/indice', {
-      posts: indice.posts, avviato: true, firma, aggiornato: comeData(adesso),
+      posts: indice.posts, avviato: true, firma, riassunto: 1, aggiornato: comeData(adesso),
     });
     const messaggio = `Primo avvio: memorizzati ${scritture.length} post, nessuna notifica inviata.`;
     await scriviStato(db, { adesso, esito: 'ok', messaggio });
@@ -182,6 +220,7 @@ export async function controlla({ wp, db, invio, sito, adesso = new Date().toISO
   let conteggi = { push: 0, errori: 0 };
   if (scritture.length) {
     await db.scriviTanti(scritture);
+    await aggiornaRiassunto(db, scritture.map((x) => x.dati), adesso);
   }
   if (cambi.length) {
     conteggi = await avvisa({ db, invio, cambi, sito, log });
@@ -189,7 +228,7 @@ export async function controlla({ wp, db, invio, sito, adesso = new Date().toISO
   if (scritture.length || indice.firma !== firma) {
     potaIndice(indice, adesso);
     await db.scrivi('meta/indice', {
-      posts: indice.posts, avviato: true, firma, aggiornato: comeData(adesso),
+      posts: indice.posts, avviato: true, firma, riassunto: indice.riassunto ?? 1, aggiornato: comeData(adesso),
     });
   }
   await scriviStato(db, {
@@ -228,8 +267,16 @@ export async function anteprima(wp, quanti = 30, log = console.log) {
   }
 }
 
+// Tetto di sicurezza: il piano gratuito di Firestore permette 20.000 scritture al giorno.
+const TETTO_SCRITTURE = 15_000;
+
 async function principale() {
-  const wp = creaWp();
+  const fonti = leggiFonti();
+  if (!fonti.avvisi) {
+    throw new Error('Manca il secret FONTI (Settings → Secrets and variables → Actions): vedi il README.');
+  }
+  impostaSito(fonti.avvisi);
+  const wp = creaWp({ base: fonti.avvisi });
   if (process.argv.includes('--anteprima')) {
     await anteprima(wp);
     return;
@@ -243,18 +290,45 @@ async function principale() {
   const invio = creaInvio({ chiamaGoogle, progetto });
 
   const adesso = new Date().toISOString();
+  const giorno = oggiRoma(adesso);
+  const budget = (await db.leggi('meta/budget')) ?? {};
+  const giaScritte = budget.giorno === giorno ? (budget.scritture ?? 0) : 0;
+  const giaLette = budget.giorno === giorno ? (budget.letture ?? 0) : 0;
+  let errore = null;
+
+  // 1. Avvisi.
   try {
     await controlla({ wp, db, invio, sito, adesso });
   } catch (e) {
     if (e instanceof ErroreSito) {
-      // Sito FIN momentaneamente giù: non è un nostro errore, riproviamo al prossimo giro.
-      console.log(`Sito non raggiungibile, riprovo al prossimo giro: ${e.message}`);
+      // Sito momentaneamente giù: non è un nostro errore, riproviamo al prossimo giro.
+      console.log(`Sito degli avvisi non raggiungibile, riprovo al prossimo giro: ${e.message}`);
       await scriviStato(db, { adesso, esito: 'sito-non-raggiungibile', messaggio: e.message }).catch(() => {});
-      return;
+    } else {
+      await scriviStato(db, { adesso, esito: 'errore', messaggio: String(e.message).slice(0, 900) }).catch(() => {});
+      errore = e;
     }
-    await scriviStato(db, { adesso, esito: 'errore', messaggio: String(e.message).slice(0, 900) }).catch(() => {});
-    throw e;
   }
+
+  // 2. Gare in diretta (un problema qui non deve fermare gli avvisi, e viceversa).
+  try {
+    const esito = await aggiornaGare({
+      db, fonti, scarica, invio, sito, adesso,
+      puoScrivere: () => giaScritte + db.conta.scritture < TETTO_SCRITTURE,
+    });
+    if (!esito.saltato) console.log(`Gare: ${JSON.stringify(esito)}`);
+  } catch (e) {
+    console.log(`::warning title=Gare::${String(e.message).slice(0, 500)}`);
+  }
+
+  await db.scrivi('meta/budget', {
+    giorno,
+    scritture: giaScritte + db.conta.scritture + 1,
+    letture: giaLette + db.conta.letture,
+  }).catch(() => {});
+  console.log(`Firestore in questo giro: ${db.conta.letture} letture, ${db.conta.scritture} scritture `
+    + `(oggi ${giaScritte + db.conta.scritture} scritture).`);
+  if (errore) throw errore;
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

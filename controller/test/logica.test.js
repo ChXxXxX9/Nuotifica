@@ -20,7 +20,7 @@ test('confronta: post nuovo, file aggiunto, etichetta "aggiornato", solo testo',
   assert.equal(confronta(null, prima).tipo, 'nuovo');
 
   const voce = voceIndice(prima);
-  const dopo = leggiPost(conFileAggiunto(d.finali, '<a href="https://www.finlazio.it/wp-content/uploads/2026/07/startlist.pdf">Start list Finali</a>', '2026-07-20T08:00:00'), mappa);
+  const dopo = leggiPost(conFileAggiunto(d.finali, '<a href="https://www.sito-esempio.it/wp-content/uploads/2026/07/startlist.pdf">Start list Finali</a>', '2026-07-20T08:00:00'), mappa);
   const diff = confronta(voce, dopo);
   assert.equal(diff.tipo, 'aggiunta');
   assert.deepEqual(diff.file.map((f) => f.tipo), ['startlist']);

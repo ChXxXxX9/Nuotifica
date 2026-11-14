@@ -24,8 +24,8 @@ test('estrae i file del post Finali: niente icona, niente doppioni', () => {
 
 test('normalizzazione indirizzi', () => {
   assert.equal(
-    normalizzaUrl('http://finlazio.it/wp-content/uploads/2026/06/comun186.pdf'),
-    normalizzaUrl('https://www.finlazio.it/wp-content/uploads/2026/06/comun186.pdf'),
+    normalizzaUrl('http://sito-esempio.it/wp-content/uploads/2026/06/comun186.pdf'),
+    normalizzaUrl('https://www.sito-esempio.it/wp-content/uploads/2026/06/comun186.pdf'),
   );
 });
 
@@ -79,7 +79,7 @@ test('i link agli articoli non sono documenti, quelli ai file sì', () => {
   const html = `
     <p>Testo <a href="https://www.federnuoto.it/home/news/123">Leggi tutto…</a></p>
     <p><a href="https://www.federnuoto.it/faq.html">FAQ Dipartimento per lo Sport</a></p>
-    <p><a href="https://www.finlazio.it/wp-content/uploads/2026/10/Corso-SNF.pdf">Corso SNF Nautilus Roma</a></p>
+    <p><a href="https://www.sito-esempio.it/wp-content/uploads/2026/10/Corso-SNF.pdf">Corso SNF Nautilus Roma</a></p>
     <p><a href="https://live.microplustiming.com/regionali">Risultati live</a></p>`;
   const p = leggiPost(d.postGrezzo({ id: 1, titolo: 'Notizia', categorie: [85], contenuto: html }), mappa);
   assert.deepEqual(p.file.map((f) => f.etichetta), ['Corso SNF Nautilus Roma', 'Risultati live']);

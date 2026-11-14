@@ -91,14 +91,14 @@ test('giro completo: primo avvio muto, poi avvisi solo a chi interessa', async (
     ...d.finali,
     modified_gmt: '2026-10-14T20:20:00',
     content: {
-      rendered: `${d.finali.content.rendered}<a href="https://www.finlazio.it/wp-content/uploads/2026/10/startlist-finali.pdf">Start list Finali</a>`,
+      rendered: `${d.finali.content.rendered}<a href="https://www.sito-esempio.it/wp-content/uploads/2026/10/startlist-finali.pdf">Start list Finali</a>`,
     },
   };
   const nuovoEs = d.postGrezzo({
     id: 360000,
     titolo: 'NUOTO &#8211; 1ª Prova Regionale Esordienti A',
     categorie: [78, 83, 104],
-    contenuto: '<a href="https://www.finlazio.it/wp-content/uploads/2026/10/EsA_regolamento.pdf">Regolamento</a>',
+    contenuto: '<a href="https://www.sito-esempio.it/wp-content/uploads/2026/10/EsA_regolamento.pdf">Regolamento</a>',
     modificato: '2026-10-14T20:22:00',
     data: '2026-10-14T20:22:00',
   });

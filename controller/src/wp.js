@@ -1,5 +1,6 @@
-// Lettura delle API pubbliche WordPress del sito finlazio.it.
-import { WP_BASE, USER_AGENT, PER_PAGINA } from './config.js';
+// Lettura delle API pubbliche WordPress del sito degli avvisi (indirizzo nel secret FONTI).
+import { PER_PAGINA } from './config.js';
+import { USER_AGENT } from './fonti.js';
 
 const CAMPI_POST = 'id,date_gmt,modified_gmt,title,link,categories,content';
 
@@ -7,7 +8,7 @@ async function attendi(ms) {
   await new Promise((r) => setTimeout(r, ms));
 }
 
-export function creaWp({ fetchFn = fetch, base = WP_BASE } = {}) {
+export function creaWp({ fetchFn = fetch, base } = {}) {
   async function richiesta(percorso) {
     let ultimoErrore;
     for (let tentativo = 1; tentativo <= 3; tentativo++) {
@@ -28,7 +29,7 @@ export function creaWp({ fetchFn = fetch, base = WP_BASE } = {}) {
         if (tentativo < 3) await attendi(2000 * tentativo);
       }
     }
-    throw new Error(`Sito FIN Lazio non raggiungibile (${percorso}): ${ultimoErrore?.message}`);
+    throw new Error(`Sito degli avvisi non raggiungibile: ${ultimoErrore?.message}`);
   }
 
   return {

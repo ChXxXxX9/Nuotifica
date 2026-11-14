@@ -59,14 +59,20 @@ export function comeData(iso) {
 export function creaFirestore(chiamaGoogle, progetto) {
   const radice = `projects/${progetto}/databases/(default)/documents`;
   const base = `https://firestore.googleapis.com/v1/${radice}`;
+  // Conteggio di letture e scritture del giro: il piano gratuito ha un tetto giornaliero.
+  const conta = { letture: 0, scritture: 0 };
 
   return {
+    conta,
+
     async leggi(percorso) {
+      conta.letture++;
       const doc = await chiamaGoogle(`${base}/${percorso}`, { consenti404: true });
       return doc ? decodificaCampi(doc.fields) : null;
     },
 
     async scrivi(percorso, dati) {
+      conta.scritture++;
       await chiamaGoogle(`${base}/${percorso}`, {
         method: 'PATCH',
         body: { fields: codificaCampi(dati) },
@@ -74,6 +80,7 @@ export function creaFirestore(chiamaGoogle, progetto) {
     },
 
     async aggiorna(percorso, dati) {
+      conta.scritture++;
       const maschera = Object.keys(dati)
         .map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`)
         .join('&');
@@ -87,6 +94,7 @@ export function creaFirestore(chiamaGoogle, progetto) {
     async scriviTanti(elenco) {
       for (let i = 0; i < elenco.length; i += 400) {
         const blocco = elenco.slice(i, i + 400);
+        conta.scritture += blocco.length;
         await chiamaGoogle(`${base}:commit`, {
           method: 'POST',
           body: {
@@ -98,12 +106,87 @@ export function creaFirestore(chiamaGoogle, progetto) {
       }
     },
 
+    /**
+     * Scritture "avanzate" in blocchi da 400: ognuna può aggiornare solo alcuni campi (maschera),
+     * aggiungere elementi a una lista senza leggerla prima (aggiungi) e mettere l'ora del server.
+     */
+    async commit(elenco) {
+      for (let i = 0; i < elenco.length; i += 400) {
+        const blocco = elenco.slice(i, i + 400);
+        conta.scritture += blocco.length;
+        await chiamaGoogle(`${base}:commit`, {
+          method: 'POST',
+          body: {
+            writes: blocco.map((w) => {
+              const scrittura = { update: { name: `${radice}/${w.percorso}`, fields: codificaCampi(w.dati ?? {}) } };
+              if (w.maschera) scrittura.updateMask = { fieldPaths: w.maschera };
+              const trasformazioni = [];
+              for (const [campo, valori] of Object.entries(w.aggiungi ?? {})) {
+                if (valori.length) trasformazioni.push({ fieldPath: campo, appendMissingElements: { values: valori.map(codifica) } });
+              }
+              for (const campo of w.oraServer ?? []) trasformazioni.push({ fieldPath: campo, setToServerValue: 'REQUEST_TIME' });
+              if (trasformazioni.length) scrittura.updateTransforms = trasformazioni;
+              return scrittura;
+            }),
+          },
+        });
+      }
+    },
+
+    /** Legge più documenti con una sola richiesta. Restituisce una Map percorso -> dati (o null). */
+    async leggiTanti(percorsi) {
+      const esito = new Map(percorsi.map((p) => [p, null]));
+      for (let i = 0; i < percorsi.length; i += 100) {
+        const blocco = percorsi.slice(i, i + 100);
+        conta.letture += blocco.length;
+        const risposte = await chiamaGoogle(`${base}:batchGet`, {
+          method: 'POST',
+          body: { documents: blocco.map((p) => `${radice}/${p}`) },
+        });
+        for (const r of risposte ?? []) {
+          if (r.found) esito.set(r.found.name.slice(radice.length + 1), decodificaCampi(r.found.fields));
+        }
+      }
+      return esito;
+    },
+
+    /** Documenti di una collezione con un campo-lista che contiene almeno uno dei valori. */
+    async contieneUno(collezione, campo, valori) {
+      const documenti = [];
+      for (let i = 0; i < valori.length; i += 30) {
+        const blocco = valori.slice(i, i + 30);
+        const risposte = await chiamaGoogle(`${base}:runQuery`, {
+          method: 'POST',
+          body: {
+            structuredQuery: {
+              from: [{ collectionId: collezione }],
+              where: {
+                fieldFilter: {
+                  field: { fieldPath: campo },
+                  op: 'ARRAY_CONTAINS_ANY',
+                  value: { arrayValue: { values: blocco.map(codifica) } },
+                },
+              },
+            },
+          },
+        });
+        conta.letture += Math.max(1, (risposte ?? []).filter((r) => r.document).length);
+        for (const r of risposte ?? []) {
+          if (!r.document) continue;
+          const id = r.document.name.split('/').pop();
+          if (!documenti.some((d) => d.id === id)) documenti.push({ id, ...decodificaCampi(r.document.fields) });
+        }
+      }
+      return documenti;
+    },
+
     async elenca(collezione) {
       const documenti = [];
       let pagina = '';
       do {
         const url = `${base}/${collezione}?pageSize=300${pagina ? `&pageToken=${encodeURIComponent(pagina)}` : ''}`;
         const dati = await chiamaGoogle(url);
+        conta.letture += Math.max(1, (dati.documents ?? []).length);
         for (const doc of dati.documents ?? []) {
           documenti.push({ id: doc.name.split('/').pop(), ...decodificaCampi(doc.fields) });
         }

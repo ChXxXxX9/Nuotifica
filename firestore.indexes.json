@@ -9,5 +9,15 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    { "collectionGroup": "stato-live", "fieldPath": "righe", "indexes": [] },
+    { "collectionGroup": "primati", "fieldPath": "atleti", "indexes": [] },
+    { "collectionGroup": "atleti", "fieldPath": "r", "indexes": [] },
+    { "collectionGroup": "indici", "fieldPath": "l", "indexes": [] },
+    { "collectionGroup": "categorie", "fieldPath": "eventi", "indexes": [] },
+    { "collectionGroup": "gare", "fieldPath": "categorie", "indexes": [] },
+    { "collectionGroup": "meta", "fieldPath": "sedi", "indexes": [] },
+    { "collectionGroup": "meta", "fieldPath": "gare", "indexes": [] },
+    { "collectionGroup": "meta", "fieldPath": "posts", "indexes": [] }
+  ]
 }

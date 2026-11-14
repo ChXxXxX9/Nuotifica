@@ -1,24 +1,68 @@
 rules_version = '2';
 
-// Regole di sicurezza di Firestore per Nuotifica.
+// Regole di sicurezza di Firestore per Cloro.
 // Il controllore (GitHub Actions) usa l'account di servizio, che non passa da queste regole.
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Post del sito FIN Lazio: pubblici in lettura, li scrive solo il controllore.
+    function registrato() {
+      return request.auth != null;
+    }
+
+    // Avvisi pubblicati dal Comitato: pubblici in lettura, li scrive solo il controllore.
     match /posts/{id} {
       allow read: if true;
       allow write: if false;
     }
 
-    // "Ultimo controllo del sito": pubblico in lettura.
+    // "Ultimo controllo" e riassunto degli avvisi: pubblici in lettura.
     match /meta/stato {
       allow read: if true;
       allow write: if false;
     }
+    match /meta/avvisi {
+      allow read: if true;
+      allow write: if false;
+    }
 
-    // Indice interno del controllore.
+    // Elenchi delle gare: solo per chi ha fatto l'accesso (contengono nomi di atleti nelle pagine collegate).
+    match /meta/gare-diretta {
+      allow read: if registrato();
+      allow write: if false;
+    }
+    match /meta/gare-italia {
+      allow read: if registrato();
+      allow write: if false;
+    }
+
+    // Tutto il resto di meta (indici e stato interni del controllore).
     match /meta/{altro} {
+      allow read, write: if false;
+    }
+
+    // Gare, risultati, schede atleta e indice di ricerca: solo per chi ha fatto l'accesso.
+    match /gare/{gara} {
+      allow read: if registrato();
+      allow write: if false;
+      match /categorie/{categoria} {
+        allow read: if registrato();
+        allow write: if false;
+      }
+    }
+    match /atleti/{atleta} {
+      allow read: if registrato();
+      allow write: if false;
+    }
+    match /indici/{lettera} {
+      allow read: if registrato();
+      allow write: if false;
+    }
+
+    // Dati di lavoro del controllore.
+    match /primati/{id} {
+      allow read, write: if false;
+    }
+    match /stato-live/{id} {
       allow read, write: if false;
     }
 
@@ -29,12 +73,13 @@ service cloud.firestore {
       }
 
       function valido(d) {
-        return d.keys().hasOnly(['settori', 'gruppi', 'tipi', 'pushOn', 'tokens', 'creato', 'aggiornato'])
+        return d.keys().hasOnly(['settori', 'gruppi', 'tipi', 'pushOn', 'tokens', 'seguiti', 'creato', 'aggiornato'])
           && d.settori is list && d.settori.size() <= 12
           && d.gruppi is list && d.gruppi.size() <= 2
           && d.tipi is list && d.tipi.size() <= 12
           && d.pushOn is bool
-          && d.tokens is list && d.tokens.size() <= 20;
+          && d.tokens is list && d.tokens.size() <= 20
+          && (!('seguiti' in d) || (d.seguiti is list && d.seguiti.size() <= 10));
       }
 
       allow read, delete: if proprietario();

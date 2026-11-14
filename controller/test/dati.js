@@ -1,4 +1,7 @@
-// Dati di prova ricalcati su post reali di finlazio.it (ottobre 2026).
+// Dati di prova ricalcati su post reali (ottobre 2026), con un indirizzo di esempio.
+import { impostaSito } from '../src/parse.js';
+
+impostaSito('https://www.sito-esempio.it/wp-json/wp/v2');
 
 export const categorie = [
   { id: 78, slug: 'nuoto', parent: 0, name: 'Nuoto' },
@@ -27,10 +30,10 @@ export const categorie = [
   { id: 4, slug: 'comunicati-pn', parent: 68, name: 'Comunicati-Pn' },
 ];
 
-const U = 'https://www.finlazio.it/wp-content/uploads/2026';
+const U = 'https://www.sito-esempio.it/wp-content/uploads/2026';
 
 export const contenutoFinali = `
-<p><a href="http://finlazio.it/wp-content/uploads/2014/10/ico-FIN.jpg"><img src="http://finlazio.it/wp-content/uploads/2014/10/ico-FIN.jpg" alt="ico-FIN" /></a></p>
+<p><a href="http://sito-esempio.it/wp-content/uploads/2014/10/ico-FIN.jpg"><img src="http://sito-esempio.it/wp-content/uploads/2014/10/ico-FIN.jpg" alt="ico-FIN" /></a></p>
 <ul>
 <li><a href="${U}/07/FcrCvlrisgar.pdf"><strong>FcrEC &#8211; Risultati Completi delle Gare</strong></a></li>
 <li><a href="${U}/07/FcrCvl_clasocM.pdf"><strong>FcrEC &#8211; Classifiche di Società Maschili</strong></a></li>
@@ -45,7 +48,7 @@ export const contenutoFinali = `
 <li><a href="${U}/07/FcrCvl_RJCeliscrXsocCOMPLETO.pdf">FcrEC &#8211; Elenco Iscritti per Società da tagliare</a></li>
 <li><a href="${U}/06/comun197.pdf">comun197- FcrEC &#8211; Orari Serie Successive</a></li>
 <li><a href="${U}/06/comun186.pdf"><strong>comun186-Finali Campionato Regionale Estivo di Categoria vl &#8211; Regolamento</strong></a></li>
-<li><a href="https://www.finlazio.it/wp-content/uploads/2026/06/comun186.pdf">doppione dello stesso file</a></li>
+<li><a href="https://www.sito-esempio.it/wp-content/uploads/2026/06/comun186.pdf">doppione dello stesso file</a></li>
 </ul>`;
 
 export function postGrezzo({
@@ -56,7 +59,7 @@ export function postGrezzo({
     date_gmt: data,
     modified_gmt: modificato,
     title: { rendered: titolo },
-    link: `https://www.finlazio.it/post-${id}/`,
+    link: `https://www.sito-esempio.it/post-${id}/`,
     categories: cat,
     content: { rendered: contenuto },
   };

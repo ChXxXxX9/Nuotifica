@@ -1,6 +1,7 @@
 name: Controllore
 
-# Guarda il sito della FIN Lazio e manda le notifiche agli iscritti.
+# Guarda le fonti (avvisi e gare in diretta) e manda le notifiche agli iscritti.
+# Gli indirizzi delle fonti stanno nel secret FONTI, non nel codice.
 # Il timer principale è esterno (cron-job.org, ogni 5 minuti, avvia questo workflow via API):
 # il "schedule" qui sotto è solo di riserva, perché GitHub lo fa partire con ore di ritardo.
 # I minuti non sono "tondi" apposta: allo scoccare dell'ora GitHub è più carico e ritarda.
@@ -36,6 +37,8 @@ jobs:
       - name: Anteprima di cosa riconosce sul sito
         if: ${{ inputs.anteprima }}
         working-directory: controller
+        env:
+          FONTI: ${{ secrets.FONTI }}
         run: node src/main.js --anteprima
 
       - name: Configurazione presente?
@@ -43,9 +46,10 @@ jobs:
         if: ${{ !inputs.anteprima }}
         env:
           ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FONTI: ${{ secrets.FONTI }}
         run: |
-          if [ -z "$ACCOUNT" ]; then
-            echo "::notice::Manca il secret FIREBASE_SERVICE_ACCOUNT: il controllo parte appena viene aggiunto."
+          if [ -z "$ACCOUNT" ] || [ -z "$FONTI" ]; then
+            echo "::notice::Mancano i secret FIREBASE_SERVICE_ACCOUNT o FONTI: il controllo parte appena vengono aggiunti."
             echo "pronto=no" >> "$GITHUB_OUTPUT"
           else
             echo "pronto=si" >> "$GITHUB_OUTPUT"
@@ -56,6 +60,7 @@ jobs:
         working-directory: controller
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FONTI: ${{ secrets.FONTI }}
           SITO_URL: ${{ vars.SITO_URL }}
         run: node src/main.js
 

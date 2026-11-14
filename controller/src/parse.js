@@ -38,9 +38,19 @@ export function testoPulito(html = '') {
 const RE_IMMAGINE = /\.(jpe?g|png|gif|webp|svg|bmp|ico)(\?|#|$)/i;
 const RE_DOCUMENTO = /\.(pdf|docx?|xlsx?|csv|zip|rar|7z|txt|odt|ods|pptx?)(\?|#|$)/i;
 
+// Indirizzo del sito degli avvisi: arriva dalla configurazione (non sta nel codice).
+let SITO = new URL('https://sito.invalid/');
+const senzaWww = (host) => host.toLowerCase().replace(/^www\./, '');
+
+export function impostaSito(base) {
+  if (base) SITO = new URL(base);
+}
+
+const delSito = (u) => senzaWww(u.hostname) === senzaWww(SITO.hostname);
+
 export function normalizzaUrl(url) {
   try {
-    const u = new URL(url, 'https://www.finlazio.it/');
+    const u = new URL(url, SITO);
     const host = u.hostname.toLowerCase().replace(/^www\./, '');
     let percorso = u.pathname;
     try { percorso = decodeURI(percorso); } catch { /* lascia com'è */ }
@@ -53,10 +63,10 @@ export function normalizzaUrl(url) {
 
 export function urlAssoluto(url) {
   try {
-    const u = new URL(url, 'https://www.finlazio.it/');
-    if (/(^|\.)finlazio\.it$/i.test(u.hostname)) {
+    const u = new URL(url, SITO);
+    if (delSito(u)) {
       u.protocol = 'https:';
-      u.hostname = 'www.finlazio.it';
+      u.hostname = SITO.hostname;
     }
     return u.toString();
   } catch {
@@ -104,7 +114,10 @@ export function estraiFile(html = '') {
       etichetta = nomeDaFile(url);
     }
     // Collegamenti di navigazione del sito (categorie, tag) non sono documenti.
-    if (/finlazio\.it\/(category|tag|author)\//i.test(url)) continue;
+    try {
+      const u = new URL(url);
+      if (delSito(u) && /^\/(category|tag|author)\//i.test(u.pathname)) continue;
+    } catch { /* link strano: lo teniamo */ }
 
     const chiave = normalizzaUrl(url);
     if (visti.has(chiave)) continue;

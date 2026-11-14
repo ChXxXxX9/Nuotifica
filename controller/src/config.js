@@ -1,8 +1,5 @@
 // Costanti condivise dal controllore.
 
-export const WP_BASE = 'https://www.finlazio.it/wp-json/wp/v2';
-export const USER_AGENT =
-  'Nuotifica/1.0 (servizio non ufficiale di avvisi; controllo ogni 15 minuti)';
 
 // Settori che l'utente può scegliere. Le chiavi sono quelle salvate su Firestore.
 export const SETTORI = {
