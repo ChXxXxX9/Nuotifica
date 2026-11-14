@@ -15,8 +15,11 @@ jobs:
           node-version: 22
       - name: Apri il sito come un telefono
         run: |
+          set +e
           mkdir -p out && cd out
-          npm init -y >/dev/null && npm i -s playwright@1.56.1 >/dev/null && npx playwright install --with-deps chromium >/dev/null 2>&1
+          npm init -y >/dev/null
+          npm i playwright > ../out-npm.txt 2>&1 || tail -20 ../out-npm.txt > errore-npm.txt
+          npx playwright install --with-deps chromium > ../out-pw.txt 2>&1 || tail -20 ../out-pw.txt > errore-install.txt
           cat > prova.cjs <<'JS'
           const { chromium } = require('playwright');
           (async () => {
@@ -34,9 +37,11 @@ jobs:
             await b.close();
           })();
           JS
-          node prova.cjs && cat esito.txt
+          node prova.cjs > uscita.txt 2>&1 || tail -30 uscita.txt > errore-prova.txt
           rm -rf node_modules package*.json prova.cjs
+          ls
       - name: Salva
+        if: ${{ always() }}
         run: |
           git config user.name "nuotifica-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
