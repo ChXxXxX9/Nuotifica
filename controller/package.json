@@ -2,7 +2,7 @@
   "name": "nuotifica-controllore",
   "version": "1.0.0",
   "private": true,
-  "description": "Controlla il sito del Comitato Regionale Lazio FIN e avvisa gli iscritti di Nuotifica.",
+  "description": "Controllore di Cloro: legge avvisi e risultati dalle fonti configurate e manda le notifiche.",
   "type": "module",
   "engines": {
     "node": ">=22"

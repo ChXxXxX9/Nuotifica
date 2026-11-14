@@ -1,67 +1,67 @@
-# Nuotifica
+# Cloro
 
-Notifiche sul telefono quando sul sito del Comitato Regionale Lazio FIN
-([finlazio.it](https://www.finlazio.it)) escono ammessi, start list, orari, risultati e comunicati.
+Il nuoto, in diretta: gare con batterie, corsie, tempi e parziali, schede atleta con personali,
+punti World Aquatics e progressi, "Segui" con la notifica appena esce un tempo, e gli avvisi del
+Comitato (ammessi, start list, orari) sul telefono.
 
-> Servizio **non ufficiale**: non è collegato alla Federazione Italiana Nuoto né al Comitato
-> Regionale Lazio. Fa fede solo il sito finlazio.it.
+> Servizio **non ufficiale**: non è collegato a federazioni, comitati o organizzatori.
+> Fanno fede solo i risultati e le comunicazioni ufficiali.
 
 ## Come funziona
 
 ```
- finlazio.it (API WordPress pubbliche)
+ fonti pubbliche (indirizzi nel secret FONTI)
         │  ogni 5 minuti (timer cron-job.org → GitHub Actions)
         ▼
- GitHub Actions ── controller/ ──► Firestore (post, preferenze utenti)
+ GitHub Actions ── controller/ ──► Firestore (avvisi, gare, atleti, preferenze)
         │                              ▲
         └──► Firebase Cloud Messaging ──► notifiche sul telefono
                                        │
-                 public/ (Firebase Hosting) ◄── l'app che usano gli iscritti
+                 public/ (Firebase Hosting) ◄── l'app
 ```
 
-- **`controller/`**: lo script che controlla il sito. Non ha dipendenze (`npm install` non serve).
-  Riconosce i post nuovi e i file aggiunti o "aggiornati" dentro post già usciti,
-  capisce sport, gruppo (Categoria / Esordienti) e tipo di documento, salva tutto su Firestore
-  e manda la notifica a chi è interessato. Al primo avvio memorizza lo stato del sito senza mandare notifiche.
-- **`public/`**: l'app (PWA) senza build: accesso con Google o email, scelte, guida per aggiungerla
-  alla schermata Home su iPhone e Android, elenco dei post e dettaglio con i file.
-  Finché `public/js/config.js` è vuoto parte in **anteprima** con dati di esempio
-  (si può forzare con `?demo` nell'indirizzo).
-- **`.github/workflows/controllore.yml`**: fa girare il controllore. Lo avvia ogni 5 minuti un timer
-  esterno gratuito (cron-job.org, chiamata `POST …/actions/workflows/controllore.yml/dispatches` con un
-  token GitHub fine-grained "Actions: read and write"); il timer interno di GitHub resta di riserva,
-  con il "segno di vita" che evita lo spegnimento dopo 60 giorni. Ogni giro parte con un controllo
-  rapido (una sola richiesta piccola al sito) e legge il resto solo se qualcosa è cambiato.
-- **`.github/workflows/pubblica.yml`**: a ogni modifica di `public/` o delle regole pubblica
-  su Firebase Hosting e aggiorna regole e indici di Firestore.
+- **`controller/`**: lo script del controllore, senza dipendenze (`npm install` non serve). A ogni giro:
+  1. **avvisi**: riconosce post nuovi e file aggiunti o aggiornati, li salva (più un riassunto unico
+     `meta/avvisi` che l'app legge in una volta) e avvisa chi è interessato;
+  2. **gare in diretta**: legge le sedi che stanno gareggiando (e, due per volta, quelle mai lette),
+     salva le gare "a pacchetti" (una lettura per categoria), calcola punti World Aquatics, personali (PB)
+     e stagionali (SB), aggiorna schede atleta e indice di ricerca senza rileggerli, e manda
+     "è uscito il tuo tempo" a chi segue l'atleta;
+  3. **Italia**: ogni 6 ore il calendario nazionale; poi una gara finita per giro, con la classifica
+     completa (le schede si aggiornano solo per gli atleti già conosciuti o per le gare del Lazio).
+  Un tetto di sicurezza ferma le scritture opzionali vicino al limite gratuito di Firestore
+  (20.000 al giorno); il conteggio sta in `meta/budget`.
+- **`public/`**: l'app (PWA) senza build. Sezioni: Per te, Gare, Classifiche (in arrivo), Atleti.
+  Con `?demo` nell'indirizzo parte con dati di esempio (nomi inventati).
+- **`.github/workflows/controllore.yml`**: fa girare il controllore (timer esterno cron-job.org ogni
+  5 minuti; quello interno di GitHub resta di riserva con il "segno di vita").
+- **`.github/workflows/pubblica.yml`**: a ogni modifica di `public/` o delle regole pubblica su
+  Firebase Hosting e aggiorna regole e indici di Firestore.
 
 ## Configurazione (una volta sola)
 
 ### Firebase
 1. Authentication → Metodo di accesso: attivare **Google** ed **Email/password**.
 2. Impostazioni progetto → Le tue app → app web: copiare `firebaseConfig` in `public/js/config.js`.
-   La chiave Web Push (`vapidKey`) è facoltativa: se resta vuota Firebase usa la sua.
-3. Impostazioni progetto → Account di servizio → **Genera nuova chiave privata** (file JSON).
-   Nella console Google Cloud → IAM, a quell'account (`firebase-adminsdk-…`) aggiungere il ruolo
-   **Firebase Admin**, che serve per pubblicare il sito.
+3. Impostazioni progetto → Account di servizio → **Genera nuova chiave privata** (file JSON), con il
+   ruolo **Firebase Admin** in Google Cloud → IAM.
 
 ### GitHub (Settings → Secrets and variables → Actions)
 | Nome | Tipo | Valore |
 |---|---|---|
-| `FIREBASE_SERVICE_ACCOUNT` | Secret | tutto il contenuto del file JSON dell'account di servizio |
+| `FIREBASE_SERVICE_ACCOUNT` | Secret | il contenuto del file JSON dell'account di servizio |
+| `FONTI` | Secret | JSON con gli indirizzi delle fonti: chiavi `avvisi`, `live`, `liveGara`, `naz` |
 | `SITO_URL` | Variable | es. `https://nome-progetto.web.app` (facoltativo) |
 
-Poi in **Actions** avviare a mano "Pubblica il sito" e "Controllore". Se il database Firestore
-non esiste ancora, "Pubblica il sito" lo crea. "Prepara i font" scarica i font (SIL OFL) in `public/fonts`.
-Con l'opzione *anteprima* il controllore mostra cosa riconosce sul sito senza salvare né inviare niente.
+Gli indirizzi delle fonti stanno solo nel secret: nel codice e nei log non compaiono.
 
 ## Prove in locale
 
 ```bash
 cd controller
-npm test                       # test del controllore
-node src/main.js --anteprima   # cosa riconosce oggi sul sito (serve internet)
+npm test                         # test (con campioni anonimi)
+node strumenti/dati-demo.js      # rigenera i dati di esempio dell'app
 
 cd ../public
-python3 -m http.server 8080    # poi apri http://localhost:8080/?demo
+python3 -m http.server 8080      # poi apri http://localhost:8080/?demo
 ```
