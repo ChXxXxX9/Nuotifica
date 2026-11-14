@@ -317,6 +317,12 @@ async function principale() {
       puoScrivere: () => giaScritte + db.conta.scritture < TETTO_SCRITTURE,
     });
     if (!esito.saltato) console.log(`Gare: ${JSON.stringify(esito)}`);
+    // Quando succede qualcosa, un riassunto compare anche tra le annotazioni della corsa.
+    if (process.env.GITHUB_ACTIONS && (esito.gare || esito.nuoviTempi)) {
+      console.log(`::notice title=Gare::sedi lette ${esito.sedi}, gare aggiornate ${esito.gare}, `
+        + `atleti ${esito.atleti}, tempi nuovi ${esito.nuoviTempi}, notifiche ${esito.push ?? 0} `
+        + `(Firestore: ${db.conta.letture} letture, ${db.conta.scritture} scritture)`);
+    }
   } catch (e) {
     console.log(`::warning title=Gare::${String(e.message).slice(0, 500)}`);
   }
