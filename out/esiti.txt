@@ -1,3 +1,4 @@
-cal 200 91458
-mpev 202 179
-fin2627 200 96461
+cal 200 91935
+aquaniene=150239 sapio=150090 lanziB= lanziA=
+ris_aquaniene 200 24887
+ris_sapio 200 25556

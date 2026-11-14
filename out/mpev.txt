@@ -1,4 +1,0 @@
-caratteri 179 link 1
-TESTO:  | 
-LINK:
-  data:;
