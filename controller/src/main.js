@@ -16,7 +16,8 @@ import { leggiFonti, scarica } from './fonti.js';
 import { aggiornaGare } from './gare.js';
 import { aggiornaNazionali } from './nazionali.js';
 import { impostaAdmin, inviaAnnunci } from './admin.js';
-import { aggiornaTesti } from './testi.js';
+import { testiDaFare } from './testi.js';
+import { appendFile } from 'node:fs/promises';
 import { oggiRoma, giornoQuota } from './tempi.js';
 import {
   confronta, documentoPost, voceIndice, perUtente, messaggiPush,
@@ -333,10 +334,11 @@ async function principale() {
     console.log(`::warning title=Gare::${String(e.message).slice(0, 500)}`);
   }
 
-  // Testo dei PDF del Comitato (per cercare dentro i documenti dall'app).
+  // Testo dei PDF del Comitato (per cercare dentro i documenti dall'app): se ce ne sono di nuovi,
+  // il passo successivo del workflow installa il lettore di PDF e li legge (src/giro-testi.js).
   try {
-    const n = await aggiornaTesti({ db, adesso });
-    if (n) console.log(`Testi: ${n} documenti letti.`);
+    const n = await testiDaFare(db);
+    if (n && process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, 'testi=si\n');
   } catch (e) {
     console.log(`::warning title=Testi::${String(e.message).slice(0, 300)}`);
   }

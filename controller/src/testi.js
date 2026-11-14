@@ -37,17 +37,27 @@ export async function testoPdf(url) {
   }
 }
 
+function elencoDaFare(posts, stato) {
+  const tempo = (v) => new Date(v ?? 0).getTime();
+  return posts
+    .flatMap((p) => (p.file ?? []).map((f) => ({ url: f.url, quando: tempo(f.aggiuntoIl ?? p.ultimoCambio) })))
+    .filter((f) => ePdf(f.url) && !stato.fatti?.[idTesto(f.url)])
+    .sort((a, b) => b.quando - a.quando);
+}
+
+/** Quanti PDF aspettano il testo (per decidere se installare il lettore di PDF). */
+export async function testiDaFare(db) {
+  const posts = (await db.leggi('meta/avvisi'))?.posts ?? [];
+  const stato = (await db.leggi('meta/testi')) ?? {};
+  return elencoDaFare(posts, stato).length;
+}
+
 /** Un giro: i PDF degli avvisi recenti ancora senza testo, dai più nuovi. */
 export async function aggiornaTesti({ db, adesso, log = console.log, estrai = testoPdf }) {
   const posts = (await db.leggi('meta/avvisi'))?.posts ?? [];
   const stato = (await db.leggi('meta/testi')) ?? {};
   stato.fatti ??= {};
-  const tempo = (v) => new Date(v ?? 0).getTime();
-  const daFare = posts
-    .flatMap((p) => (p.file ?? []).map((f) => ({ url: f.url, quando: tempo(f.aggiuntoIl ?? p.ultimoCambio) })))
-    .filter((f) => ePdf(f.url) && !stato.fatti[idTesto(f.url)])
-    .sort((a, b) => b.quando - a.quando)
-    .slice(0, MAX_PER_GIRO);
+  const daFare = elencoDaFare(posts, stato).slice(0, MAX_PER_GIRO);
   if (!daFare.length) return 0;
   let fatti = 0;
   for (const f of daFare) {
