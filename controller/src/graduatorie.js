@@ -499,7 +499,7 @@ export async function giroGraduatorie({
     // Tutte le stagioni passate del Lazio, finché c'è spazio nel limite di oggi.
     const fatte = [];
     const provate = new Set();
-    for (let st = scegliPacchiLazio(stato, adesso); st !== null && !provate.has(st) && puoContinuare(3_500); st = scegliPacchiLazio(stato, adesso)) {
+    for (let st = scegliPacchiLazio(stato, adesso); st !== null && !provate.has(st) && puoContinuare(3_000); st = scegliPacchiLazio(stato, adesso)) {
       provate.add(st);
       fatte.push(await pacchi(st, false));
     }
@@ -510,7 +510,7 @@ export async function giroGraduatorie({
     // (Una stagione che non si riesce a leggere non si riprova nello stesso giro.)
     const esiti = [];
     const provate = new Set();
-    for (let st = scegliPacchiLazio(stato, adesso); st !== null && !provate.has(st) && puoContinuare(3_500); st = scegliPacchiLazio(stato, adesso)) {
+    for (let st = scegliPacchiLazio(stato, adesso); st !== null && !provate.has(st) && puoContinuare(3_000); st = scegliPacchiLazio(stato, adesso)) {
       provate.add(st);
       esiti.push(await pacchi(st, false));
     }
