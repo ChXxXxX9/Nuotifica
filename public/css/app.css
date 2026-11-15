@@ -875,6 +875,11 @@ p { margin: 0; }
 .dettaglio-tempo { font-family: var(--titoli); font-weight: 800; font-size: 30px; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
 .dettaglio-dove { color: var(--tenue); font-size: 12px; font-weight: 700; }
 .dettaglio-pb { color: var(--cloro-testo); font-weight: 800; font-size: 14px; margin-top: -6px; }
+.riga-annata { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin: 12px 0 0; }
+.riga-annata b { font-family: var(--titoli); font-size: 20px; color: var(--cloro-testo); }
+.riga-annata span { font-weight: 700; font-size: 14px; }
+.riga-annata small { flex-basis: 100%; color: var(--tenue-2); font-size: 12.5px; }
+.punti-annata { color: var(--cloro-testo); }
 .cifre-piccole { display: grid; gap: 6px; }
 .cifre-piccole > div { padding: 8px 6px; border-radius: 12px; background: var(--piastrella); border: 1px solid var(--linea); text-align: center; }
 .cifre-piccole b { display: block; font-family: var(--titoli); font-weight: 700; font-size: 16px; }

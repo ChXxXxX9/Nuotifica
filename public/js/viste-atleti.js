@@ -14,6 +14,7 @@ import { leggiAtletaItalia as datiItalia, testoRicerca, leggiRigaRicerca } from 
 import { punti } from './punti.js';
 import { schedaRisultato } from './viste-gare.js';
 import { riempiPosizioni } from './posizioni.js';
+import { riempiAnnata } from './annata.js';
 
 export const MAX_SEGUITI = 10;
 
@@ -46,16 +47,39 @@ async function leggiDaItalia(k) {
   return a;
 }
 
+/** Storico gara per gara (solo per gli atleti seguiti da qualcuno): { agg, nessuno, r }. */
+async function leggiStoricoAtleta(k) {
+  const doc = await conCache(`storico:${k}`, () => api.leggiStorico(k), { durata: 300_000 });
+  if (!doc) return null;
+  const r = Object.entries(doc.g ?? {}).flatMap(([c, testo]) => String(testo).split('~').filter(Boolean).map((riga) => {
+    const [v, t, d, l] = riga.split('|');
+    return {
+      i: `h-${c}-${v}-${d}-${t}`, c, v: Number(v), t: Number(t), d, gn: l || 'Gara', l, f: 2,
+    };
+  }));
+  return { agg: doc.agg, nessuno: !!doc.nessuno, r };
+}
+
 /** Scheda di un atleta: la sua scheda (gare lette e graduatorie del Lazio) più i migliori di ogni stagione di tutta Italia. */
 export async function leggiAtleta(k, { fresco = false, italia = true } = {}) {
   if (fresco) stato.cache.delete(`atleta:${k}`);
   const pulisci = (a) => (a ? { ...a, k, r: risultatiPuliti(a.r) } : null);
   const base = conCache(`atleta:${k}`, async (fresco) => pulisci(await api.leggiAtleta(k, (nuovo) => fresco(pulisci(nuovo)))), { durata: 60_000 });
   if (!italia) return base;
-  const [scheda, daItalia] = await Promise.all([base, leggiDaItalia(k).catch(() => null)]);
-  if (!daItalia) return scheda;
-  if (!scheda) return pulisci(daItalia);
-  return { ...scheda, reg: scheda.reg ?? daItalia.reg, r: risultatiPuliti([...scheda.r, ...daItalia.r]) };
+  const [scheda, daItalia, storico] = await Promise.all([base, leggiDaItalia(k).catch(() => null), leggiStoricoAtleta(k).catch(() => null)]);
+  const conPunti = (sx, r) => r.map((v) => {
+    const pt = v.pt ?? punti(v.t, v.c, sx, v.v, v.d);
+    return pt ? { ...v, pt } : v;
+  });
+  const insieme = scheda ?? (daItalia ? pulisci(daItalia) : null);
+  if (!insieme) return null;
+  const sx = insieme.sx ?? daItalia?.sx;
+  return {
+    ...insieme,
+    reg: insieme.reg ?? daItalia?.reg,
+    storico: storico ? { agg: storico.agg, nessuno: storico.nessuno, n: storico.r.length } : null,
+    r: risultatiPuliti([...insieme.r, ...(scheda && daItalia ? daItalia.r : []), ...conPunti(sx, storico?.r ?? [])]),
+  };
 }
 
 /** Dati brevi degli atleti seguiti, per "Per te". */
@@ -80,6 +104,8 @@ export async function seguiAtleta(k, nome, bottone) {
   }
   try {
     await conAttesa(bottone, () => (gia ? api.smettiDiSeguire(stato.utente.uid, k) : api.segui(stato.utente.uid, k)));
+    // Chi segue un atleta ne vuole tutte le gare: si chiede lo storico (arriva in pochi minuti).
+    if (!gia) api.chiediStorico?.(k).catch(() => {});
     stato.profilo.seguiti = gia ? seguiti.filter((x) => x !== k) : [...seguiti, k];
     stato.seguitiDati = null;
     stato.aggiornatoIl = 0;
@@ -330,6 +356,14 @@ export async function vistaAtleta(k) {
   }
 
   const risultati = a.r ?? [];
+  // Storico gara per gara: c'è per gli atleti seguiti (si chiede appena qualcuno li segue).
+  const seguitoDaMe = eSeguito(k);
+  if (seguitoDaMe && !a.storico) api.chiediStorico?.(k).catch(() => {});
+  const notaStorico = a.storico && !a.storico.nessuno
+    ? `<p class="nota" style="margin:-4px 0 10px">Tutte le gare in vasca (${a.storico.n}), aggiornate ogni settimana.</p>`
+    : a.storico?.nessuno ? ''
+      : seguitoDaMe ? '<p class="nota" style="margin:-4px 0 10px">Sto preparando lo storico di tutte le sue gare: tra pochi minuti lo trovi qui.</p>'
+        : '<p class="nota" style="margin:-4px 0 10px">Qui c\'è il migliore di ogni stagione: segui l\'atleta per vedere tutte le sue gare.</p>';
   const best = personali(risultati);
   const vasche = [...new Set([...best.values()].map((v) => v.v))].sort();
   let mostraTutte = false;
@@ -394,6 +428,7 @@ export async function vistaAtleta(k) {
 
         <section class="sezione">
           <div class="sezione-testa"><h2 class="sezione-titolo">Tutte le gare</h2></div>
+          ${notaStorico}
           ${risultati.length ? `
             <ul class="storico">
               ${risultati.slice(0, mostraTutte ? Infinity : 60).map((x, i) => `
@@ -401,7 +436,7 @@ export async function vistaAtleta(k) {
                   <button type="button" class="voce-storico" data-voce="${i}" aria-expanded="false">
                     <span style="min-width:0">
                       <span class="cosa" style="display:block">${esc(nomeGara(x.c, { breve: true }))} <span class="nota" style="font-weight:600">· vasca ${x.v}</span></span>
-                      <span class="dove" style="display:block">${esc(giorno(x.d))} · ${esc(x.gn ?? '')}${x.f ? ' <span class="nota">· migliore della stagione</span>' : ''}</span>
+                      <span class="dove" style="display:block">${esc(giorno(x.d))} · ${esc(x.gn ?? '')}${x.f === 1 ? ' <span class="nota">· migliore della stagione</span>' : ''}</span>
                     </span>
                     <span class="quanto">
                       ${x.t ? `<b>${esc(tempo(x.t))}</b>` : `<b class="nota">${esc(x.x ?? '–')}</b>`}
@@ -415,7 +450,7 @@ export async function vistaAtleta(k) {
             </ul>
             ${!mostraTutte && risultati.length > 60 ? `<button class="bottone bottone-secondario" data-tutte style="margin-top:10px">Mostra tutti i ${risultati.length} tempi</button>` : ''}` : '<div class="vuoto"><strong>Ancora nessun tempo</strong>Appena nuota una gara la trovi qui.</div>'}
         </section>
-        <p class="nota" style="margin-top:20px">Ci sono i tempi delle gare che leggiamo e il migliore di ogni stagione per gara e vasca (prima del 2018/19 anche tempi presi a mano). Vuoi che questa scheda non compaia? Scrivici dalla pagina <a href="#/privacy">Privacy</a>.</p>
+        <p class="nota" style="margin-top:20px">Ci sono i tempi delle gare che leggiamo, il migliore di ogni stagione per gara e vasca e, per gli atleti seguiti, tutte le gare (prima del 2018/19 anche tempi presi a mano). Vuoi che questa scheda non compaia? Scrivici dalla pagina <a href="#/privacy">Privacy</a>.</p>
       </main>
       ${tabBar('atleti')}`, (el) => {
       el.querySelector('[data-segui]').addEventListener('click', (e) => seguiAtleta(k, a.n, e.currentTarget));
@@ -447,12 +482,15 @@ export async function vistaAtleta(k) {
           },
           codice: x.c,
           nomeBatt: [x.cat, `vasca ${x.v} m`].filter(Boolean).join(' · '),
-          extra: `<p class="nota" style="margin:8px 0 0">${esc([giorno(x.d), x.gn, x.f ? 'migliore della stagione dalle graduatorie' : ''].filter(Boolean).join(' · '))}</p>${x.ci ? `
+          extra: `<p class="nota" style="margin:8px 0 0">${esc([giorno(x.d), x.gn, x.f === 1 ? 'migliore della stagione dalle graduatorie' : ''].filter(Boolean).join(' · '))}</p>${x.ci ? `
             <a class="bottone bottone-secondario bottone-piccolo" style="margin-top:10px" href="#/gara/${encodeURIComponent(x.g)}?c=${encodeURIComponent(x.ci)}&e=${encodeURIComponent(x.c)}">Apri la gara</a>` : ''}`,
         }));
         const scheda = b.nextElementSibling;
         riempiPosizioni(scheda, {
           t: x.t, c: x.c, v: x.v, sx: a.sx, st: stagioneDi(x.d), y: a.y, k,
+        });
+        riempiAnnata(scheda, {
+          t: x.t, c: x.c, v: x.v, sx: a.sx, st: stagioneDi(x.d), y: a.y,
         });
       }));
       el.querySelector('[data-tutte]')?.addEventListener('click', () => {

@@ -20,4 +20,5 @@ jobs:
         working-directory: controller
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          RTDB_URL: https://nuotifica-default-rtdb.europe-west1.firebasedatabase.app
         run: node src/stato-caricamento.js

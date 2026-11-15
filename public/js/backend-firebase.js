@@ -252,6 +252,15 @@ export async function creaBackendFirebase(config) {
     /** Una squadra, stagione per stagione (Realtime Database). */
     leggiSquadraItalia: (id) => avvolgi(() => leggiRtdb(`sqs/${id}`)),
 
+    /** Indice annata: medie dei 10 migliori d'Italia per anno di nascita in una stagione. */
+    leggiAnnate: (st) => avvolgi(() => leggiRtdb(`ann/s${st}`)),
+
+    /** Tutte le gare di un atleta seguito (Realtime Database), o null. */
+    leggiStorico: (k) => avvolgi(() => leggiRtdb(`st/${k}`)),
+
+    /** Chiede al controllore lo storico di un atleta (se c'è già una richiesta, va bene così). */
+    chiediStorico: (k) => F.setDoc(F.doc(db, 'richiesteStorico', k), { creato: F.serverTimestamp() }).catch(() => null),
+
     /** Pezzo dell'indice di ricerca: atleti con una parola del nome che inizia con queste due lettere. */
     leggiRicerca: (prefisso) => avvolgi(async () => (await leggiVeloce(F.doc(db, 'ricerca', prefisso), (s) => s.data().l ?? [])) ?? []),
 

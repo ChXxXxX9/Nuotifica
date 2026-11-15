@@ -20,6 +20,8 @@ import {
 } from './admin.js';
 import { testiDaFare } from './testi.js';
 import { eseguiRichieste } from './classifiche.js';
+import { giroStorico, creaChiedi } from './storico.js';
+import { trovaUrlRtdb, creaRtdb } from './rtdb.js';
 import { appendFile } from 'node:fs/promises';
 import { oggiRoma, giornoQuota } from './tempi.js';
 import {
@@ -344,6 +346,19 @@ async function principale() {
     if (n) console.log(`Classifiche preparate: ${n}.`);
   } catch (e) {
     console.log(`::warning title=Classifiche::${String(e.message).slice(0, 300)}`);
+  }
+
+  // Storico gara per gara degli atleti appena seguiti (pochi per giro: gli altri al giro dopo e di notte).
+  try {
+    if ((await db.elenca('richiesteStorico')).length && fonti.naz) {
+      const rtdb = creaRtdb(chiamaGoogle, await trovaUrlRtdb(chiamaGoogle, progetto));
+      const esito = await giroStorico({
+        db, rtdb, chiedi: creaChiedi({ fonti, scarica }), adesso, soloRichieste: true, massimo: 3,
+      });
+      if (esito.atleti) console.log(`::notice title=Storico::${esito.atleti} atleti, ${esito.gare} gare.`);
+    }
+  } catch (e) {
+    console.log(`::warning title=Storico::${String(e.message).slice(0, 300)}`);
   }
 
   // Testo dei PDF del Comitato (per cercare dentro i documenti dall'app): se ce ne sono di nuovi,

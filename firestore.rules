@@ -115,6 +115,15 @@ service cloud.firestore {
           + request.resource.data.sx + '-' + request.resource.data.reg + '-' + request.resource.data.cat;
     }
 
+    // Storico gara per gara: chi segue un atleta chiede di scaricarlo (il controllore poi cancella la richiesta).
+    match /richiesteStorico/{k} {
+      allow read, update, delete: if false;
+      allow create: if registrato()
+        && k.matches('^[a-z0-9-]{3,80}$')
+        && request.resource.data.keys().hasOnly(['creato'])
+        && request.resource.data.creato == request.time;
+    }
+
     match /classifiche/{id} {
       allow read: if registrato();
       allow write: if false;

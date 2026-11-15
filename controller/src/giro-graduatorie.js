@@ -11,6 +11,7 @@ import { leggiAccountServizio, creaGestoreToken, creaClientGoogle } from './goog
 import { creaFirestore } from './firestore.js';
 import { trovaUrlRtdb, creaRtdb } from './rtdb.js';
 import { giroGraduatorie } from './graduatorie.js';
+import { giroStorico, creaChiedi } from './storico.js';
 import { giornoQuota } from './tempi.js';
 
 // Il piano gratuito di Firestore permette 20.000 scritture al giorno (il giorno finisce alle 9 italiane):
@@ -57,6 +58,17 @@ async function principale() {
   const argomenti = process.argv.slice(2).filter(Boolean);
   const lavoro = ['tutto', 'italia'].includes(argomenti[0]) ? argomenti[0] : 'notte';
   const forza = Number(argomenti.find((x) => /^\d{4}$/.test(x))) || null;
+  // Di notte, prima di tutto: lo storico degli atleti seguiti (aggiornato una volta a settimana), al massimo 30 minuti.
+  if (lavoro === 'notte' && !forza && rtdb && fonti.naz) {
+    try {
+      const s = await giroStorico({
+        db, rtdb, chiedi: creaChiedi({ fonti, scarica }), adesso, scadenza: Date.now() + 30 * 60_000, log: (t) => console.log(t),
+      });
+      if (s.atleti) annota('notice', `Storico: ${s.atleti} atleti seguiti, ${s.gare} gare.`);
+    } catch (e) {
+      annota('warning', `Storico: ${e.message}`);
+    }
+  }
   try {
     const esito = await giroGraduatorie({
       db,

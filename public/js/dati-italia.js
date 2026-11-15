@@ -2,6 +2,9 @@
 // Righe di testo corte invece di oggetti, per stare comodi nel giga gratuito.
 //   a/{chiave}/i             "nome|anno|sesso"
 //   a/{chiave}/s{stagione}   "società|regione~gara|vasca|tempo|data|luogo~…"
+//   a/{chiave}/f             id dell'atleta nella fonte (per lo storico)
+//   st/{chiave}              storico gara per gara degli atleti seguiti: { agg, g: { gara: "vasca|tempo|data|luogo|evento~…" } }
+//   ann/s{stagione}          Indice annata: { "vasca|gara|sesso|anno": "media dei 10 migliori|quanti" }
 //   c/{nome}~{chiave}        "chiave|nome|anno|società|regione"
 //   sqs/{squadra}/s{stagione} { n, reg, m: "chiave|nome|anno|sesso~…", t: { "vasca|gara|sesso": "chiave|tempo|data~…" } }
 // Questo file è usato sia dall'app sia dal controllore: niente dipendenze.

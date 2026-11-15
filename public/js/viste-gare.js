@@ -8,6 +8,9 @@ import {
 } from './formato.js';
 import { seguiAtleta, eSeguito } from './viste-atleti.js';
 import { riempiPosizioni } from './posizioni.js';
+import {
+  annateDi, riferimento, indiceAnnata, scriviIndice, riempiAnnata,
+} from './annata.js';
 
 /* ---------- stato di una gara: in diretta, in corso, in programma, svolta ---------- */
 
@@ -295,9 +298,10 @@ export function schedaRisultato({
     </div>`;
 }
 
-function rigaRisultato(i, r, { posizione, sotto } = {}) {
+function rigaRisultato(i, r, { posizione, sotto, indice } = {}) {
   const seguito = r.k && eSeguito(r.k);
   const etichette = [
+    indice != null ? `<span class="punti punti-annata">${esc(scriviIndice(indice))} IA</span>` : '',
     r.b ? `<span class="badge ${r.b === 'PB' ? 'badge-pb' : 'badge-sb'}">${r.b}</span>` : '',
     r.pt ? `<span class="punti">${r.pt} pt</span>` : '',
   ].join('');
@@ -314,11 +318,34 @@ function rigaRisultato(i, r, { posizione, sotto } = {}) {
     </li>`;
 }
 
-/** Righe e HTML per la vista "batterie" o "classifica". Le righe servono ad aprire le schede. */
-function costruisciElenco(evento, vista) {
+/** Righe e HTML per la vista "batterie", "classifica" o "annata". Le righe servono ad aprire le schede. */
+function costruisciElenco(evento, vista, contesto = {}) {
   const righe = [];
   const posTot = posizioniClassifica(evento);
   const conTurni = new Set(evento.b.map((b) => b.tu)).size > 1;
+  if (vista === 'annata') {
+    // Piccola classifica interna: chi è andato meglio rispetto ai migliori d'Italia della sua annata.
+    const { conTempo, posizioni } = classificaEvento(evento);
+    const { annate, v, sx } = contesto;
+    const conIndice = conTempo.map((x) => ({
+      x,
+      indice: indiceAnnata(x.r.t, riferimento({
+        c: evento.c, v, sx, y: x.r.y,
+      }, annate?.ora, annate?.prima)),
+    }));
+    const ordinati = [...conIndice.filter((z) => z.indice != null).sort((a, b) => b.indice - a.indice), ...conIndice.filter((z) => z.indice == null)];
+    const pezzi = ordinati.map(({ x, indice }, n) => {
+      righe.push({
+        r: x.r, codice: evento.c, batteria: x.b.n, nomeBatt: nomeBatteria(x.b, conTurni), posTot: posizioni.get(x.r), d: x.b.d,
+      });
+      return rigaRisultato(righe.length - 1, x.r, { posizione: indice != null ? n + 1 : '–', sotto: indice != null ? `${posizioni.get(x.r)}° cl.` : '', indice });
+    });
+    return {
+      righe,
+      html: `<p class="nota" style="margin-top:10px">Indice annata (IA): il tempo rispetto alla media dei 10 migliori d'Italia nati nello stesso anno, in questa gara e vasca (100 = come loro, più alto = meglio). Sotto la posizione, quella in classifica.</p>
+        <ol class="risultati" style="margin-top:8px">${pezzi.join('')}</ol>`,
+    };
+  }
   if (vista === 'batterie') {
     const html = evento.b.map((b) => `
       <h3 class="batteria-titolo ${b.fi ? 'titolo-finale' : ''}"><span>${esc(nomeBatteria(b, conTurni))}</span><span>${esc([b.sede, b.d ? periodo(b.d) : ''].filter(Boolean).join(' · '))}</span></h3>
@@ -393,11 +420,17 @@ export async function vistaGara(id) {
   let righe = [];
   let aperta = null;
 
-  const pagina = ({ cat, eventi, evento, vista, caricando }) => {
+  const pagina = ({
+    cat, eventi, evento, vista, caricando, annate,
+  }) => {
     const soloClassifica = gara.fonte === 'italia';
     const atleti = evento ? evento.b.reduce((t, b) => t + b.r.length, 0) : 0;
     let elenco = { righe: [], html: '' };
-    if (evento) elenco = costruisciElenco(evento, vista);
+    if (evento) {
+      elenco = costruisciElenco(evento, vista, {
+        annate, v: gara.vasca, sx: cat.sx,
+      });
+    }
     righe = elenco.righe;
     aperta = null;
     return `
@@ -421,11 +454,12 @@ export async function vistaGara(id) {
           </nav>
           <h2 class="evento-titolo">${esc(evento.n || nomeGara(evento.c))}</h2>
           <p class="sottotitolo">${esc(cat.nome)} · ${soloClassifica ? '' : `${evento.b.length} ${evento.b.length === 1 ? 'batteria' : 'batterie'} · `}${atleti} ${atleti === 1 ? 'atleta' : 'atleti'}</p>
-          ${soloClassifica ? '<p class="nota" style="margin-top:8px">Risultati a gara finita: classifica completa, senza batterie e parziali.</p>' : `
+          ${soloClassifica ? '<p class="nota" style="margin-top:8px">Risultati a gara finita: classifica completa, senza batterie e parziali.</p>' : ''}
           <div class="segmenti" role="tablist" aria-label="Vista">
-            <button class="segmento" role="tab" data-v="batterie" aria-selected="${vista === 'batterie'}">Batterie</button>
+            ${soloClassifica ? '' : `<button class="segmento" role="tab" data-v="batterie" aria-selected="${vista === 'batterie'}">Batterie</button>`}
             <button class="segmento" role="tab" data-v="classifica" aria-selected="${vista === 'classifica'}">Classifica</button>
-          </div>`}
+            ${gara.vasca && ['M', 'F'].includes(cat.sx) ? `<button class="segmento" role="tab" data-v="annata" aria-selected="${vista === 'annata'}">Annata</button>` : ''}
+          </div>
           ${elenco.html}
           <p class="nota" style="margin-top:16px">Tocca un nome per la sua gara: parziali, punti e posizioni. Punti World Aquatics; PB = nuovo personale, SB = migliore della stagione.</p>`
     : '<div class="vuoto" style="margin-top:16px"><strong>Ancora nessun risultato</strong>Appena escono li trovi qui.</div>'}
@@ -460,6 +494,9 @@ export async function vistaGara(id) {
       riempiPosizioni(scheda, {
         t: riga.r.t, c: riga.codice, v: gara.vasca, sx: cat.sx, st: stagioneDi(riga.d ?? gara.dal), y: riga.r.y, k: riga.r.k,
       });
+      riempiAnnata(scheda, {
+        t: riga.r.t, c: riga.codice, v: gara.vasca, sx: cat.sx, st: stagioneDi(riga.d ?? gara.dal), y: riga.r.y,
+      });
       const sotto = scheda.getBoundingClientRect().bottom - (window.innerHeight - 90);
       if (sotto > 0) window.scrollBy({ top: Math.min(sotto, b.getBoundingClientRect().top - 70), behavior: 'smooth' });
     }));
@@ -476,7 +513,8 @@ export async function vistaGara(id) {
   const mostraCategoria = async ({ aggiornamento = false } = {}) => {
     const { cat, e, v } = scelta();
     memoria(`cat-${id}`, cat.id);
-    const vista = gara.fonte === 'italia' || v === 'classifica' ? 'classifica' : 'batterie';
+    const vista = v === 'annata' && gara.vasca && ['M', 'F'].includes(cat.sx) ? 'annata'
+      : gara.fonte === 'italia' || v === 'classifica' ? 'classifica' : 'batterie';
     let docs = documentiDi(cat);
     if (docs.some((d) => d === undefined)) {
       disegna(pagina({ cat, caricando: true }), collega, { aggiornamento, classeBody: tribuna ? 'tribuna' : '' });
@@ -490,8 +528,15 @@ export async function vistaGara(id) {
     }
     const eventi = unisciCategoria(docs);
     const evento = eventi.find((x) => x.c === e) ?? eventi[0];
+    let annate = null;
+    if (vista === 'annata' && evento) {
+      const st = stagioneDi(evento.b.find((b) => b.d)?.d ?? gara.dal);
+      if (!giaInCache(`annate:${st}`)) disegna(pagina({ cat, caricando: true }), collega, { aggiornamento: true, classeBody: tribuna ? 'tribuna' : '' });
+      annate = await annateDi(st);
+      if (!qui() || scelta().cat.id !== cat.id) return;
+    }
     disegna(pagina({
-      cat, eventi, evento, vista,
+      cat, eventi, evento, vista, annate,
     }), collega, { aggiornamento: true, classeBody: tribuna ? 'tribuna' : '' });
   };
 

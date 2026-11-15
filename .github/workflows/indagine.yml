@@ -1,6 +1,6 @@
 name: Indagine (temporanea)
 
-# Prova temporanea: i risultati escono solo cifrati (si aprono con una chiave che non sta nel repository).
+# Pulizia: cancella il ramo temporaneo con gli esiti cifrati dell'ultima prova.
 on:
   workflow_dispatch:
 
@@ -8,47 +8,11 @@ permissions:
   contents: write
 
 jobs:
-  indagine:
+  pulizia:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-      - name: Prova
-        working-directory: controller
+      - name: Cancella il ramo temporaneo
         env:
-          FONTI: ${{ secrets.FONTI }}
-        run: node src/indagine-atleta.js "$RUNNER_TEMP/esiti"
-      - name: Cifra
-        run: |
-          cat > "$RUNNER_TEMP/pub.pem" <<'CHIAVE'
-          -----BEGIN PUBLIC KEY-----
-          MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAqm39n6Y/tgiSblTY0JoX
-          n7VpWtMMXHDnP6rlr0H5+5JroOtu3+kt9QkPrY8PJ4S9Ewz+Px/iIgoVBGRtV+gx
-          ekcjqyE8HZvq0vJRJRv6nmzaBlKBuU1pCpb+pUoLz9Tuf9YmW7ha49fJ6PAK+mb0
-          ISa8tmtVAvqI6Ekaq+8uJbd+nf7PCXX5jvaAiikAPUtrgAtPz50oCsMfNBEnV8YP
-          lEvA63uoABWLqS+1A8XEFSsm7L6RgmtuV/ivtNw1TImSObTaCt3TidA+Qq78HFtT
-          lemj8na6M1oI4u7nL6FVHqP1f0+Wkc0V+aV6Ddi7OLRp2czwFQN0e9hGxSGKa/uv
-          T1cpczZyyMb4AB2pyQiLrwytqZfSS/MqFBlmm06jNzCQq3j5W93FI2Povx/TMJH2
-          aIPxLAUXBgMOuCcdjiYYyIr38azln4JMDEjUkloPhuLlaU+cuFcMGkdf8GVDKSyS
-          /NbotyFrJaG5rU7klUl/wD1GVjdxvx7HRMRMtAeF92ENAgMBAAE=
-          -----END PUBLIC KEY-----
-          CHIAVE
-          cd "$RUNNER_TEMP"
-          tar czf esiti.tgz esiti
-          openssl rand -out k.bin 32
-          openssl enc -aes-256-cbc -pbkdf2 -salt -in esiti.tgz -out esiti.tgz.enc -pass file:k.bin
-          openssl pkeyutl -encrypt -pubin -inkey pub.pem -pkeyopt rsa_padding_mode:oaep -in k.bin -out k.bin.enc
-          mkdir cifrati && mv esiti.tgz.enc k.bin.enc cifrati/
-          rm -rf esiti esiti.tgz k.bin
-      - name: Salva (solo cifrati) in un ramo temporaneo
-        run: |
-          cd "$RUNNER_TEMP/cifrati"
-          git init -q -b indagine-esiti
-          git config user.name "Cloro"
-          git config user.email "noreply@cloro.web.app"
-          git add -A
-          git commit -qm "Esiti cifrati"
-          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" indagine-esiti
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/indagine-esiti" || true

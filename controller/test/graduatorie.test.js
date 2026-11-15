@@ -306,3 +306,56 @@ test('regioni grandi divise per anno di nascita, e Indice annata', async () => {
   const annate = annateStagione(atleti);
   assert.equal(annate['25|50SL|M|2014'], '31200|3');
 });
+
+test('storico: specialità, tutte le gare per vasca, e giro delle richieste', async () => {
+  const {
+    leggiSpecialita, leggiGareSpecialita, giroStorico,
+  } = await import('../src/storico.js');
+  const personali = JSON.stringify({
+    content: `<div class="scheda_atleta"><h4>Vasca da 25m</h4>
+      <div class="row"><div class="specialita"><span class="collegamento" data-value="solr[codice_gara]" data-id="00" data-view="grspecialitaatleta">50 Stile Libero</span></div></div>
+      <div class="row"><div class="specialita"><span class="collegamento" data-value="solr[codice_gara]" data-id="21" data-view="grspecialitaatleta">100 Dorso</span></div></div>
+      <h4>Vasca da 50m</h4>
+      <div class="row"><div class="specialita"><span class="collegamento" data-value="solr[codice_gara]" data-id="00" data-view="grspecialitaatleta">50 Stile Libero</span></div></div></div>`,
+  });
+  assert.deepEqual(leggiSpecialita(personali), ['00', '21']);
+  const riga = (t, d, l, ev) => `<div class="row"><div class="tempo"><span>${t}</span></div><div class="data"><span>${d}</span></div>
+    <div class="luogo"><span class="collegamento" data-value="solr[id_evento]" data-id="${ev}" data-view="grevento">${l}</span></div></div>`;
+  const specialita = JSON.stringify({
+    content: `<div class="personalbest"><h3>Personal Ranking</h3><div class="vasca"><h4>Vasca da 50m</h4><div>${riga('27.10', '12 Luglio 2025', 'Roma', '11')}</div></div>
+      <div class="vasca"><h4>Vasca da 25m</h4><div>${riga('26.50', '05 Dicembre 2025', 'Ostia', '12')}${riga('01:02.30', '10 Gennaio 2015', 'Roma', '13')}</div></div></div>`,
+  });
+  assert.deepEqual(leggiGareSpecialita(specialita), [
+    { v: 50, t: 27_100, d: '2025-07-12', l: 'Roma', ev: '11' },
+    { v: 25, t: 26_500, d: '2025-12-05', l: 'Ostia', ev: '12' },
+    { v: 25, t: 62_300, d: '2015-01-10', l: 'Roma', ev: '13' },
+  ]);
+  // Giro: una richiesta, atleta con l'id nella scheda Firestore.
+  const docs = new Map([['richiesteStorico/rossi-anna-2010', { creato: 1 }], ['atleti/rossi-anna-2010', { fin: ['999'] }]]);
+  const db = {
+    async leggi(p) { return docs.get(p) ?? null; },
+    async elenca(c) { return [...docs].filter(([p]) => p.startsWith(`${c}/`)).map(([p, d]) => ({ id: p.split('/')[1], ...d })); },
+    async elimina(p) { docs.delete(p); },
+  };
+  const rt = new Map();
+  const rtdb = {
+    async leggi(p) { return rt.get(p) ?? null; },
+    async scrivi(p, d) { rt.set(p, d); },
+    async aggiorna(v) { for (const [p, d] of Object.entries(v)) rt.set(p, d); },
+  };
+  const chieste = [];
+  const chiedi = async (campi) => {
+    chieste.push(campi.view);
+    return campi.view === 'gratleta' ? personali : specialita;
+  };
+  const esito = await giroStorico({
+    db, rtdb, chiedi, adesso: '2026-11-15T20:00:00Z', soloRichieste: true, log: () => {},
+  });
+  assert.deepEqual(esito, { atleti: 1, gare: 6 });
+  assert.deepEqual(chieste, ['gratleta', 'grspecialitaatleta', 'grspecialitaatleta']);
+  const st = rt.get('st/rossi-anna-2010');
+  assert.equal(st.f, '999');
+  assert.equal(st.g['50SL'].split('~')[0], '25|26500|2025-12-05|Ostia|12');
+  assert.equal(rt.get('a/rossi-anna-2010/f'), '999');
+  assert.ok(!docs.has('richiesteStorico/rossi-anna-2010'));
+});

@@ -249,6 +249,21 @@ export function creaBackendDemo() {
       return righe.filter((v) => chiavi(v.split('|')[1]).some((c) => c.startsWith(testo))).map((v) => `${v}|12`);
     },
     async leggiSquadraItalia() { await pausa(60); return null; },
+    // Anteprima: medie inventate (circa 1'00" ogni 100 m, un po' di più per le femmine e i più giovani).
+    async leggiAnnate(st) {
+      await pausa(60);
+      return new Proxy({}, {
+        get: (_, chiave) => {
+          const [, c, sx, y] = String(chiave).split('|');
+          const metri = Number(String(c ?? '').match(/^\d+/)?.[0]);
+          if (!metri || !y) return undefined;
+          const eta = Number(st) + 1 - Number(y);
+          return `${Math.round(metri * 560 * (sx === 'F' ? 1.08 : 1) * (1 + Math.max(0, 18 - eta) * 0.035))}|10`;
+        },
+      });
+    },
+    async leggiStorico() { await pausa(60); return null; },
+    async chiediStorico() { return null; },
     async leggiSquadre() { await pausa(60); return squadreDemo().elenco; },
     async leggiSquadra(id) { await pausa(80); const sq = squadreDemo().docs.get(id); return sq ? { id, ...sq } : null; },
     async leggiStagioneSquadra(id, st) { await pausa(60); return squadreDemo().stagioni.get(`${id}/${st}`) ?? null; },

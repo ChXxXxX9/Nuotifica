@@ -180,6 +180,7 @@ export function vociStagione(atleti, st, { indice = 'tutti', squadre = squadreDe
   for (const [k, a] of atleti) {
     const s = [...a.societa][0] ?? '';
     voci[`a/${k}/i`] = rigaInfo(a);
+    if (a.fin) voci[`a/${k}/f`] = String(a.fin);
     voci[`a/${k}/s${st}`] = rigaStagione({ ...a, s });
     if (indice === 'tutti' || !indice.has(k)) {
       for (const chiave of chiaviRicerca(a.n)) voci[`c/${chiave}~${k}`] = rigaRicerca(k, { ...a, s });

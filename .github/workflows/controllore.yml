@@ -61,6 +61,7 @@ jobs:
         working-directory: controller
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          RTDB_URL: https://nuotifica-default-rtdb.europe-west1.firebasedatabase.app
           FONTI: ${{ secrets.FONTI }}
           ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
           SITO_URL: https://cloro.web.app
@@ -72,6 +73,7 @@ jobs:
         working-directory: controller
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          RTDB_URL: https://nuotifica-default-rtdb.europe-west1.firebasedatabase.app
         run: |
           command -v pdftotext >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils >/dev/null)
           node src/giro-testi.js
