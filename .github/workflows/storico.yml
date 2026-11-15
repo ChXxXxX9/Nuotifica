@@ -1,0 +1,29 @@
+name: Storico
+
+# A mano: lo storico gara per gara di tutti gli atleti seguiti (chi non ce l'ha o ce l'ha vecchio).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: storico
+  cancel-in-progress: false
+
+jobs:
+  storico:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Storico
+        working-directory: controller
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          RTDB_URL: https://nuotifica-default-rtdb.europe-west1.firebasedatabase.app
+          FONTI: ${{ secrets.FONTI }}
+        run: node src/giro-storico.js

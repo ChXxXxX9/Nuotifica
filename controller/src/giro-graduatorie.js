@@ -58,8 +58,8 @@ async function principale() {
   const argomenti = process.argv.slice(2).filter(Boolean);
   const lavoro = ['tutto', 'italia'].includes(argomenti[0]) ? argomenti[0] : 'notte';
   const forza = Number(argomenti.find((x) => /^\d{4}$/.test(x))) || null;
-  // Di notte, prima di tutto: lo storico degli atleti seguiti (aggiornato una volta a settimana), al massimo 30 minuti.
-  if (lavoro === 'notte' && !forza && rtdb && fonti.naz) {
+  // Prima di tutto (di notte e nei giri di tutta Italia): lo storico degli atleti seguiti (aggiornato una volta a settimana), al massimo 30 minuti.
+  if (['notte', 'tutto'].includes(lavoro) && !forza && rtdb && fonti.naz) {
     try {
       const s = await giroStorico({
         db, rtdb, chiedi: creaChiedi({ fonti, scarica }), adesso, scadenza: Date.now() + 30 * 60_000, log: (t) => console.log(t),
