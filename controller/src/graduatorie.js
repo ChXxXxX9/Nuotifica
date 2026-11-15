@@ -395,6 +395,17 @@ export async function giroGraduatorie({
   if (esito.atleti) {
     stato.fatte[st] = adesso;
     await db.scrivi('meta/graduatorie', stato);
+    // Con la stagione in corso si mettono in coda anche le classifiche nazionali in vasca corta
+    // (il controllore le prepara poche per volta): così sono già pronte quando qualcuno le apre.
+    if (String(st) === stagione(oggiRoma(adesso))) {
+      const v = Number(oggiRoma(adesso).slice(5, 7)) >= 5 && Number(oggiRoma(adesso).slice(5, 7)) <= 8 ? 50 : 25;
+      await db.scriviTanti(Object.values(CODICI).flatMap((c) => ['M', 'F'].map((sx) => ({
+        percorso: `richieste/${st}-${v}-${c}-${sx}-it-tutte`,
+        dati: {
+          st: String(st), v, c, sx, reg: 'it', cat: 'tutte', creato: adesso,
+        },
+      }))));
+    }
   }
   return { stagione: st, ...esito };
 }
