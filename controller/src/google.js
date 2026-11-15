@@ -1,4 +1,4 @@
-// Accesso alle API Google (Firestore, FCM, Identity Toolkit) con l'account di servizio Firebase,
+// Accesso alle API Google (Firestore, Realtime Database, FCM, Identity Toolkit) con l'account di servizio Firebase,
 // senza librerie esterne: firmiamo noi il JWT e chiediamo il token di accesso.
 import { createSign } from 'node:crypto';
 
@@ -6,6 +6,8 @@ const SCOPE = [
   'https://www.googleapis.com/auth/cloud-platform',
   'https://www.googleapis.com/auth/firebase.messaging',
   'https://www.googleapis.com/auth/datastore',
+  'https://www.googleapis.com/auth/firebase.database',
+  'https://www.googleapis.com/auth/userinfo.email',
 ].join(' ');
 
 export function leggiAccountServizio(json) {
