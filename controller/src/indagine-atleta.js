@@ -8,7 +8,7 @@ const fonti = leggiFonti();
 const dir = process.argv[2] ?? 'indagine';
 mkdirSync(dir, { recursive: true });
 const salva = (nome, testo) => { writeFileSync(`${dir}/${nome}`, testo ?? ''); console.log(`${nome}: ${String(testo ?? '').length} caratteri`); };
-const post = (campi) => scarica(`${fonti.naz}&currentpage=1&format=json&view=${campi.view}`, {
+const post = (campi, pagina = 1) => scarica(`${fonti.naz}&currentpage=${pagina}&format=json&view=${campi.view}`, {
   metodo: 'POST', timeout: 60, tentativi: 1, modulo: { 'solr[settore]': 'NUO', ...campi.modulo },
 }).catch((e) => `ERRORE ${e.message}`);
 const pausa = () => new Promise((r) => { setTimeout(r, 800); });
@@ -24,30 +24,23 @@ const r = righe[2] ?? righe[0];
 salva('00-riga.json', JSON.stringify(r, null, 1));
 const id = r?.idAtleta;
 
-// Pagina e script (per vedere come la pagina chiede le altre viste).
-const pagina = await scarica(fonti.naz, { timeout: 60, tentativi: 1 }).catch((e) => `ERRORE ${e.message}`);
-salva('01-pagina.html', pagina);
-const origine = new URL(fonti.naz).origin;
-const script = [...pagina.matchAll(/<script[^>]+src="([^"]+)"/g)].map((m) => new URL(m[1], fonti.naz).href).filter((u) => u.startsWith(origine));
-let n = 0;
-for (const u of script.slice(0, 25)) {
-  const testo = await scarica(u, { timeout: 60, tentativi: 1 }).catch(() => '');
-  if (/view|solr|gratleta|grspecialita/i.test(testo)) salva(`02-script-${++n}.js`, `// ${u.replace(origine, '')}\n${testo}`);
-}
-// Anche gli script dentro la pagina.
-salva('03-script-pagina.js', [...pagina.matchAll(/<script(?![^>]*src)[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]).filter((t) => /view|solr|grat/i.test(t)).join('\n/* ---- */\n'));
-
+const conta = (testo) => {
+  try {
+    const c = JSON.parse(testo).content ?? '';
+    return c.split(/<h4>/).slice(1).map((v) => `${v.slice(0, 14)}: ${(v.match(/class="row"/g) ?? []).length}`).join(', ');
+  } catch { return 'non JSON'; }
+};
+const spec = (codice, extra = {}) => ({ view: 'grspecialitaatleta', modulo: { 'solr[id_atleta]': id, 'solr[codice_gara]': codice, ...extra } });
 const prove = [
-  ['10-gratleta-solr', { view: 'gratleta', modulo: { 'solr[id_atleta]': id } }],
-  ['11-gratleta-id', { view: 'gratleta', modulo: { id_atleta: id } }],
-  ['12-gratleta-kind1', { view: 'gratleta', modulo: { 'solr[id_atleta]': id, 'solr[kindtime]': '1' } }],
-  ['13-grspecialita', { view: 'grspecialitaatleta', modulo: { 'solr[id_atleta]': id, 'solr[codice_gara]': '01', 'solr[id_lunghezza_vasca]': '1' } }],
-  ['14-grspecialita-kind1', { view: 'grspecialitaatleta', modulo: { 'solr[id_atleta]': id, 'solr[codice_gara]': '01', 'solr[id_lunghezza_vasca]': '1', 'solr[kindtime]': '1' } }],
-  ['15-grevento', { view: 'grevento', modulo: { 'solr[id_evento]': r?.idEvento } }],
-  ['16-grricerca-kind2', { view: 'grricerca', modulo: { ...base, 'solr[kindtime]': '2', 'solr[limit]': '30' } }],
-  ['17-grricerca-atleta', { view: 'grricerca', modulo: { ...base, 'solr[id_atleta]': id, 'solr[kindtime]': '1', 'solr[limit]': '50', 'solr[id_comitato]': '' } }],
+  ['20-spec-base', spec('01'), 1],
+  ['21-spec-limit200', spec('01', { 'solr[limit]': '200' }), 1],
+  ['22-spec-pagina2', spec('01'), 2],
+  ['23-spec-50sl-limit1000', spec('00', { 'solr[limit]': '1000' }), 1],
+  ['24-spec-limit-semplice', spec('01', { limit: '200' }), 1],
 ];
-for (const [nome, campi] of prove) {
+for (const [nome, campi, pagina] of prove) {
   await pausa();
-  salva(`${nome}.json`, await post(campi));
+  const testo = await post(campi, pagina);
+  salva(`${nome}.json`, testo);
+  console.log(`  righe per vasca: ${conta(testo)}`);
 }
