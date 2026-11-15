@@ -50,7 +50,7 @@ export function aggiungiRiga(atleti, r, {
   a.risultati.push(voce);
 }
 
-const campi = (st, sesso, idVasca, codFin, reg) => ({
+const campi = (st, sesso, idVasca, codFin, reg, anni = null) => ({
   'solr[sesso]': sesso,
   'solr[id_lunghezza_vasca]': idVasca,
   'solr[kindtime]': '3',
@@ -58,7 +58,16 @@ const campi = (st, sesso, idVasca, codFin, reg) => ({
   'solr[codice_gara]': codFin.padStart(2, '0'),
   'solr[id_comitato]': reg,
   'solr[limit]': String(LIMITE),
+  ...(anni ? { 'solr[dalyob]': String(anni.dal), 'solr[alyob]': String(anni.al) } : {}),
 });
+
+/** Anni di nascita, uno per uno dai più giovani (6 anni) ai 24 anni, poi tutti i più grandi insieme. */
+export function fasceAnni(st) {
+  const fasce = [];
+  for (let y = Number(st) - 5; y >= Number(st) - 24; y--) fasce.push({ dal: y, al: y });
+  fasce.push({ dal: 1900, al: Number(st) - 25 });
+  return fasce;
+}
 
 /**
  * Una stagione di tutta Italia. `regioniSquadre`: id squadra -> regione già nota (dalle stagioni lette prima).
@@ -70,16 +79,24 @@ export async function scaricaItalia({
   const atleti = new Map();
   let richieste = 0;
   let errori = 0;
-  const leggi = async (sesso, idVasca, codFin, reg) => {
+  const leggi = async (sesso, idVasca, codFin, reg, anni = null) => {
     try {
-      const righe = leggiGraduatoria(await chiedi(campi(st, sesso, idVasca, codFin, reg)));
+      const righe = leggiGraduatoria(await chiedi(campi(st, sesso, idVasca, codFin, reg, anni)));
       richieste++;
       return righe;
     } catch (e) {
       errori++;
-      log(`Graduatoria ${st} ${CODICI[codFin]} ${sesso} (vasca ${idVasca}, regione ${reg || 'Italia'}) non letta: ${e.message}`);
+      log(`Graduatoria ${st} ${CODICI[codFin]} ${sesso} (vasca ${idVasca}, regione ${reg || 'Italia'}${anni ? `, nati ${anni.dal}-${anni.al}` : ''}) non letta: ${e.message}`);
       return null;
     }
+  };
+  /** Una regione; se anche lei arriva al limite, anno di nascita per anno di nascita. */
+  const leggiRegione = async (sesso, idVasca, codFin, reg) => {
+    const righe = await leggi(sesso, idVasca, codFin, reg);
+    if (!righe || righe.length < QUASI_PIENA) return righe ?? [];
+    const tutte = [];
+    for (const anni of fasceAnni(st)) tutte.push(...((await leggi(sesso, idVasca, codFin, reg, anni)) ?? []));
+    return tutte;
   };
   for (const [vasca, idVasca] of VASCHE) {
     for (const sesso of ['M', 'F']) {
@@ -95,7 +112,7 @@ export async function scaricaItalia({
         }
         // Troppe righe (o nazionale non letta): regione per regione.
         for (const reg of TUTTE_LE_REGIONI) {
-          for (const r of (await leggi(sesso, idVasca, codFin, reg)) ?? []) {
+          for (const r of await leggiRegione(sesso, idVasca, codFin, reg)) {
             aggiungiRiga(atleti, r, {
               sesso, vasca, codice, st, reg,
             });
@@ -174,6 +191,34 @@ export function vociStagione(atleti, st, { indice = 'tutti', squadre = squadreDe
   return voci;
 }
 
+/**
+ * Indice annata: per ogni vasca, gara, sesso e anno di nascita, la media dei 10 migliori d'Italia della stagione.
+ * { "vasca|gara|sesso|anno": "media in ms|quanti" } (solo con almeno 3 atleti).
+ */
+export function annateStagione(atleti) {
+  const gruppi = new Map();
+  for (const a of atleti.values()) {
+    if (!a.y) continue;
+    const migliori = new Map();
+    for (const v of a.risultati) {
+      const k = `${v.v}|${v.c}`;
+      if (!migliori.has(k) || v.t < migliori.get(k)) migliori.set(k, v.t);
+    }
+    for (const [k, t] of migliori) {
+      const g = `${k}|${a.sx}|${a.y}`;
+      if (!gruppi.has(g)) gruppi.set(g, []);
+      gruppi.get(g).push(t);
+    }
+  }
+  const annate = {};
+  for (const [g, tempi] of gruppi) {
+    if (tempi.length < 3) continue;
+    const primi = tempi.sort((x, y) => x - y).slice(0, 10);
+    annate[g] = `${Math.round(primi.reduce((x, t) => x + t, 0) / primi.length)}|${primi.length}`;
+  }
+  return annate;
+}
+
 /** Aggiorna l'elenco delle squadre per l'app (un documento Firestore): "nome|atleti|massimo|ultima stagione|regione". */
 export function aggiornaElenco(elenco, squadre, st) {
   for (const [id, sq] of squadre) {
@@ -191,10 +236,11 @@ export function aggiornaElenco(elenco, squadre, st) {
 
 /** Scrive una stagione nel Realtime Database e aggiorna l'elenco delle squadre. */
 export async function scriviStagione({
-  db, rtdb, atleti, st, adesso, indice = 'tutti',
+  db, rtdb, atleti, st, adesso, indice = 'tutti', annate = false,
 }) {
   const squadre = squadreDellaStagione(atleti);
   const voci = vociStagione(atleti, st, { indice, squadre });
+  if (annate) voci[`ann/s${st}`] = annateStagione(atleti);
   await rtdb.aggiorna(voci);
   const elenco = (await db.leggi('meta/squadre'))?.squadre ?? {};
   await db.scrivi('meta/squadre', { squadre: aggiornaElenco(elenco, squadre, st), aggiornato: comeData(adesso) });

@@ -1,0 +1,50 @@
+name: Indagine (temporanea)
+
+# Prova temporanea: i risultati escono solo cifrati (si aprono con una chiave che non sta nel repository).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  indagine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Prova
+        working-directory: controller
+        env:
+          FONTI: ${{ secrets.FONTI }}
+        run: node src/indagine-atleta.js "$RUNNER_TEMP/esiti"
+      - name: Cifra
+        run: |
+          cat > "$RUNNER_TEMP/pub.pem" <<'CHIAVE'
+          -----BEGIN PUBLIC KEY-----
+          MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAqm39n6Y/tgiSblTY0JoX
+          n7VpWtMMXHDnP6rlr0H5+5JroOtu3+kt9QkPrY8PJ4S9Ewz+Px/iIgoVBGRtV+gx
+          ekcjqyE8HZvq0vJRJRv6nmzaBlKBuU1pCpb+pUoLz9Tuf9YmW7ha49fJ6PAK+mb0
+          ISa8tmtVAvqI6Ekaq+8uJbd+nf7PCXX5jvaAiikAPUtrgAtPz50oCsMfNBEnV8YP
+          lEvA63uoABWLqS+1A8XEFSsm7L6RgmtuV/ivtNw1TImSObTaCt3TidA+Qq78HFtT
+          lemj8na6M1oI4u7nL6FVHqP1f0+Wkc0V+aV6Ddi7OLRp2czwFQN0e9hGxSGKa/uv
+          T1cpczZyyMb4AB2pyQiLrwytqZfSS/MqFBlmm06jNzCQq3j5W93FI2Povx/TMJH2
+          aIPxLAUXBgMOuCcdjiYYyIr38azln4JMDEjUkloPhuLlaU+cuFcMGkdf8GVDKSyS
+          /NbotyFrJaG5rU7klUl/wD1GVjdxvx7HRMRMtAeF92ENAgMBAAE=
+          -----END PUBLIC KEY-----
+          CHIAVE
+          cd "$RUNNER_TEMP"
+          tar czf esiti.tgz esiti
+          openssl rand -out k.bin 32
+          openssl enc -aes-256-cbc -pbkdf2 -salt -in esiti.tgz -out esiti.tgz.enc -pass file:k.bin
+          openssl pkeyutl -encrypt -pubin -inkey pub.pem -pkeyopt rsa_padding_mode:oaep -in k.bin -out k.bin.enc
+          mkdir cifrati && mv esiti.tgz.enc k.bin.enc cifrati/
+          rm -rf esiti esiti.tgz k.bin
+      - uses: actions/upload-artifact@v4
+        with:
+          name: esiti
+          path: ${{ runner.temp }}/cifrati
+          retention-days: 1

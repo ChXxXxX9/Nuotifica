@@ -33,6 +33,9 @@ const VASCHE = [[25, '1'], [50, '2']];
 const TOP_SEMPRE = 30;
 const PAUSA = 400;
 const PAUSA_ITALIA = 600;
+// Versione della lettura di tutta Italia: le stagioni lette con una versione più vecchia si rileggono.
+// 2 = regioni grandi divise per anno di nascita, Indice annata.
+export const VERSIONE_ITALIA = 2;
 const MESI = {
   gennaio: 1, febbraio: 2, marzo: 3, aprile: 4, maggio: 5, giugno: 6,
   luglio: 7, agosto: 8, settembre: 9, ottobre: 10, novembre: 11, dicembre: 12,
@@ -103,7 +106,7 @@ export function scegliStagione(stato, adesso) {
  */
 export function scegliItalia(stato, adesso, saltate = new Set()) {
   const corrente = Number(stagione(oggiRoma(adesso)));
-  const fatte = stato.rtdb ?? {};
+  const fatte = Object.fromEntries(Object.entries(stato.rtdb ?? {}).filter(([s]) => (stato.rtdbV?.[s] ?? 1) >= VERSIONE_ITALIA));
   const giorni = (s) => (fatte[s] ? (Date.parse(adesso) - Date.parse(fatte[s])) / 86_400_000 : Infinity);
   const libera = (s) => !saltate.has(s);
   if (giorni(corrente) > 7 && libera(corrente)) return corrente;
@@ -470,7 +473,7 @@ export async function giroGraduatorie({
     const recente = Number(st) >= Number(corrente) - 1;
     if (!recente && !presenti) presenti = await rtdb.chiavi('a');
     const scritto = await scriviStagione({
-      db, rtdb, atleti, st, adesso, indice: recente ? 'tutti' : presenti,
+      db, rtdb, atleti, st, adesso, indice: recente ? 'tutti' : presenti, annate: true,
     });
     if (presenti) for (const k of atleti.keys()) presenti.add(k);
     // Per le stagioni dal 2018/19 mai lette prima, anche primati e classifiche del Lazio (se c'è spazio).
@@ -488,6 +491,8 @@ export async function giroGraduatorie({
       stato.pacchiLazio[st] = adesso;
     }
     stato.rtdb[st] = adesso;
+    stato.rtdbV ??= {};
+    stato.rtdbV[st] = VERSIONE_ITALIA;
     await salva();
     const minuti = Math.round((ora() - inizio) / 60_000);
     log(`Italia ${st}: ${atleti.size} atleti, ${scritto.squadre} squadre, ${richieste} richieste${errori ? ` (${errori} errori)` : ''}, ${scritto.voci} voci, ${primati} primati e ${classifiche} classifiche del Lazio, ${minuti} min.`);

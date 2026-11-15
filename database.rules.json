@@ -14,6 +14,16 @@
       "$squadra": {
         ".read": "auth != null"
       }
+    },
+    "ann": {
+      "$stagione": {
+        ".read": "auth != null"
+      }
+    },
+    "st": {
+      "$atleta": {
+        ".read": "auth != null"
+      }
     }
   }
 }

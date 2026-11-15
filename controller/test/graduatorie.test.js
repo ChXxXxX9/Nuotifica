@@ -267,12 +267,42 @@ test('una stagione di tutta Italia: nazionale, regioni solo se serve, regione da
 });
 
 test('stagioni di tutta Italia: la corrente, la scorsa, poi indietro fino alla prima vuota', async () => {
-  const { scegliItalia } = await import('../src/graduatorie.js');
+  const { scegliItalia, VERSIONE_ITALIA } = await import('../src/graduatorie.js');
   const adesso = '2026-11-15T02:00:00Z';
+  const ieri = '2026-11-15T01:00:00Z';
+  const v = (...st) => Object.fromEntries(st.map((x) => [x, VERSIONE_ITALIA]));
   assert.equal(scegliItalia({}, adesso), 2026);
-  assert.equal(scegliItalia({ rtdb: { 2026: '2026-11-15T01:00:00Z' } }, adesso), 2025);
-  assert.equal(scegliItalia({ rtdb: { 2026: '2026-11-15T01:00:00Z', 2025: '2026-11-15T01:00:00Z' } }, adesso), 2024);
-  assert.equal(scegliItalia({ rtdb: { 2026: '2026-11-15T01:00:00Z', 2025: '2026-11-15T01:00:00Z' }, rtdbFine: 2024 }, adesso), null);
-  assert.equal(scegliItalia({ rtdb: { 2026: '2026-11-01T01:00:00Z', 2025: '2026-11-15T01:00:00Z' }, rtdbFine: 2024 }, adesso), 2026);
+  assert.equal(scegliItalia({ rtdb: { 2026: ieri }, rtdbV: v(2026) }, adesso), 2025);
+  assert.equal(scegliItalia({ rtdb: { 2026: ieri, 2025: ieri }, rtdbV: v(2026, 2025) }, adesso), 2024);
+  assert.equal(scegliItalia({ rtdb: { 2026: ieri, 2025: ieri }, rtdbV: v(2026, 2025), rtdbFine: 2024 }, adesso), null);
+  assert.equal(scegliItalia({ rtdb: { 2026: '2026-11-01T01:00:00Z', 2025: ieri }, rtdbV: v(2026, 2025), rtdbFine: 2024 }, adesso), 2026);
   assert.equal(scegliItalia({}, adesso, new Set([2026, 2025])), 2024);
+  // Lette con la versione vecchia: si rileggono.
+  assert.equal(scegliItalia({ rtdb: { 2026: ieri, 2025: ieri } }, adesso), 2026);
+});
+
+test('regioni grandi divise per anno di nascita, e Indice annata', async () => {
+  const { scaricaItalia, fasceAnni, annateStagione } = await import('../src/italia.js');
+  const fasce = fasceAnni(2025);
+  assert.deepEqual(fasce[0], { dal: 2020, al: 2020 });
+  assert.deepEqual(fasce.at(-1), { dal: 1900, al: 2000 });
+  const riga = (n, anno, t) => `<div class="row"><div class="tempo"> ${t}</div><span data-view="gratleta">${n}</span><div class="nascita"><span>${anno}</span></div><div class="societa"><span>Nuoto Prova</span></div></div>`;
+  const piena = JSON.stringify({ content: riga('ALTRO ATLETA', 2000, '59.00').repeat(5000) });
+  const anni = [];
+  const chiedi = async (c) => {
+    const giusta = c['solr[codice_gara]'] === '00' && c['solr[sesso]'] === 'M' && c['solr[id_lunghezza_vasca]'] === '1';
+    if (!giusta) return JSON.stringify({ content: '' });
+    if (c['solr[id_comitato]'] === '' || (c['solr[id_comitato]'] === '3' && !c['solr[dalyob]'])) return piena;
+    if (c['solr[id_comitato]'] === '3') {
+      anni.push(c['solr[dalyob]']);
+      if (c['solr[dalyob]'] === '2014') return JSON.stringify({ content: riga('BIANCHI LUCA', 2014, '30.10') + riga('VERDI ANDREA', 2014, '31.20') + riga('NERI PAOLO', 2014, '32.30') });
+    }
+    return JSON.stringify({ content: '' });
+  };
+  const { atleti, richieste } = await scaricaItalia({ chiedi, st: 2025, log: () => {} });
+  assert.equal(anni.length, fasce.length);
+  assert.equal(richieste, 72 + 20 + fasce.length);
+  assert.equal(atleti.get('bianchi-luca-2014').reg, '3');
+  const annate = annateStagione(atleti);
+  assert.equal(annate['25|50SL|M|2014'], '31200|3');
 });
