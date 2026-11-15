@@ -7,7 +7,8 @@
 //   c/{nome normalizzato}~{chiave}   "chiave|nome|anno|società|regione" (una voce per ogni ordine delle parole)
 //   sqs/{squadra}/s{stagione}        { n, reg, m: "chiave|nome|anno|sesso~…", t: { "vasca|gara|sesso": "chiave|tempo|data~…" } }
 
-const PEZZO = 2_000; // percorsi per ogni scrittura
+const PEZZO = 2_000; // percorsi per ogni scrittura (al massimo)
+const BYTE = 6_000_000; // e dimensione massima di ogni scrittura
 
 /** Indirizzo del database: da RTDB_URL, altrimenti si chiede a Firebase quali database ha il progetto. */
 export async function trovaUrlRtdb(chiamaGoogle, progetto) {
@@ -47,13 +48,22 @@ export function creaRtdb(chiamaGoogle, url) {
     /** Tante scritture insieme: { "percorso/a/b": valore, … } (a pezzi, per non fare richieste enormi). */
     async aggiorna(voci) {
       const tutte = Object.entries(voci);
-      for (let i = 0; i < tutte.length; i += PEZZO) {
-        const pezzo = Object.fromEntries(tutte.slice(i, i + PEZZO));
-        const corpo = JSON.stringify(pezzo);
+      const invia = async (pezzo) => {
         conta.scritture++;
-        conta.byte += corpo.length;
-        await chiamaGoogle(`${url}/.json?print=silent`, { method: 'PATCH', body: pezzo });
+        conta.byte += pezzo.byte;
+        await chiamaGoogle(`${url}/.json?print=silent`, { method: 'PATCH', body: Object.fromEntries(pezzo.voci) });
+      };
+      let pezzo = { voci: [], byte: 0 };
+      for (const voce of tutte) {
+        const byte = voce[0].length + JSON.stringify(voce[1]).length + 4;
+        if (pezzo.voci.length && (pezzo.voci.length >= PEZZO || pezzo.byte + byte > BYTE)) {
+          await invia(pezzo);
+          pezzo = { voci: [], byte: 0 };
+        }
+        pezzo.voci.push(voce);
+        pezzo.byte += byte;
       }
+      if (pezzo.voci.length) await invia(pezzo);
       return tutte.length;
     },
     /** Solo le chiavi figlie di un percorso. */

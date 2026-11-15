@@ -14,6 +14,8 @@ import {
 } from './dati-italia.js';
 
 const LIMITE = 5000;
+// Se la nazionale arriva quasi al limite potrebbe essere tagliata: allora si legge per regione.
+const QUASI_PIENA = 4_900;
 export const VASCHE = [[25, '1'], [50, '2']];
 
 /** Aggiunge una riga di graduatoria agli atleti della stagione (stessa forma per Lazio e Italia). */
@@ -83,7 +85,7 @@ export async function scaricaItalia({
     for (const sesso of ['M', 'F']) {
       for (const [codFin, codice] of Object.entries(CODICI)) {
         const nazionale = await leggi(sesso, idVasca, codFin, '');
-        if (nazionale && nazionale.length < LIMITE) {
+        if (nazionale && nazionale.length < QUASI_PIENA) {
           for (const r of nazionale) {
             aggiungiRiga(atleti, r, {
               sesso, vasca, codice, st,
