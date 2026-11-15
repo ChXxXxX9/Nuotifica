@@ -1,27 +1,24 @@
-// Graduatorie nazionali: per ogni stagione, vasca, sesso e gara, il miglior tempo di ogni atleta
-// del Lazio (dalla stagione 2018/19, da quando i tempi sono solo con cronometraggio automatico).
-// Con queste si completano le schede degli atleti (personali e stagionali di ogni anno),
-// i primati usati per i badge PB/SB e le pagine delle squadre.
+// Graduatorie nazionali: per ogni stagione, vasca, sesso e gara, il miglior tempo di ogni atleta.
+//   - Lazio, stagione in corso (ogni notte): una scheda per atleta in Firestore (atleti/{chiave}),
+//     primati per i badge PB/SB e classifiche del Lazio per l'app.
+//   - Tutta Italia, tutte le stagioni: nel Realtime Database (vedi italia.js e dati-italia.js),
+//     dove non c'è un limite di scritture al giorno: atleti, ricerca e squadre.
 //
-// Documenti scritti:
-//   atleti/{chiave}                      si aggiungono i migliori tempi di stagione
-//   ricerca/{xx}, noti/{x}               atleti nuovi
-//   primati/{vasca}-{gara}-{sesso}        personale e stagionale aggiornati
-//   squadre/{id}                         componenti, migliori di sempre per gara
-//   squadre/{id}/stagioni/{stagione}     tutti i migliori tempi di quella stagione
-//   meta/squadre                         elenco delle squadre per l'app
-//   meta/graduatorie                     stagioni già lette
+// Documenti Firestore scritti:
+//   atleti/{chiave}, ricerca/{xx}, noti/{x}   (Lazio, stagione in corso)
+//   primati/{vasca}-{gara}-{sesso}            personale e stagionale aggiornati
+//   classifiche/{stagione}-…                  classifiche del Lazio
+//   meta/squadre                              elenco delle squadre per l'app
+//   meta/graduatorie                          stagioni già lette
 import {
-  inMs, nomeProprio, chiaveAtleta, oggiRoma,
+  inMs, nomeProprio, oggiRoma,
 } from './tempi.js';
-import { punti } from './punti.js';
 import { comeData } from './firestore.js';
 import { stagione, leggiPrimato } from './gare.js';
 import {
-  scrittureRicerca, scrittureNoti, leggiNotiTutti, chiaveSquadra, scrittureCerca, leggiIndicizzati, scrittureIndicizzati,
+  scrittureRicerca, scrittureNoti, leggiNotiTutti, chiaveSquadra,
 } from './ricerca.js';
-import { preparaPacchi } from './pacchi.js';
-import { migraCerca } from './ricerca.js';
+import { aggiungiRiga, scaricaItalia, scriviStagione } from './italia.js';
 
 export const CODICI = {
   '00': '50SL', '01': '100SL', '02': '200SL', '04': '400SL', '08': '800SL', 15: '1500SL',
@@ -29,10 +26,13 @@ export const CODICI = {
   40: '50FA', 41: '100FA', 42: '200FA', 51: '100MI', 52: '200MI', 54: '400MI',
 };
 export const PRIMA_STAGIONE = 2018;
+// Le stagioni di tutta Italia si leggono andando indietro finché ci sono tempi (al massimo fino a questa).
+export const STAGIONE_PIU_VECCHIA = 1970;
 const COMITATO = '12'; // Lazio
 const VASCHE = [[25, '1'], [50, '2']];
 const TOP_SEMPRE = 30;
 const PAUSA = 400;
+const PAUSA_ITALIA = 600;
 const MESI = {
   gennaio: 1, febbraio: 2, marzo: 3, aprile: 4, maggio: 5, giugno: 6,
   luglio: 7, agosto: 8, settembre: 9, ottobre: 10, novembre: 11, dicembre: 12,
@@ -97,22 +97,19 @@ export function scegliStagione(stato, adesso) {
   return null;
 }
 
-/** Stagione passata del Lazio da mettere nei pacchi (se non è già stata letta con tutta Italia). */
-export function scegliPacchiLazio(stato, adesso) {
+/**
+ * Prossima stagione di tutta Italia per il Realtime Database: la corrente ogni settimana, la scorsa ogni
+ * mese, poi tutte le altre andando indietro fino alla prima senza tempi.
+ */
+export function scegliItalia(stato, adesso, saltate = new Set()) {
   const corrente = Number(stagione(oggiRoma(adesso)));
-  for (let s = corrente - 2; s >= PRIMA_STAGIONE; s--) {
-    if (!stato.fatte?.[s] && !stato.pacchiLazio?.[s] && !stato.italia?.[s]) return s;
-  }
-  return null;
-}
-
-/** Stagione da leggere per tutta Italia: quella in corso ogni settimana, poi indietro fino al 2018/19. */
-export function scegliItalia(stato, adesso) {
-  const corrente = Number(stagione(oggiRoma(adesso)));
-  const giorni = (s) => (stato.italia?.[s] ? (Date.parse(adesso) - Date.parse(stato.italia[s])) / 86_400_000 : Infinity);
-  if (giorni(corrente) > 7) return corrente;
-  for (let s = corrente - 1; s >= PRIMA_STAGIONE; s--) if (!stato.italia?.[s]) return s;
-  if (giorni(corrente - 1) > 30) return corrente - 1;
+  const fatte = stato.rtdb ?? {};
+  const giorni = (s) => (fatte[s] ? (Date.parse(adesso) - Date.parse(fatte[s])) / 86_400_000 : Infinity);
+  const libera = (s) => !saltate.has(s);
+  if (giorni(corrente) > 7 && libera(corrente)) return corrente;
+  if (giorni(corrente - 1) > 30 && libera(corrente - 1)) return corrente - 1;
+  const fine = Number(stato.rtdbFine) || STAGIONE_PIU_VECCHIA - 1;
+  for (let s = corrente - 2; s > fine; s--) if (!fatte[s] && libera(s)) return s;
   return null;
 }
 
@@ -120,20 +117,17 @@ export function scegliItalia(stato, adesso) {
 export const TUTTE_LE_REGIONI = ['12', '1', '3', '5', '6', '7', '8', '9', '10', '11', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22'];
 
 /**
- * Legge una stagione e salva tutto. Restituisce il numero di atleti.
- *   modo "schede": una scheda per atleta (atleti/{chiave}) — la stagione in corso del Lazio, aggiornata ogni notte;
- *   modo "pacchi": i migliori della stagione nei pacchi (pochissime scritture) — le stagioni passate e tutta Italia.
- * In entrambi i casi: squadre, e per il Lazio primati e classifiche.
+ * Una stagione del Lazio con una scheda per atleta in Firestore (la stagione in corso, ogni notte):
+ * schede, primati, classifiche del Lazio; atleti e squadre anche nel Realtime Database (se c'è `rtdb`).
  */
 export async function leggiStagione({
-  db, chiedi, st, adesso, log = console.log, regioni = [COMITATO], modo = 'schede',
+  db, rtdb = null, chiedi, st, adesso, log = console.log,
 }) {
   const atleti = new Map();
   let richieste = 0;
-  for (const reg of regioni) {
-    for (const [vasca, idVasca] of VASCHE) {
-      for (const sesso of ['M', 'F']) {
-        for (const [codFin, codice] of Object.entries(CODICI)) {
+  for (const [vasca, idVasca] of VASCHE) {
+    for (const sesso of ['M', 'F']) {
+      for (const [codFin, codice] of Object.entries(CODICI)) {
         let righe;
         try {
           righe = leggiGraduatoria(await chiedi({
@@ -142,41 +136,18 @@ export async function leggiStagione({
             'solr[kindtime]': '3',
             'solr[stagione]': String(st),
             'solr[codice_gara]': codFin.padStart(2, '0'),
-            'solr[id_comitato]': reg,
+            'solr[id_comitato]': COMITATO,
             'solr[limit]': '5000',
           }));
           richieste++;
         } catch (e) {
-          log(`Graduatoria ${st} ${codice} ${sesso} ${vasca}m (regione ${reg}) non letta: ${e.message}`);
+          log(`Graduatoria ${st} ${codice} ${sesso} ${vasca}m non letta: ${e.message}`);
           continue;
         }
         for (const r of righe) {
-          if (!/individuale/i.test(r.turno) && r.turno) continue;
-          const { cognome, nome } = dividiNome(r.nome);
-          const k = chiaveAtleta(cognome, nome, r.anno);
-          if (!k) continue;
-          if (!atleti.has(k)) {
-            atleti.set(k, {
-              n: `${nome} ${cognome}`.trim(), y: r.anno, sx: sesso, societa: new Set(), fin: r.idAtleta, reg, risultati: [],
-            });
-          }
-          const a = atleti.get(k);
-          r.societa.forEach((s) => a.societa.add(s));
-          const voce = {
-            i: `fg${r.idEvento ?? ''}-${codice}-${r.idTurno ?? ''}`,
-            gn: r.luogo || 'Gara FIN',
-            l: r.luogo,
-            d: r.data ?? `${st}-12-31`,
-            c: codice,
-            v: vasca,
-            t: r.ms,
-            f: 1,
-          };
-          if (r.idEvento) voce.g = `n${r.idEvento}`;
-          const pt = punti(r.ms, codice, sesso, vasca, voce.d);
-          if (pt) voce.pt = pt;
-          a.risultati.push(voce);
-        }
+          aggiungiRiga(atleti, r, {
+            sesso, vasca, codice, st, reg: COMITATO,
+          });
         }
       }
     }
@@ -186,34 +157,11 @@ export async function leggiStagione({
     return { atleti: 0, richieste };
   }
 
-  // 1a. Pacchi: tutti gli atleti della stagione in pochi documenti; nell'indice "cerca" chi non c'è ancora.
-  if (modo === 'pacchi') {
-    const pacchi = preparaPacchi(new Map([...atleti].map(([k, a]) => [k, { ...a, s: [...a.societa][0] ?? '' }])), st);
-    await db.scriviTanti([...pacchi].map(([id, dati]) => ({ percorso: `pacchi/${id}`, dati: { ...dati, agg: comeData(adesso) } })));
-    const indicizzati = await leggiIndicizzati(db);
-    const nuoviIndice = new Map();
-    const nuoviLazio = new Map();
-    for (const [k, a] of atleti) {
-      if (indicizzati.has(k)) continue;
-      const voce = {
-        n: a.n, y: a.y, s: [...a.societa][0] ?? '', reg: a.reg,
-      };
-      nuoviIndice.set(k, voce);
-      if (a.reg === COMITATO) nuoviLazio.set(k, voce);
-    }
-    // Il Lazio anche nell'indice a due lettere (ricerca veloce), gli altri solo in quello a tre.
-    const soloAltri = new Map([...nuoviIndice].filter(([k]) => !nuoviLazio.has(k)));
-    await db.commit([
-      ...scrittureRicerca(nuoviLazio), ...scrittureCerca(soloAltri), ...scrittureIndicizzati(nuoviIndice.keys()),
-    ]);
-    log(`Pacchi ${st}: ${pacchi.size} documenti, ${nuoviIndice.size} atleti nuovi nella ricerca.`);
-  }
-
-  // 1b. Schede degli atleti: per quelli già conosciuti si aggiungono solo i tempi (nome e società restano).
-  const noti = modo === 'schede' ? await leggiNotiTutti(db) : new Set();
+  // 1. Schede degli atleti: per quelli già conosciuti si aggiungono solo i tempi (nome e società restano).
+  const noti = await leggiNotiTutti(db);
   const operazioni = [];
   const nuovi = new Map();
-  for (const [k, a] of modo === 'schede' ? atleti : []) {
+  for (const [k, a] of atleti) {
     const s = [...a.societa][0] ?? '';
     const dati = noti.has(k) ? {} : { n: a.n, s, sx: a.sx, ...(a.y ? { y: a.y } : {}) };
     operazioni.push({
@@ -232,6 +180,32 @@ export async function leggiStagione({
   const lazio = new Map([...atleti].filter(([, a]) => a.reg === COMITATO));
 
   // 2. Primati (badge PB/SB nelle gare in diretta).
+  const primati = await aggiornaPrimati({
+    db, lazio, st, adesso,
+  });
+
+  // 3. Atleti e squadre nel Realtime Database (le squadre si leggono da lì); senza, come prima in Firestore.
+  const squadre = rtdb
+    ? (await scriviStagione({
+      db, rtdb, atleti, st, adesso, indice: 'tutti',
+    })).squadre
+    : await aggiornaSquadre({
+      db, atleti, st, adesso,
+    });
+  // 4. Classifiche del Lazio per l'app (gara per gara e Indice Cloro), con i movimenti per la stagione in corso.
+  const classifiche = lazio.size ? await scriviClassifiche({
+    db, atleti: lazio, st, adesso,
+  }) : 0;
+  log(`Graduatorie ${st}: ${richieste} richieste, ${atleti.size} atleti (${nuovi.size} nuovi), ${primati} primati, ${squadre} squadre, ${classifiche} classifiche.`);
+  return {
+    atleti: atleti.size, nuovi: nuovi.size, richieste, squadre, classifiche,
+  };
+}
+
+/** Primati del Lazio (PB e, per la stagione in corso, SB): solo le tabelle che cambiano. */
+export async function aggiornaPrimati({
+  db, lazio, st, adesso,
+}) {
   const corrente = stagione(oggiRoma(adesso));
   const percorsi = [];
   for (const [vasca] of VASCHE) for (const sx of ['M', 'F']) for (const c of Object.values(CODICI)) percorsi.push(`primati/${vasca}-${c}-${sx}`);
@@ -257,19 +231,7 @@ export async function leggiStagione({
     }
   }
   await db.scriviTanti([...cambiati].map(([p, tabella]) => ({ percorso: p, dati: { atleti: tabella, aggiornato: comeData(adesso) } })));
-
-  // 3. Squadre.
-  const squadre = await aggiornaSquadre({
-    db, atleti, st, adesso,
-  });
-  // 4. Classifiche del Lazio per l'app (gara per gara e Indice Cloro), con i movimenti per la stagione in corso.
-  const classifiche = lazio.size ? await scriviClassifiche({
-    db, atleti: lazio, st, adesso,
-  }) : 0;
-  log(`Graduatorie ${st}: ${richieste} richieste, ${atleti.size} atleti (${nuovi.size} nuovi), ${cambiati.size} primati, ${squadre} squadre, ${classifiche} classifiche.`);
-  return {
-    atleti: atleti.size, nuovi: nuovi.size, richieste, squadre, classifiche,
-  };
+  return cambiati.size;
 }
 
 const PESI_INDICE = [0.5, 0.3, 0.2];
@@ -431,37 +393,38 @@ export async function aggiornaSquadre({
   return perSquadra.size;
 }
 
-/** Un giro: una stagione per volta, se c'è spazio nel tetto giornaliero di scritture. */
+/**
+ * Un giro delle graduatorie.
+ *   lavoro "notte": la stagione in corso del Lazio (schede in Firestore, se c'è spazio nel tetto di oggi),
+ *                   poi stagioni di tutta Italia nel Realtime Database finché c'è tempo;
+ *   lavoro "tutto": solo tutta Italia, stagione dopo stagione, finché c'è tempo (poi si rilancia da solo);
+ *   lavoro "italia" con `forza`: quella stagione di tutta Italia; `forza` da solo: quella stagione del Lazio.
+ * `firestoreLibero(stima)`: se nel tetto di scritture Firestore di oggi c'è ancora quello spazio.
+ * `scadenza`: dopo quest'ora (ms) non si comincia un'altra stagione.
+ */
 export async function giroGraduatorie({
-  db, fonti, scarica, adesso = new Date().toISOString(), log = console.log, forza = null, lavoro = 'notte',
-  puoContinuare = () => true,
+  db, rtdb = null, fonti, scarica, adesso = new Date().toISOString(), log = console.log, forza = null, lavoro = 'notte',
+  firestoreLibero = async () => true, scadenza = Infinity, ora = () => Date.now(),
 }) {
   if (!fonti?.naz) return { saltato: 'fonte' };
   const stato = (await db.leggi('meta/graduatorie')) ?? {};
   stato.fatte ??= {};
-  stato.pacchiLazio ??= {};
-  stato.italia ??= {};
+  stato.rtdb ??= {};
   const salva = () => db.scrivi('meta/graduatorie', stato);
-  const chiedi = async (campi) => {
-    await pausa(PAUSA);
+  const chiedi = (attesa) => async (campi) => {
+    await pausa(attesa);
     return scarica(`${fonti.naz}&currentpage=1&format=json&view=grricerca`, {
       metodo: 'POST',
-      timeout: 90,
+      timeout: 120,
       modulo: { 'solr[settore]': 'NUO', ...campi },
     });
   };
-  // Una volta sola: l'indice a tre lettere (tutta Italia) parte da quello del Lazio.
-  if (!stato.cercaV) {
-    await migraCerca(db, log);
-    stato.cercaV = 1;
-    await salva();
-  }
   const corrente = stagione(oggiRoma(adesso));
 
   /** Stagione del Lazio con una scheda per atleta (quella in corso, o una scelta a mano). */
   const schede = async (st) => {
     const esito = await leggiStagione({
-      db, chiedi, st, adesso, log,
+      db, rtdb, chiedi: chiedi(PAUSA), st, adesso, log,
     });
     if (esito.atleti) {
       stato.fatte[st] = adesso;
@@ -481,55 +444,82 @@ export async function giroGraduatorie({
     }
     return { stagione: st, ...esito };
   };
-  /** Una stagione nei pacchi: solo il Lazio o tutta Italia. */
-  const pacchi = async (st, italia) => {
-    const esito = await leggiStagione({
-      db, chiedi, st, adesso, log, modo: 'pacchi', regioni: italia ? TUTTE_LE_REGIONI : [COMITATO],
+
+  // Chiavi degli atleti già nel Realtime Database: per le stagioni vecchie si aggiunge alla ricerca solo chi manca
+  // (la voce di ricerca di chi c'è già viene da una stagione più recente, con la società di adesso).
+  let presenti = null;
+  /** Una stagione di tutta Italia nel Realtime Database. */
+  const italia = async (st) => {
+    const inizio = ora();
+    const regioniSquadre = Object.fromEntries(Object.entries((await db.leggi('meta/squadre'))?.squadre ?? {})
+      .map(([id, riga]) => [id, String(riga).split('|')[4]]).filter(([, r]) => r));
+    const { atleti, richieste, errori } = await scaricaItalia({
+      chiedi: chiedi(PAUSA_ITALIA), st, log, regioniSquadre,
     });
-    if (esito.atleti) {
-      (italia ? stato.italia : stato.pacchiLazio)[st] = adesso;
-      await salva();
+    if (!atleti.size) {
+      log(`Italia ${st}: nessun tempo (${richieste} richieste, ${errori} errori).`);
+      // Nessun tempo con le richieste andate a buon fine: da qui indietro non c'è più niente.
+      if (richieste > 0 && errori === 0 && Number(st) < Number(corrente) - 1) {
+        stato.rtdbFine = Number(st);
+        await salva();
+      }
+      return {
+        stagione: st, italia: true, atleti: 0, richieste, errori, vuota: richieste > 0 && errori === 0,
+      };
     }
-    return { stagione: st, italia, ...esito };
+    const recente = Number(st) >= Number(corrente) - 1;
+    if (!recente && !presenti) presenti = await rtdb.chiavi('a');
+    const scritto = await scriviStagione({
+      db, rtdb, atleti, st, adesso, indice: recente ? 'tutti' : presenti,
+    });
+    if (presenti) for (const k of atleti.keys()) presenti.add(k);
+    // Per le stagioni dal 2018/19 mai lette prima, anche primati e classifiche del Lazio (se c'è spazio).
+    let primati = 0;
+    let classifiche = 0;
+    if (Number(st) >= PRIMA_STAGIONE && !stato.fatte[st] && !stato.pacchiLazio?.[st] && await firestoreLibero(300)) {
+      const lazio = new Map([...atleti].filter(([, a]) => a.reg === COMITATO));
+      primati = await aggiornaPrimati({
+        db, lazio, st, adesso,
+      });
+      classifiche = await scriviClassifiche({
+        db, atleti: lazio, st, adesso,
+      });
+      stato.pacchiLazio ??= {};
+      stato.pacchiLazio[st] = adesso;
+    }
+    stato.rtdb[st] = adesso;
+    await salva();
+    const minuti = Math.round((ora() - inizio) / 60_000);
+    log(`Italia ${st}: ${atleti.size} atleti, ${scritto.squadre} squadre, ${richieste} richieste${errori ? ` (${errori} errori)` : ''}, ${scritto.voci} voci, ${primati} primati e ${classifiche} classifiche del Lazio, ${minuti} min.`);
+    return {
+      stagione: st, italia: true, atleti: atleti.size, squadre: scritto.squadre, richieste, errori,
+    };
   };
 
-  if (forza && lavoro === 'italia') return pacchi(forza, true);
-  if (forza) return schede(forza);
-  if (lavoro === 'lazio') {
-    // Tutte le stagioni passate del Lazio, finché c'è spazio nel limite di oggi.
-    const fatte = [];
-    const provate = new Set();
-    for (let st = scegliPacchiLazio(stato, adesso); st !== null && !provate.has(st) && puoContinuare(3_000); st = scegliPacchiLazio(stato, adesso)) {
-      provate.add(st);
-      fatte.push(await pacchi(st, false));
-    }
-    return { lazio: fatte };
-  }
-  if (lavoro === 'avanzi') {
-    // A fine giornata: prima le stagioni passate del Lazio, poi quelle di tutta Italia, finché c'è spazio.
-    // (Una stagione che non si riesce a leggere non si riprova nello stesso giro.)
+  /** Stagioni di tutta Italia una dopo l'altra, finché c'è tempo. `ancora`: se ne restano da fare. */
+  const tutte = async () => {
     const esiti = [];
-    const provate = new Set();
-    for (let st = scegliPacchiLazio(stato, adesso); st !== null && !provate.has(st) && puoContinuare(3_000); st = scegliPacchiLazio(stato, adesso)) {
-      provate.add(st);
-      esiti.push(await pacchi(st, false));
+    const saltate = new Set();
+    let st = scegliItalia(stato, adesso, saltate);
+    while (st !== null && ora() < scadenza) {
+      const esito = await italia(st);
+      esiti.push(esito);
+      saltate.add(st);
+      if (esito.vuota) break; // arrivati in fondo
+      if (!esito.atleti) return { esiti, ancora: false }; // la fonte non risponde: si riprova al prossimo giro
+      st = scegliItalia(stato, adesso, saltate);
     }
-    const provateItalia = new Set();
-    for (let st = scegliItalia(stato, adesso); st !== null && !provateItalia.has(st) && puoContinuare(8_000); st = scegliItalia(stato, adesso)) {
-      provateItalia.add(st);
-      esiti.push(await pacchi(st, true));
-    }
-    return { esiti };
-  }
-  if (lavoro === 'italia') {
-    const st = scegliItalia(stato, adesso);
-    return st === null ? { saltato: 'tutta Italia già letta' } : pacchi(st, true);
-  }
-  // Di notte: prima la stagione in corso del Lazio (se serve), poi una stagione di tutta Italia.
+    return { esiti, ancora: scegliItalia(stato, adesso) !== null };
+  };
+
+  if (forza && lavoro === 'italia') return italia(forza);
+  if (forza) return schede(forza);
+  if (lavoro === 'tutto') return rtdb ? tutte() : { saltato: 'manca il Realtime Database' };
+  // Di notte: prima la stagione in corso del Lazio (se serve e c'è spazio), poi tutta Italia.
   const esiti = [];
   const st = scegliStagione(stato, adesso);
-  if (st !== null) esiti.push(await schede(st));
-  const stItalia = scegliItalia(stato, adesso);
-  if (stItalia !== null && puoContinuare(8_000)) esiti.push(await pacchi(stItalia, true));
-  return esiti.length ? { esiti } : { saltato: 'tutto letto' };
+  if (st !== null && await firestoreLibero(9_000)) esiti.push(await schede(st));
+  if (!rtdb) return esiti.length ? { esiti } : { saltato: 'tutto letto' };
+  const resto = await tutte();
+  return { esiti: [...esiti, ...resto.esiti], ancora: resto.ancora };
 }

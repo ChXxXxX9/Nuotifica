@@ -1,26 +1,25 @@
 name: Graduatorie
 
-# Di notte completa le schede degli atleti con i migliori tempi di ogni stagione
-# (prima quella in corso, poi indietro fino al 2018/19) e aggiorna le squadre.
-# Una stagione per giro, solo se nel tetto giornaliero di Firestore c'è spazio.
-# Alle 6:41 UTC (poco prima che il tetto si azzeri) usa le scritture avanzate nel giorno.
+# Di notte: la stagione in corso del Lazio (schede degli atleti, primati, classifiche), poi le stagioni
+# di tutta Italia nel Realtime Database (la corrente ogni settimana, poi tutte le altre andando indietro).
+# Con "tutto" legge solo tutta Italia per qualche ora e, se resta qualcosa, si rilancia da solo.
 on:
   schedule:
     - cron: '41 0,2,4 * * *'
-    - cron: '41 6 * * *'
   workflow_dispatch:
     inputs:
       lavoro:
-        description: 'Vuoto = giro della notte; "lazio" = stagioni passate del Lazio; "italia" = una stagione di tutta Italia; "avanzi" = Lazio e Italia con le scritture avanzate'
+        description: 'Vuoto = giro della notte; "tutto" = tutta Italia, tutte le stagioni; "italia" + stagione = quella stagione di tutta Italia'
         required: false
         default: ''
       stagione:
-        description: 'Stagione da leggere subito (es. 2025 per 2025/26). Vuoto = la prossima da fare.'
+        description: 'Stagione (es. 2025 per 2025/26). Da sola: quella stagione del Lazio, subito.'
         required: false
         default: ''
 
 permissions:
   contents: read
+  actions: write
 
 concurrency:
   group: graduatorie
@@ -29,17 +28,23 @@ concurrency:
 jobs:
   graduatorie:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 350
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - name: Una stagione
+      - name: Graduatorie
+        id: giro
         working-directory: controller
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           FONTI: ${{ secrets.FONTI }}
         run: |
           if [ "${{ inputs.lavoro }}" = "prova-rtdb" ]; then node src/prova-rtdb.js; exit; fi
-          node src/giro-graduatorie.js ${{ github.event.schedule == '41 6 * * *' && 'avanzi' || inputs.lavoro }} ${{ inputs.stagione }}
+          node src/giro-graduatorie.js ${{ inputs.lavoro }} ${{ inputs.stagione }}
+      - name: Continua con un altro giro
+        if: steps.giro.outputs.ancora == 'si'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${{ github.repository }}/actions/workflows/graduatorie.yml/dispatches" -f ref=main -f 'inputs[lavoro]=tutto'

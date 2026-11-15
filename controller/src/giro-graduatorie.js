@@ -1,62 +1,84 @@
 // Giro delle graduatorie (workflow "Graduatorie"):
-//   node src/giro-graduatorie.js            di notte: la stagione in corso del Lazio, poi una stagione di tutta Italia
-//   node src/giro-graduatorie.js lazio      tutte le stagioni passate del Lazio nei pacchi (finché c'è spazio oggi)
-//   node src/giro-graduatorie.js italia     una stagione di tutta Italia nei pacchi
-//   node src/giro-graduatorie.js avanzi     a fine giornata: stagioni del Lazio e di tutta Italia con le scritture avanzate
+//   node src/giro-graduatorie.js            di notte: la stagione in corso del Lazio, poi tutta Italia finché c'è tempo
+//   node src/giro-graduatorie.js tutto      tutta Italia, una stagione dopo l'altra (alla fine il workflow si rilancia)
+//   node src/giro-graduatorie.js italia 2015   quella stagione di tutta Italia
 //   node src/giro-graduatorie.js 2024       quella stagione del Lazio con una scheda per atleta
-//   node src/giro-graduatorie.js italia 2024
-// Sempre solo se nel limite giornaliero di scritture di Firestore c'è abbastanza spazio.
+// Firestore ha un tetto di scritture al giorno: le schede del Lazio partono solo se c'è spazio.
+// Tutta Italia va nel Realtime Database, che quel tetto non ce l'ha.
+import { appendFileSync } from 'node:fs';
 import { leggiFonti, scarica } from './fonti.js';
 import { leggiAccountServizio, creaGestoreToken, creaClientGoogle } from './google.js';
 import { creaFirestore } from './firestore.js';
+import { trovaUrlRtdb, creaRtdb } from './rtdb.js';
 import { giroGraduatorie } from './graduatorie.js';
 import { giornoQuota } from './tempi.js';
 
-// Si parte solo sotto questa soglia (tutti i lavori insieme, oggi); e ci si ferma prima di questa.
-// Il piano gratuito ne permette 20.000; il giorno di Firestore finisce alle 9 di mattina italiane.
-const SOGLIA = 11_000;
+// Il piano gratuito di Firestore permette 20.000 scritture al giorno (il giorno finisce alle 9 italiane):
+// ci si ferma prima di questa soglia, contando anche quelle del controllore.
 const STOP = 17_500;
-// I pacchi (lavori "lazio" e "avanzi") partono anche sopra la soglia: si fermano da soli prima del tetto.
-// "avanzi" gira a fine giornata, quando il controllore non ha quasi più niente da scrivere.
-const STOP_AVANZI = 18_500;
+// Dopo quanto non si comincia un'altra stagione (il workflow ha 6 ore; una stagione ne prende al massimo una).
+const MINUTI = { tutto: 270, notte: 75, italia: 340 };
 
 function annota(livello, testo) {
   const t = String(testo).replace(/%/g, '%25').replace(/\r?\n/g, '%0A');
   console.log(process.env.GITHUB_ACTIONS ? `::${livello} title=Graduatorie::${t}` : testo);
 }
 
+const nomeSt = (st) => `${st}/${String(Number(st) + 1).slice(2)}`;
 const riassunto = (e) => (e.saltato ? `niente da fare (${e.saltato})`
-  : `${e.italia ? 'Italia' : 'Lazio'} ${e.stagione}/${String(Number(e.stagione) + 1).slice(2)}: ${e.atleti} atleti${e.nuovi !== undefined ? ` (${e.nuovi} nuovi)` : ''}, ${e.squadre ?? 0} squadre`);
+  : e.italia ? `Italia ${nomeSt(e.stagione)}: ${e.atleti} atleti${e.squadre ? `, ${e.squadre} squadre` : ''}${e.vuota ? ' (prima stagione senza tempi: fine)' : ''}`
+    : `Lazio ${nomeSt(e.stagione)}: ${e.atleti} atleti${e.nuovi !== undefined ? ` (${e.nuovi} nuovi)` : ''}, ${e.squadre ?? 0} squadre`);
 
 async function principale() {
+  const inizio = Date.now();
   const fonti = leggiFonti();
   const account = leggiAccountServizio(process.env.FIREBASE_SERVICE_ACCOUNT);
-  const db = creaFirestore(creaClientGoogle(creaGestoreToken(account)), account.project_id);
+  const chiama = creaClientGoogle(creaGestoreToken(account));
+  const db = creaFirestore(chiama, account.project_id);
+  let rtdb = null;
+  try {
+    rtdb = creaRtdb(chiama, await trovaUrlRtdb(chiama, account.project_id));
+  } catch (e) {
+    annota('warning', `Realtime Database non raggiungibile: ${e.message}`);
+  }
   const adesso = new Date().toISOString();
   const giorno = giornoQuota(adesso);
   const letti = await db.leggiTanti(['meta/budget', 'meta/budget-grad']);
-  const budget = letti.get('meta/budget') ?? {};
   const grad = letti.get('meta/budget-grad') ?? {};
   const giaGrad = grad.giorno === giorno ? (grad.scritture ?? 0) : 0;
-  const gia = (budget.giorno === giorno ? (budget.scritture ?? 0) : 0) + giaGrad;
+  /** Scritture Firestore di oggi (controllore + graduatorie): si rilegge il conto del controllore ogni volta. */
+  const firestoreLibero = async (stima) => {
+    const budget = (await db.leggi('meta/budget')) ?? {};
+    const controllore = budget.giorno === giornoQuota(new Date().toISOString()) ? (budget.scritture ?? 0) : 0;
+    const libero = controllore + giaGrad + db.conta.scritture + stima < STOP;
+    if (!libero) console.log(`Firestore: oggi già ${controllore + giaGrad + db.conta.scritture} scritture, salto la parte in Firestore.`);
+    return libero;
+  };
   const argomenti = process.argv.slice(2).filter(Boolean);
-  const lavoro = ['lazio', 'italia', 'avanzi'].includes(argomenti[0]) ? argomenti[0] : 'notte';
+  const lavoro = ['tutto', 'italia'].includes(argomenti[0]) ? argomenti[0] : 'notte';
   const forza = Number(argomenti.find((x) => /^\d{4}$/.test(x))) || null;
-  const stop = lavoro === 'avanzi' ? STOP_AVANZI : STOP;
-  if (gia > SOGLIA && !forza && !['lazio', 'avanzi'].includes(lavoro)) {
-    annota('notice', `Rimando: oggi già ${gia} scritture.`);
-    return;
-  }
   try {
     const esito = await giroGraduatorie({
-      db, fonti, scarica, adesso, forza, lavoro, log: (t) => console.log(t), puoContinuare: (stima) => gia + db.conta.scritture + stima < stop,
+      db,
+      rtdb,
+      fonti,
+      scarica,
+      adesso,
+      forza,
+      lavoro,
+      log: (t) => console.log(t),
+      firestoreLibero,
+      scadenza: inizio + (MINUTI[lavoro] ?? 75) * 60_000,
     });
-    const elenco = esito.esiti ?? esito.lazio ?? [esito];
-    if (!elenco.length) annota('notice', `Niente spazio oggi (già ${gia} scritture): riprovo domani.`);
-    annota('notice', `${elenco.map(riassunto).join(' · ') || 'niente da fare'} — ${db.conta.scritture} scritture.`);
+    const elenco = esito.esiti ?? [esito];
+    const minuti = Math.round((Date.now() - inizio) / 60_000);
+    annota('notice', `${elenco.map(riassunto).join(' · ') || 'niente da fare'} — ${minuti} min, ${db.conta.scritture} scritture Firestore${rtdb ? `, ${rtdb.conta.scritture} invii al Realtime Database (${Math.round(rtdb.conta.byte / 1e6)} MB)` : ''}.`);
+    if (esito.ancora && !forza) {
+      annota('notice', 'Restano stagioni da leggere: riparto subito con un altro giro.');
+      if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, 'ancora=si\n');
+    }
   } finally {
     await db.scrivi('meta/budget-grad', { giorno, scritture: giaGrad + db.conta.scritture + 1 });
-    if (gia + db.conta.scritture > stop) annota('warning', `Oggi ${gia + db.conta.scritture} scritture: mi fermo qui.`);
   }
 }
 

@@ -62,8 +62,10 @@ test('una stagione: schede, primati e squadre (solo tempi individuali)', async (
     return campi['solr[codice_gara]'] === '01' && campi['solr[sesso]'] === 'M' && campi['solr[id_lunghezza_vasca]'] === '1'
       ? campione : JSON.stringify({ content: '' });
   };
+  const voci = {};
+  const rtdb = { async aggiorna(v) { Object.assign(voci, v); return Object.keys(v).length; } };
   const esito = await leggiStagione({
-    db, chiedi, st: 2025, adesso: '2026-11-15T02:00:00Z', log: () => {},
+    db, rtdb, chiedi, st: 2025, adesso: '2026-11-15T02:00:00Z', log: () => {},
   });
   assert.equal(n, 72);
   assert.equal(esito.atleti, 2);
@@ -74,11 +76,18 @@ test('una stagione: schede, primati e squadre (solo tempi individuali)', async (
   assert.equal(marco.r[0].g, 'n900001');
   assert.ok(docs.get('ricerca/ma').l.some((v) => v.startsWith('desempio-marco-2007|')));
   assert.equal(docs.get('primati/25-100SL-M').atleti['desempio-marco-2007'].split('|')[0], '45680');
-  const squadra = docs.get('squadre/nuoto-esempio-roma');
+  // Atleti, ricerca e squadre nel Realtime Database.
+  assert.equal(voci['a/desempio-marco-2007/i'], "Marco D'Esempio|2007|M");
+  assert.ok(voci['a/desempio-marco-2007/s2025'].startsWith('Nuoto Esempio - Roma|12~100SL|25|45680|2026-04-01|Roma'));
+  assert.ok(voci['c/desempio marco~desempio-marco-2007']);
+  assert.ok(voci['c/marco d esempio~desempio-marco-2007']);
+  const { squadraDaStagioni } = await import('../src/dati-italia.js');
+  const squadra = squadraDaStagioni({ s2025: voci['sqs/nuoto-esempio-roma/s2025'] });
   assert.equal(squadra.m.length, 2);
   assert.equal(squadra.t['25|100SL|M'][0].split('|')[1], '45680');
-  assert.equal(docs.get('squadre/nuoto-esempio-roma/stagioni/2025').t['25|100SL|M'].length, 2);
-  assert.ok(docs.get('meta/squadre').squadre['gruppo-sportivo-prova'].startsWith('Gruppo Sportivo Prova|1|1|2025'));
+  assert.equal(squadra.stagioni[2025].t['25|100SL|M'].length, 2);
+  assert.ok(docs.get('meta/squadre').squadre['gruppo-sportivo-prova'].startsWith('Gruppo Sportivo Prova|1|1|2025|12'));
+  assert.ok(![...docs.keys()].some((p) => p.startsWith('squadre/')));
 });
 
 test('testi dei PDF: solo i nuovi, dai più recenti', async () => {
@@ -187,49 +196,83 @@ test('classifiche su richiesta: Italia per categoria e regione intera', async ()
   assert.ok(![...docs.keys()].some((p) => p.startsWith('richieste/')));
 });
 
-test('pacchi: ogni atleta sempre nello stesso pacco, e si rilegge uguale', async () => {
-  const { secchio, idPacco, preparaPacchi, leggiPacco } = await import('../src/pacchi.js');
-  assert.equal(secchio('rossi-marco-2008'), secchio('rossi-marco-2008'));
-  assert.ok(secchio('rossi-marco-2008') < 512);
-  const atleti = new Map([['rossi-marco-2008', {
-    n: 'Marco Rossi', y: 2008, sx: 'M', s: 'Nuoto Esempio', reg: '9', risultati: [{ c: '100SL', v: 25, t: 52_100, d: '2026-03-01', l: 'Firenze' }],
-  }]]);
-  const pacchi = preparaPacchi(atleti, 2025);
-  const doc = pacchi.get(idPacco(2025, 'rossi-marco-2008'));
-  const a = leggiPacco(doc, 'rossi-marco-2008');
-  assert.equal(a.n, 'Marco Rossi');
-  assert.equal(a.reg, '9');
-  assert.deepEqual(a.r[0], {
-    i: 'p2025-100SL-25', c: '100SL', v: 25, t: 52_100, d: '2026-03-01', gn: 'Firenze', l: 'Firenze', f: 1,
+test('dati di tutta Italia: atleta, ricerca e squadra si rileggono uguali', async () => {
+  const {
+    rigaInfo, rigaStagione, leggiAtletaItalia, chiaviRicerca, testoRicerca, squadraDaStagioni,
+  } = await import('../src/dati-italia.js');
+  const a = {
+    n: "Maria D'Angelo", y: 2008, sx: 'F', s: 'Nuoto | Esempio', reg: '9',
+    risultati: [
+      { c: '100SL', v: 25, t: 60_100, d: '2025-03-01', l: 'Firenze' },
+      { c: '100SL', v: 25, t: 59_900, d: '2025-04-01', l: 'Prato' },
+    ],
+  };
+  const doc = { i: rigaInfo(a), s2024: rigaStagione(a), s2025: rigaStagione({ ...a, s: 'Altra', risultati: [{ c: '50DO', v: 50, t: 31_000, d: '2026-06-01', l: '' }] }) };
+  const letto = leggiAtletaItalia(doc);
+  assert.equal(letto.n, "Maria D'Angelo");
+  assert.equal(letto.s, 'Altra');
+  assert.equal(letto.r.length, 2);
+  assert.deepEqual(letto.r.find((x) => x.c === '100SL'), {
+    i: 'i2024-100SL-25', c: '100SL', v: 25, t: 59_900, d: '2025-04-01', gn: 'Prato', l: 'Prato', f: 1,
   });
+  const chiavi = chiaviRicerca("Maria D'Angelo");
+  for (const scritto of ['dangelo', "d'angelo maria", 'angelo maria', 'maria d angelo', 'maria dangelo']) {
+    assert.ok(chiavi.some((c) => c.startsWith(testoRicerca(scritto))), scritto);
+  }
+  const sq = squadraDaStagioni({
+    s2024: { n: 'Vecchio nome', reg: '9', m: 'a|A|2008|F~b|B|2009|F', t: { '25|100SL|F': 'a|60000|2025-01-01~b|61000|2025-01-02' } },
+    s2025: { n: 'Nome', reg: '9', m: 'a|A|2008|F', t: { '25|100SL|F': 'a|59000|2026-01-01' } },
+  });
+  assert.equal(sq.n, 'Nome');
+  assert.deepEqual(sq.st, ['2025', '2024']);
+  assert.deepEqual(sq.m.sort(), ['a|A|2008|F|2024|2025', 'b|B|2009|F|2024|2024']);
+  assert.deepEqual(sq.t['25|100SL|F'], ['a|59000|2026-01-01|2025', 'b|61000|2025-01-02|2024']);
 });
 
-test('una stagione di tutta Italia nei pacchi: niente schede, indice a tre lettere, primati solo del Lazio', async () => {
-  const docs = new Map();
-  const db = {
-    conta: { letture: 0, scritture: 0 },
-    async leggi(p) { return docs.get(p) ?? null; },
-    async scrivi(p, d) { docs.set(p, structuredClone(d)); },
-    async scriviTanti(e) { for (const { percorso, dati } of e) docs.set(percorso, structuredClone(dati)); },
-    async leggiTanti(ps) { return new Map(ps.map((p) => [p, docs.get(p) ?? null])); },
-    async elenca(c) { return [...docs].filter(([p]) => p.startsWith(`${c}/`) && p.split('/').length === 2).map(([p, d]) => ({ id: p.split('/')[1], ...d })); },
-    async commit(ops) {
-      for (const o of ops) {
-        const d = { ...(docs.get(o.percorso) ?? {}), ...structuredClone(o.dati ?? {}) };
-        for (const [c, v] of Object.entries(o.aggiungi ?? {})) d[c] = [...new Set([...(d[c] ?? []), ...v])];
-        docs.set(o.percorso, d);
-      }
-    },
+test('una stagione di tutta Italia: nazionale, regioni solo se serve, regione dalla società', async () => {
+  const { scaricaItalia, vociStagione } = await import('../src/italia.js');
+  const chiamate = [];
+  // 100 SL maschi in vasca corta: la nazionale arriva al limite, si legge per regione (solo la Toscana ha righe).
+  const vuota = JSON.stringify({ content: '' });
+  const chiedi = async (campi) => {
+    chiamate.push(campi['solr[id_comitato]']);
+    const giusta = campi['solr[codice_gara]'] === '01' && campi['solr[sesso]'] === 'M' && campi['solr[id_lunghezza_vasca]'] === '1';
+    if (giusta && campi['solr[id_comitato]'] === '') return { troppe: true };
+    if (giusta && campi['solr[id_comitato]'] === '9') return campione;
+    return vuota;
   };
-  const chiedi = async (campi) => (campi['solr[codice_gara]'] === '01' && campi['solr[sesso]'] === 'M' && campi['solr[id_lunghezza_vasca]'] === '1'
-    && campi['solr[id_comitato]'] === '9' ? campione : JSON.stringify({ content: '' }));
-  const esito = await leggiStagione({
-    db, chiedi, st: 2024, adesso: '2026-11-15T02:00:00Z', log: () => {}, modo: 'pacchi', regioni: ['12', '9'],
-  });
-  assert.equal(esito.atleti, 2);
-  assert.ok(![...docs.keys()].some((p) => p.startsWith('atleti/')));
-  assert.ok([...docs.keys()].some((p) => p.startsWith('pacchi/2024-')));
-  assert.ok(docs.get('cerca/mar').l.some((v) => v.startsWith('desempio-marco-2007|') && v.endsWith('|9')));
-  assert.ok(!docs.get('primati/25-100SL-M'));
-  assert.ok(docs.get('meta/squadre').squadre['nuoto-esempio-roma'].endsWith('|9'));
+  const finto = async (campi) => {
+    const r = await chiedi(campi);
+    if (r?.troppe) {
+      // 5000 righe finte: la nazionale è "piena".
+      const riga = '<div class="row"><div class="tempo"> 59.00</div><span data-view="gratleta">ALTRO ATLETA</span><div class="nascita"><span>2000</span></div></div>';
+      return JSON.stringify({ content: riga.repeat(5000) });
+    }
+    return r;
+  };
+  const { atleti, richieste } = await scaricaItalia({ chiedi: finto, st: 2015, log: () => {} });
+  assert.equal(richieste, 72 + 20);
+  assert.equal(chiamate.filter((x) => x === '').length, 72);
+  assert.equal(atleti.get('desempio-marco-2007').reg, '9');
+  // Chi ha la regione solo dalla società.
+  atleti.set('x-y-2001', { n: 'Y X', y: 2001, sx: 'M', societa: new Set(['Nuoto Esempio - Roma']), reg: null, risultati: [] });
+  const { completaRegioni } = await import('../src/italia.js');
+  completaRegioni(atleti);
+  assert.equal(atleti.get('x-y-2001').reg, '9');
+  const voci = vociStagione(atleti, 2015, { indice: new Set(['desempio-marco-2007']) });
+  assert.ok(voci['a/desempio-marco-2007/s2015']);
+  assert.ok(!Object.keys(voci).some((p) => p.startsWith('c/') && p.endsWith('~desempio-marco-2007')));
+  assert.ok(Object.keys(voci).some((p) => p.startsWith('c/') && p.endsWith('~x-y-2001')));
+  assert.ok(voci['sqs/nuoto-esempio-roma/s2015'].m.includes('x-y-2001|Y X|2001|M'));
+});
+
+test('stagioni di tutta Italia: la corrente, la scorsa, poi indietro fino alla prima vuota', async () => {
+  const { scegliItalia } = await import('../src/graduatorie.js');
+  const adesso = '2026-11-15T02:00:00Z';
+  assert.equal(scegliItalia({}, adesso), 2026);
+  assert.equal(scegliItalia({ rtdb: { 2026: '2026-11-15T01:00:00Z' } }, adesso), 2025);
+  assert.equal(scegliItalia({ rtdb: { 2026: '2026-11-15T01:00:00Z', 2025: '2026-11-15T01:00:00Z' } }, adesso), 2024);
+  assert.equal(scegliItalia({ rtdb: { 2026: '2026-11-15T01:00:00Z', 2025: '2026-11-15T01:00:00Z' }, rtdbFine: 2024 }, adesso), null);
+  assert.equal(scegliItalia({ rtdb: { 2026: '2026-11-01T01:00:00Z', 2025: '2026-11-15T01:00:00Z' }, rtdbFine: 2024 }, adesso), 2026);
+  assert.equal(scegliItalia({}, adesso, new Set([2026, 2025])), 2024);
 });
