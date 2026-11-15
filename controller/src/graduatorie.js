@@ -498,10 +498,28 @@ export async function giroGraduatorie({
   if (lavoro === 'lazio') {
     // Tutte le stagioni passate del Lazio, finché c'è spazio nel limite di oggi.
     const fatte = [];
-    for (let st = scegliPacchiLazio(stato, adesso); st !== null && puoContinuare(3_500); st = scegliPacchiLazio(stato, adesso)) {
+    const provate = new Set();
+    for (let st = scegliPacchiLazio(stato, adesso); st !== null && !provate.has(st) && puoContinuare(3_500); st = scegliPacchiLazio(stato, adesso)) {
+      provate.add(st);
       fatte.push(await pacchi(st, false));
     }
     return { lazio: fatte };
+  }
+  if (lavoro === 'avanzi') {
+    // A fine giornata: prima le stagioni passate del Lazio, poi quelle di tutta Italia, finché c'è spazio.
+    // (Una stagione che non si riesce a leggere non si riprova nello stesso giro.)
+    const esiti = [];
+    const provate = new Set();
+    for (let st = scegliPacchiLazio(stato, adesso); st !== null && !provate.has(st) && puoContinuare(3_500); st = scegliPacchiLazio(stato, adesso)) {
+      provate.add(st);
+      esiti.push(await pacchi(st, false));
+    }
+    const provateItalia = new Set();
+    for (let st = scegliItalia(stato, adesso); st !== null && !provateItalia.has(st) && puoContinuare(8_000); st = scegliItalia(stato, adesso)) {
+      provateItalia.add(st);
+      esiti.push(await pacchi(st, true));
+    }
+    return { esiti };
   }
   if (lavoro === 'italia') {
     const st = scegliItalia(stato, adesso);

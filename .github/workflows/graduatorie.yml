@@ -3,13 +3,15 @@ name: Graduatorie
 # Di notte completa le schede degli atleti con i migliori tempi di ogni stagione
 # (prima quella in corso, poi indietro fino al 2018/19) e aggiorna le squadre.
 # Una stagione per giro, solo se nel tetto giornaliero di Firestore c'è spazio.
+# Alle 6:41 UTC (poco prima che il tetto si azzeri) usa le scritture avanzate nel giorno.
 on:
   schedule:
     - cron: '41 0,2,4 * * *'
+    - cron: '41 6 * * *'
   workflow_dispatch:
     inputs:
       lavoro:
-        description: 'Vuoto = giro della notte; "lazio" = tutte le stagioni passate del Lazio; "italia" = una stagione di tutta Italia'
+        description: 'Vuoto = giro della notte; "lazio" = stagioni passate del Lazio; "italia" = una stagione di tutta Italia; "avanzi" = Lazio e Italia con le scritture avanzate'
         required: false
         default: ''
       stagione:
@@ -38,4 +40,4 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           FONTI: ${{ secrets.FONTI }}
-        run: node src/giro-graduatorie.js ${{ inputs.lavoro }} ${{ inputs.stagione }}
+        run: node src/giro-graduatorie.js ${{ github.event.schedule == '41 6 * * *' && 'avanzi' || inputs.lavoro }} ${{ inputs.stagione }}
