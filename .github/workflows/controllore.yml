@@ -64,6 +64,7 @@ jobs:
           FONTI: ${{ secrets.FONTI }}
           ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
           SITO_URL: https://cloro.web.app
+          GH_TOKEN: ${{ github.token }}
         run: node src/main.js
 
       - name: Testo dei PDF nuovi (per cercare dentro i documenti)

@@ -1,7 +1,7 @@
 // Cerca dentro un documento del Comitato: il testo del PDF (estratto dal controllore) con la ricerca,
 // perché nell'app installata il "Trova nella pagina" del browser non c'è.
 import {
-  stato, api, esc, barraTop, disegna, caricamento, paginaErrore, percorso, ICONE, dispositivo,
+  stato, api, esc, barraTop, disegna, caricamento, paginaErrore, percorso, ICONE, dispositivo, parametriHash,
 } from './nucleo.js';
 
 /** Stesso identificativo del controllore: i primi 16 caratteri dello SHA-1 dell'indirizzo. */
@@ -92,7 +92,7 @@ export async function vistaDocumento(idPost, indice) {
         <label class="cerca">
           <span class="nascosto">Cerca nel documento</span>
           ${ICONE.cerca}
-          <input type="search" placeholder="Cognome, squadra, gara…" autocomplete="off" enterkeyhint="search" value="${esc(stato.cercaDoc ?? '')}">
+          <input type="search" placeholder="Cognome, squadra, gara…" autocomplete="off" enterkeyhint="search" value="${esc(parametriHash().get('q') ?? stato.cercaDoc ?? '')}">
         </label>
         <div class="naviga-doc">
           <span data-conto>${pagine.length} ${pagine.length === 1 ? 'pagina' : 'pagine'}</span>

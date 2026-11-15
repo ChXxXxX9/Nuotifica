@@ -262,18 +262,29 @@ export async function creaBackendFirebase(config) {
 
     datiAdmin: () => avvolgi(async () => {
       const conta = (rif) => F.getCountFromServer(rif).then((r) => r.data().count).catch(() => null);
-      const [utenti, atleti, consigli, annunci, statoSnap, budgetSnap] = await Promise.all([
+      const meta = (id) => F.getDoc(F.doc(db, 'meta', id)).then((x) => (x.exists() ? x.data() : {})).catch(() => ({}));
+      const [utenti, atleti, consigli, annunci, statoSnap, budgetSnap, grad, budgetGrad, testi, lavori, squadre] = await Promise.all([
         conta(F.collection(db, 'users')),
         conta(F.collection(db, 'atleti')),
         F.getDocs(F.query(F.collection(db, 'consigli'), F.orderBy('creato', 'desc'), F.limit(100))),
         F.getDocs(F.query(F.collection(db, 'annunci'), F.orderBy('creato', 'desc'), F.limit(5))),
         F.getDoc(F.doc(db, 'meta', 'stato')),
         F.getDoc(F.doc(db, 'meta', 'budget')).catch(() => null),
+        meta('graduatorie'),
+        meta('budget-grad'),
+        meta('testi'),
+        F.getDocs(F.query(F.collection(db, 'lavori'), F.orderBy('creato', 'desc'), F.limit(15))).catch(() => null),
+        conta(F.collection(db, 'squadre')),
       ]);
       const s = statoSnap.exists() ? statoSnap.data() : {};
       return {
         utenti,
         atleti,
+        squadre,
+        graduatorie: grad.fatte ?? {},
+        budgetGrad,
+        testi: Object.keys(testi.fatti ?? {}).length,
+        lavori: lavori?.docs.map((d) => ({ id: d.id, ...d.data(), creato: comeData(d.data().creato) })) ?? [],
         consigli: consigli.docs.map((d) => ({ id: d.id, ...d.data(), creato: comeData(d.data().creato) })),
         annunci: annunci.docs.map((d) => ({ id: d.id, ...d.data(), inviato: comeData(d.data().inviato) })),
         stato: { ...s, ultimoControllo: comeData(s.ultimoControllo)?.toISOString() },
@@ -283,9 +294,68 @@ export async function creaBackendFirebase(config) {
 
     aggiornaConsiglio: (id, dati) => avvolgi(() => F.updateDoc(F.doc(db, 'consigli', id), dati)),
 
-    creaAnnuncio: ({ titolo, corpo }) => avvolgi(() => F.addDoc(F.collection(db, 'annunci'), {
-      titolo, corpo, stato: 'da-inviare', creato: F.serverTimestamp(),
+    creaAnnuncio: ({ titolo, corpo, url }) => avvolgi(() => F.addDoc(F.collection(db, 'annunci'), {
+      titolo, corpo, stato: 'da-inviare', creato: F.serverTimestamp(), ...(url ? { url } : {}),
     })),
+
+    leggiUtenti: () => avvolgi(async () => {
+      const snap = await F.getDocs(F.collection(db, 'users'));
+      return snap.docs.map((d) => {
+        const u = d.data();
+        return {
+          id: d.id,
+          creato: comeData(u.creato),
+          aggiornato: comeData(u.aggiornato),
+          settori: u.settori ?? [],
+          seguiti: (u.seguiti ?? []).length,
+          pushOn: u.pushOn !== false,
+          dispositivi: (u.tokens ?? []).length,
+        };
+      }).sort((a, b) => (b.creato?.getTime() ?? 0) - (a.creato?.getTime() ?? 0));
+    }),
+
+    creaLavoro: (tipo, dati = {}) => avvolgi(() => F.addDoc(F.collection(db, 'lavori'), {
+      tipo, ...dati, stato: 'da-fare', creato: F.serverTimestamp(),
+    })),
+
+    leggiNascosti: () => avvolgi(async () => {
+      const snap = await F.getDoc(F.doc(db, 'config', 'nascosti'));
+      return snap.exists() ? snap.data() : { k: [] };
+    }),
+
+    salvaNascosti: (dati) => avvolgi(() => F.setDoc(F.doc(db, 'config', 'nascosti'), { ...dati, aggiornato: F.serverTimestamp() })),
+
+    leggiLimiti: () => avvolgi(async () => {
+      const snap = await F.getDocs(F.collection(db, 'limiti'));
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    }),
+
+    salvaLimite: (id, dati) => avvolgi(async () => {
+      if (id) {
+        await F.setDoc(F.doc(db, 'limiti', id), { ...dati, aggiornato: F.serverTimestamp() }, { merge: true });
+        return id;
+      }
+      const rif = await F.addDoc(F.collection(db, 'limiti'), { ...dati, creato: F.serverTimestamp(), aggiornato: F.serverTimestamp() });
+      return rif.id;
+    }),
+
+    eliminaLimite: (id) => avvolgi(() => F.deleteDoc(F.doc(db, 'limiti', id))),
+
+    leggiClassifica: (id, fresco) => avvolgi(() => leggiVeloce(F.doc(db, 'classifiche', id), (s) => s.data(), fresco)),
+
+    salvaObiettivi: (uid, obiettivi) => avvolgi(() => F.updateDoc(F.doc(db, 'users', uid), { obiettivi, aggiornato: F.serverTimestamp() })),
+
+    salvaLimitiSeguiti: (uid, limiti) => avvolgi(() => F.updateDoc(F.doc(db, 'users', uid), { limiti, aggiornato: F.serverTimestamp() })),
+
+    /** Tempi limite pubblicati (per tutti) — l'admin li legge tutti con leggiLimiti. */
+    leggiLimitiPubblicati: () => avvolgi(async () => {
+      const snap = await F.getDocs(F.query(F.collection(db, 'limiti'), F.where('stato', 'in', ['pubblicato', 'da-notificare'])));
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    }),
+
+    leggiCategorie: () => avvolgi(async () => (await leggiVeloce(F.doc(db, 'config', 'categorie'), (s) => s.data().regole ?? null)) ?? null),
+
+    salvaCategorie: (regole) => avvolgi(() => F.setDoc(F.doc(db, 'config', 'categorie'), { regole, aggiornato: F.serverTimestamp() })),
 
     segui: (uid, k) => avvolgi(() => F.updateDoc(F.doc(db, 'users', uid), {
       seguiti: F.arrayUnion(k),

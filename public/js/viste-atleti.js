@@ -4,8 +4,12 @@ import {
   percorso, memoria, avviso, conAttesa,
 } from './nucleo.js';
 import {
-  tempo, nomeGara, ordineGara, giorno, iniziali, differenza,
+  tempo, nomeGara, ordineGara, giorno, iniziali, differenza, categoria, NOMI_CATEGORIE, stagioneCorrente, stagioneDi, nomeStagione,
 } from './formato.js';
+import {
+  leggiLimiti, limitiSeguiti, limitePer, migliore, rispettoAlLimite, leggiTempo,
+} from './viste-classifiche.js';
+import { coriandoli } from './coriandoli.js';
 
 export const MAX_SEGUITI = 10;
 
@@ -101,12 +105,13 @@ async function leggiPezzo(p) {
 }
 
 /** Atleti: si legge un solo pezzo piccolo dell'indice (quello della parola più lunga scritta). */
-async function cerca(testo) {
+export async function cerca(testo) {
   const parole = testoCerca(testo).split(/\s+/).filter((p) => p.length >= 2);
   if (!parole.length) return [];
   const guida = [...parole].sort((x, y) => y.length - x.length)[0];
   const voci = await leggiPezzo(prefisso(guida));
-  const trovati = voci.filter((v) => parole.every((p) => v.cerca.includes(p)));
+  const nascosti = new Set(stato.nascosti ?? []);
+  const trovati = voci.filter((v) => !nascosti.has(v.k) && parole.every((p) => v.cerca.includes(p)));
   const primo = parole[0];
   const iniziaCon = (v) => testoCerca(v.n).split(' ').some((x) => x.startsWith(primo));
   return trovati
@@ -269,6 +274,10 @@ export async function vistaAtleta(k) {
     }
   };
   window.addEventListener('cloro:fresco', fresco);
+  if (a && (stato.nascosti ?? []).includes(k)) {
+    disegna(`${barraTop({ indietro: true })}<main class="pagina"><h1 class="titolo-pagina">Scheda non disponibile</h1><p class="intro">Questa scheda è stata tolta su richiesta.</p></main>${tabBar('atleti')}`);
+    return;
+  }
   if (!a) {
     disegna(`${barraTop({ indietro: true })}<main class="pagina"><h1 class="titolo-pagina">Atleta non trovato</h1><p class="intro">Torna alla <a href="#/atleti">ricerca</a>.</p></main>${tabBar('atleti')}`);
     return;
@@ -278,7 +287,13 @@ export async function vistaAtleta(k) {
   const best = personali(risultati);
   const vasche = [...new Set([...best.values()].map((v) => v.v))].sort();
   let mostraTutte = false;
+  let limiti = null;
+  let ultimaScelta = {};
+  const st = stagioneCorrente();
+  const indice = indiceCloro(risultati.filter((x) => stagioneDi(x.d) === st));
+  const indicePrima = indice ? null : indiceCloro(risultati.filter((x) => stagioneDi(x.d) === String(Number(st) - 1)));
   const disegnaScheda = ({ vasca, gara, aggiornamento = false } = {}) => {
+    ultimaScelta = { vasca, gara };
     const v = vasca ?? (vasche.includes(25) ? 25 : vasche[0]);
     const pb = [...best.values()].filter((x) => x.v === v).sort((x, y) => ordineGara(x.c) - ordineGara(y.c));
     // Gara del grafico: quella scelta, altrimenti la più nuotata.
@@ -299,11 +314,14 @@ export async function vistaAtleta(k) {
           <p class="info">${esc([a.y, a.sx === 'F' ? 'Femmine' : a.sx === 'M' ? 'Maschi' : ''].filter(Boolean).join(' · '))}${a.s ? ` · <a href="#/squadre?q=${encodeURIComponent(a.s)}">${esc(a.s)}</a>` : ''}</p>
           <button class="bottone ${seguito ? 'bottone-secondario' : ''}" data-segui aria-pressed="${seguito}">${seguito ? 'Seguito ✓' : 'Segui'}</button>
           <div class="cifre">
-            <div class="cifra"><b>${gare}</b><small>Gare</small></div>
-            <div class="cifra"><b>${risultati.filter((x) => x.t).length}</b><small>Tempi</small></div>
+            <div class="cifra"><b>${risultati.filter((x) => x.t).length}</b><small>Tempi in ${gare} ${gare === 1 ? 'gara' : 'gare'}</small></div>
             <div class="cifra"><b>${maxPunti || '–'}</b><small>Punti max</small></div>
+            <a class="cifra cifra-indice" href="#/classifiche"><b>${indice?.valore ?? indicePrima?.valore ?? '–'}</b><small>Indice Cloro${!indice && indicePrima ? ` ${esc(nomeStagione(String(Number(st) - 1)))}` : ''}</small></a>
           </div>
         </section>
+
+        ${sezioneLimiti()}
+        ${seguito ? sezioneObiettivi() : ''}
 
         ${pb.length ? `
           <section class="sezione">
@@ -356,11 +374,160 @@ export async function vistaAtleta(k) {
       el.querySelector('[data-segui]').addEventListener('click', (e) => seguiAtleta(k, a.n, e.currentTarget));
       el.querySelectorAll('[data-vasca]').forEach((b) => b.addEventListener('click', () => disegnaScheda({ vasca: Number(b.dataset.vasca), aggiornamento: true })));
       el.querySelectorAll('[data-gara]').forEach((b) => b.addEventListener('click', () => disegnaScheda({ vasca: v, gara: b.dataset.gara, aggiornamento: true })));
+      collegaObiettivi(el);
       el.querySelector('[data-tutte]')?.addEventListener('click', () => {
         mostraTutte = true;
         disegnaScheda({ vasca: v, gara: g, aggiornamento: true });
       });
     }, { aggiornamento });
   };
+  /* Tempi limite seguiti: per ogni gara nuotata quest'anno, preso / quasi / quanto manca. */
+  function esitiLimiti() {
+    if (!limiti) return [];
+    const cat = categoria(a.y, a.sx, st);
+    return limitiSeguiti(limiti).filter((l) => String(l.st) === st).map((l) => {
+      const gareL = [...new Set(Object.keys(l.t ?? {}).map((x) => x.split('|')[0]))];
+      const voci = gareL.map((c) => {
+        const lim = limitePer(l, c, a.sx, cat);
+        const sb = lim ? migliore(risultati, c, l.vasca, st) : null;
+        return lim && sb ? { c, lim, sb, esito: rispettoAlLimite(sb.t, lim) } : null;
+      }).filter(Boolean).sort((x, y) => ordineGara(x.c) - ordineGara(y.c));
+      return { l, voci };
+    }).filter((x) => x.voci.length);
+  }
+  function sezioneLimiti() {
+    const esiti = esitiLimiti();
+    if (!esiti.length) return '';
+    return `
+      <section class="sezione">
+        <div class="sezione-testa"><h2 class="sezione-titolo">Tempi limite</h2><a href="#/limiti">Scegli</a></div>
+        ${esiti.map(({ l, voci }) => `
+          <div class="scheda limite-atleta">
+            <a href="#/limiti/${encodeURIComponent(l.id)}"><b>${esc(l.nome)}</b><small>Vasca ${l.vasca} m${categoria(a.y, a.sx, st) ? ` · ${esc(NOMI_CATEGORIE[categoria(a.y, a.sx, st)])}` : ''}</small></a>
+            <ul class="limiti-atleta">${voci.map((v) => `
+              <li class="esito-${v.esito.tipo}"><span>${esc(nomeGara(v.c, { breve: true }))}</span><b>${esc(tempo(v.sb.t))}</b><small>${v.esito.tipo === 'preso' ? 'preso ✓' : `${v.esito.tipo === 'quasi' ? 'quasi! ' : ''}manca ${esc(tempo(v.esito.diff))}`} · limite ${esc(tempo(v.lim))}</small></li>`).join('')}
+            </ul>
+          </div>`).join('')}
+      </section>`;
+  }
+  /* Coriandoli la prima volta che si vede un limite preso da un atleta seguito. */
+  function forseFesta() {
+    if (!eSeguito(k)) return;
+    const visti = new Set(memoria(`festa-${k}`) ?? []);
+    const nuovi = esitiLimiti().flatMap(({ l, voci }) => voci.filter((v) => v.esito.tipo === 'preso').map((v) => ({ id: `${l.id}|${v.c}`, nome: l.nome, c: v.c })))
+      .filter((x) => !visti.has(x.id));
+    if (!nuovi.length) return;
+    nuovi.forEach((x) => visti.add(x.id));
+    memoria(`festa-${k}`, [...visti]);
+    coriandoli();
+    avviso(`${a.n.split(' ')[0]} ha preso il limite: ${nuovi[0].nome} (${nomeGara(nuovi[0].c, { breve: true })})${nuovi.length > 1 ? ` e altri ${nuovi.length - 1}` : ''}!`);
+  }
+
+  /* Obiettivi: tempo da raggiungere per gara e vasca, con la proiezione a fine stagione. */
+  const chiaveObiettivo = (c, v) => `${k}|${c}|${v}`;
+  function obiettiviAtleta() {
+    return Object.entries(stato.profilo?.obiettivi ?? {}).filter(([x]) => x.startsWith(`${k}|`)).map(([x, t]) => {
+      const [, c, v] = x.split('|');
+      return { c, v: Number(v), t: Number(t) };
+    }).sort((x, y) => ordineGara(x.c) - ordineGara(y.c) || x.v - y.v);
+  }
+  function proiezione(c, v) {
+    const punti = risultati.filter((x) => x.t && x.c === c && Number(x.v) === v && stagioneDi(x.d) === st).sort((x, y) => x.d.localeCompare(y.d));
+    if (punti.length < 2) return null;
+    const giorniDa = (d) => (Date.parse(d) - Date.parse(punti[0].d)) / 86_400_000;
+    const xs = punti.map((p) => giorniDa(p.d));
+    const ys = punti.map((p) => p.t);
+    const mx = xs.reduce((p, q) => p + q, 0) / xs.length;
+    const my = ys.reduce((p, q) => p + q, 0) / ys.length;
+    const den = xs.reduce((p, x) => p + (x - mx) ** 2, 0);
+    if (!den) return null;
+    const pend = xs.reduce((p, x, i) => p + (x - mx) * (ys[i] - my), 0) / den;
+    const fine = `${Number(st) + 1}-${v === 25 ? '04-30' : '08-10'}`;
+    // Chi migliora rallenta con il tempo: metà della tendenza, al massimo l'1,5% sul migliore.
+    const sb = Math.min(...ys);
+    const stima = sb + pend * 0.5 * Math.max(0, giorniDa(fine) - giorniDa(punti[punti.length - 1].d));
+    return Math.round(Math.max(sb * 0.985, Math.min(sb, stima)));
+  }
+  function sezioneObiettivi() {
+    const elenco = obiettiviAtleta();
+    const gareNuotate = [...new Set(risultati.filter((x) => x.t).map((x) => `${x.c}|${x.v}`))]
+      .map((x) => x.split('|')).sort((x, y) => ordineGara(x[0]) - ordineGara(y[0]) || x[1] - y[1]);
+    return `
+      <section class="sezione">
+        <div class="sezione-testa"><h2 class="sezione-titolo">Obiettivi</h2></div>
+        ${elenco.length ? `<ul class="elenco obiettivi">${elenco.map((o) => {
+    const sb = migliore(risultati, o.c, o.v, st) ?? migliore(risultati, o.c, o.v, String(Number(st) - 1));
+    const pr = proiezione(o.c, o.v);
+    const preso = sb && sb.t <= o.t;
+    const primo = risultati.filter((x) => x.t && x.c === o.c && Number(x.v) === o.v).sort((x, y) => x.d.localeCompare(y.d))[0];
+    const partenza = Math.max(primo?.t ?? 0, sb?.t ?? 0);
+    const quota = preso ? 100 : sb && partenza > o.t ? Math.max(4, Math.min(96, Math.round(((partenza - sb.t) / (partenza - o.t)) * 100))) : 4;
+    return `
+            <li class="scheda obiettivo ${preso ? 'raggiunto' : ''}">
+              <div class="obiettivo-testa"><b>${esc(nomeGara(o.c, { breve: true }))} · ${o.v} m</b><span>obiettivo <b>${esc(tempo(o.t))}</b></span>
+                <button class="tasto-icona piccolo" data-togli-obiettivo="${esc(chiaveObiettivo(o.c, o.v))}" aria-label="Togli obiettivo">×</button></div>
+              <div class="barra-progresso" aria-hidden="true"><i style="width:${quota}%"></i></div>
+              <p class="nota">${preso ? `Raggiunto con ${esc(tempo(sb.t))}! 🎉` : sb ? `Migliore stagionale ${esc(tempo(sb.t))}: mancano ${esc(tempo(sb.t - o.t))}.` : 'Ancora nessun tempo quest\'anno.'}
+              ${!preso && pr ? ` Al ritmo di quest'anno a fine stagione: <b>${esc(tempo(pr))}</b>${pr <= o.t ? ' — ce la può fare.' : '.'}` : ''}</p>
+            </li>`;
+  }).join('')}</ul>` : '<p class="nota">Fissa un tempo da raggiungere: ti mostriamo quanto manca e dove arriva a fine stagione se continua così.</p>'}
+        ${gareNuotate.length ? `
+          <form class="modulo modulo-obiettivo" data-obiettivo novalidate>
+            <select name="gara" aria-label="Gara">${gareNuotate.map(([c, v]) => `<option value="${c}|${v}">${esc(nomeGara(c, { breve: true }))} · ${v} m</option>`).join('')}</select>
+            <input name="tempo" inputmode="decimal" placeholder="es. 1'02&quot;45" aria-label="Tempo obiettivo">
+            <button class="bottone bottone-piccolo" type="submit">Aggiungi</button>
+          </form>` : ''}
+      </section>`;
+  }
+  function collegaObiettivi(el) {
+    const salva = async (obiettivi, bottone) => {
+      try {
+        await conAttesa(bottone, () => api.salvaObiettivi(stato.utente.uid, obiettivi));
+        stato.profilo = { ...stato.profilo, obiettivi };
+        disegnaScheda({ ...ultimaScelta, aggiornamento: true });
+      } catch (err) {
+        avviso(err.message, 'errore');
+      }
+    };
+    el.querySelector('[data-obiettivo]')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const f = e.currentTarget;
+      const ms = leggiTempo(f.tempo.value);
+      if (!ms) {
+        avviso('Scrivi il tempo come 58"45 o 1\'02"45.', 'errore');
+        return;
+      }
+      const [c, v] = f.gara.value.split('|');
+      const obiettivi = { ...(stato.profilo?.obiettivi ?? {}), [chiaveObiettivo(c, v)]: ms };
+      if (Object.keys(obiettivi).length > 60) {
+        avviso('Hai già 60 obiettivi: togline qualcuno.', 'errore');
+        return;
+      }
+      salva(obiettivi, f.querySelector('button'));
+    });
+    el.querySelectorAll('[data-togli-obiettivo]').forEach((b) => b.addEventListener('click', () => {
+      const obiettivi = { ...(stato.profilo?.obiettivi ?? {}) };
+      delete obiettivi[b.dataset.togliObiettivo];
+      salva(obiettivi, b);
+    }));
+  }
+
   disegnaScheda();
+  leggiLimiti().then((x) => {
+    limiti = x;
+    if (!qui() || !x.length) return;
+    disegnaScheda({ ...ultimaScelta, aggiornamento: true });
+    forseFesta();
+  }).catch(() => {});
+}
+
+/** Indice Cloro: media pesata dei punti delle 3 gare migliori (stessa formula del controllore). */
+export function indiceCloro(risultati = []) {
+  const perGara = new Map();
+  for (const v of risultati) if (v.pt && (!perGara.has(v.c) || v.pt > perGara.get(v.c).pt)) perGara.set(v.c, v);
+  const migliori = [...perGara.values()].sort((x, y) => y.pt - x.pt).slice(0, 3);
+  if (!migliori.length) return null;
+  const pesi = [0.5, 0.3, 0.2].slice(0, migliori.length);
+  const totale = pesi.reduce((x, y) => x + y, 0);
+  return { valore: Math.round(migliori.reduce((x, v, i) => x + v.pt * pesi[i], 0) / totale), gare: migliori.map((v) => v.c) };
 }

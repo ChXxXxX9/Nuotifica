@@ -1,9 +1,8 @@
-// Cloro si usa solo come app sulla schermata Home: istruzioni per installarla
-// (dal browser) e per reinstallarla (chi aveva ancora l'app di Nuotifica).
+// Cloro si usa solo come app sulla schermata Home: istruzioni per installarla dal browser,
+// trasloco dal vecchio indirizzo e accesso dal computer riservato all'admin.
 import {
-  stato, esc, ICONE, tessera, barraTop, disegna, piede, dispositivo, memoria, avviso, installata,
+  stato, api, esc, ICONE, tessera, disegna, piede, dispositivo, memoria, avviso, installata, inModoPc,
 } from './nucleo.js';
-import { eraNuotifica } from './benvenuto.js';
 import { CONFIG } from './config.js';
 
 const indirizzo = () => (vecchioIndirizzo() ? CONFIG.indirizzo : location.host);
@@ -83,10 +82,15 @@ export function vistaSoloApp() {
         <h2 class="sezione-titolo" style="margin-bottom:6px">${d.ios ? 'Su iPhone' : d.android ? 'Su Android' : 'Dal computer'}</h2>
         ${passiAggiunta(d)}
       </section>
-      ${d.telefono ? '<p class="nota">Hai già aggiunto Cloro? Chiudi il browser e aprila dall\'icona <strong>Cl</strong> sulla schermata Home.</p>' : ''}
+      ${d.telefono ? '<p class="nota">Hai già aggiunto Cloro? Chiudi il browser e aprila dall\'icona <strong>Cl</strong> sulla schermata Home.</p>' : `
+        <button class="link" data-admin-pc style="margin-top:6px">Gestisci Cloro dal computer (solo admin)</button>`}
       ${piede()}
     </main>`, (el) => {
     collegaCopia(el);
+    el.querySelector('[data-admin-pc]')?.addEventListener('click', () => {
+      memoria('admin-pc', true);
+      location.reload();
+    });
     el.querySelector('[data-azione="installa"]')?.addEventListener('click', async () => {
       const evento = stato.eventoInstalla;
       if (!evento) return;
@@ -98,60 +102,26 @@ export function vistaSoloApp() {
   }, { classeBody: 'senza-tab' });
 }
 
-/* ---------- reinstallare (chi ha ancora l'app di Nuotifica sulla Home) ---------- */
+/* ---------- dal computer: solo per l'admin ---------- */
 
-const GIORNI_RIMANDO = 3;
+export const modoPc = inModoPc;
 
-/** Va consigliato di reinstallare? Solo nell'app installata quando era ancora Nuotifica. */
-export function serveReinstallare() {
-  if (!installata() || !eraNuotifica || memoria('reinstallata')) return false;
-  const rimandato = memoria('reinstalla-rimanda');
-  return !rimandato || Date.now() - rimandato > GIORNI_RIMANDO * 86_400_000;
-}
-
-export function richiamoReinstalla() {
-  if (!serveReinstallare()) return '';
-  return `
-    <a class="richiamo richiamo-secondario" href="#/reinstalla">
-      ${ICONE.aggiorna}
-      <span><strong>Reinstalla Cloro sulla Home</strong><small>Per l'icona nuova e l'app aggiornata. Ci vuole un minuto.</small></span>
-    </a>`;
-}
-
-export function vistaReinstalla() {
-  const d = dispositivo();
-  const passi = d.ios ? `
-      <li><span>Esci da qui. Sulla schermata Home <strong>tieni premuta l'icona di Nuotifica</strong>, tocca <strong>Rimuovi app</strong> e poi <strong>Elimina</strong>.</span></li>
-      <li><span>Apri <strong>Safari</strong> e vai su <strong>${esc(indirizzo())}</strong> (puoi copiarlo qui sotto).</span></li>
-      <li><span>Tocca Condividi ${ICONE.condividi} → <strong>Aggiungi alla schermata Home</strong> ${ICONE.piu} → <strong>Aggiungi</strong>.</span></li>
-      <li><span>Apri <strong>Cloro</strong> dalla nuova icona <strong>Cl</strong> ed entra con lo stesso account (Google o email).</span></li>
-      <li><span>Tocca <strong>Attiva le notifiche</strong> e poi <strong>Consenti</strong>: con l'app nuova vanno riattivate una volta.</span></li>`
-    : `
-      <li><span>Esci da qui. Sulla schermata Home <strong>tieni premuta l'icona di Nuotifica</strong> e scegli <strong>Disinstalla</strong> (o trascinala su <strong>Rimuovi</strong>).</span></li>
-      <li><span>Apri <strong>Chrome</strong> e vai su <strong>${esc(indirizzo())}</strong> (puoi copiarlo qui sotto).</span></li>
-      <li><span>Tocca ${ICONE.menu} in alto a destra → <strong>Installa app</strong> → <strong>Installa</strong>.</span></li>
-      <li><span>Apri <strong>Cloro</strong> dalla nuova icona <strong>Cl</strong>. Se te lo chiede, entra con lo stesso account e riattiva le notifiche.</span></li>`;
+/** Pagina per chi entra dal computer senza essere admin. */
+export function vistaPcSoloAdmin() {
   disegna(`
-    ${barraTop({ indietro: true })}
-    <main class="pagina">
-      <h1 class="titolo-pagina">Reinstalla Cloro</h1>
-      <p class="intro">L'app sulla tua schermata Home è ancora quella di Nuotifica. Togliendola e rimettendola hai l'icona nuova e l'app sempre aggiornata.</p>
-      <ol class="passi">${passi}</ol>
-      ${bottoneCopia()}
-      <p class="nota" style="margin-top:14px">Atleti seguiti, avvisi scelti e preferenze restano: sono salvati nel tuo account, non sul telefono.</p>
+    <main class="ospite">
+      <div class="ospite-marchio">${tessera()}<span class="logo-parola">cloro</span></div>
+      <h1>Dal computer Cloro è <em>solo per chi la gestisce</em>.</h1>
+      <p class="intro">Il tuo account non è admin. Cloro si usa come app sul telefono: apri ${esc(location.host)} da lì.</p>
       <div class="pila">
-        <button class="bottone" data-azione="fatto">L'ho già fatto</button>
-        <button class="link" data-azione="dopo">Più tardi</button>
+        <button class="bottone" data-esci>Esci e torna indietro</button>
       </div>
+      ${piede()}
     </main>`, (el) => {
-    collegaCopia(el);
-    el.querySelector('[data-azione="fatto"]').addEventListener('click', () => {
-      memoria('reinstallata', true);
-      location.hash = '#/';
-    });
-    el.querySelector('[data-azione="dopo"]').addEventListener('click', () => {
-      memoria('reinstalla-rimanda', Date.now());
-      location.hash = '#/';
+    el.querySelector('[data-esci]').addEventListener('click', async () => {
+      memoria('admin-pc', null);
+      await api.esci().catch(() => {});
+      location.replace('/');
     });
   }, { classeBody: 'senza-tab' });
 }

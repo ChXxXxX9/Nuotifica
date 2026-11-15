@@ -79,7 +79,17 @@ export function installata() {
 
 /** Cloro si usa solo come app installata. Con ?demo si può provare nel browser (?soloapp per vedere il blocco). */
 export function deveInstallare() {
+  if (inModoPc()) return false;
   return (!modoDemo || parametri.has('soloapp')) && !installata();
+}
+
+/** Dal computer, chi gestisce Cloro può entrare dal browser (lo sceglie dalla pagina "si usa come app"). */
+export function inModoPc() {
+  try {
+    return !installata() && !dispositivo().telefono && localStorage.getItem('nuotifica.admin-pc') === 'true';
+  } catch {
+    return false;
+  }
 }
 
 export function dispositivo() {
@@ -193,7 +203,7 @@ export function barraTop({ indietro = false, titolo = '', azioni = '' } = {}) {
 const SCHEDE = [
   { id: '', nome: 'Per te', icona: 'cuore' },
   { id: 'gare', nome: 'Gare', icona: 'cronometro' },
-  { id: 'classifiche', nome: 'Squadre', icona: 'barre' },
+  { id: 'classifiche', nome: 'Classifiche', icona: 'barre' },
   { id: 'atleti', nome: 'Atleti', icona: 'persone' },
 ];
 

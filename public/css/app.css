@@ -1354,3 +1354,187 @@ legend { font-size: 12px; font-weight: 800; letter-spacing: 2px; text-transform:
 .pagina-doc mark.attuale { background: var(--cloro); color: var(--su-cloro); }
 
 .trasloco h1 em { color: var(--cloro-testo); font-style: normal; }
+
+/* ---------- classifiche ---------- */
+
+.menu-sezione { margin-top: 2px; }
+a.chip { text-decoration: none; display: inline-flex; align-items: center; white-space: nowrap; }
+.chip-indice[aria-pressed='false'] { color: var(--cloro-testo); }
+.scelte-classifica { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin: 4px 0 10px; }
+.scelte-classifica .segmenti { flex: 1 1 150px; }
+.campo-mini { display: flex; flex-direction: column; gap: 4px; font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--tenue); }
+.campo-mini select, .modulo select {
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--testo);
+  background: var(--piastrella);
+  border: 1px solid var(--linea);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.classifica { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.classifica a {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--piastrella);
+  border: 1px solid var(--linea);
+  color: var(--testo);
+  text-decoration: none;
+}
+.classifica li.seguito a { border-color: var(--cloro-testo); }
+.classifica .pos { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.classifica .pos b { font-family: var(--titoli); font-weight: 800; font-size: 16px; }
+.classifica .chi { display: flex; flex-direction: column; min-width: 0; }
+.classifica .chi b { font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.classifica .chi small { color: var(--tenue); font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.classifica .quanto { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.classifica .quanto b { font-family: var(--titoli); font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; }
+.classifica .quanto small { color: var(--tenue); font-size: 11px; font-weight: 600; white-space: nowrap; }
+.mov { font-size: 10px; font-weight: 800; line-height: 1; min-height: 10px; }
+.mov-su { color: var(--cloro-testo); }
+.mov-giu { color: var(--pericolo); }
+.mov-fermo { color: var(--tenue); }
+.mov-nuovo { color: var(--acqua); letter-spacing: 0.5px; font-size: 8px; }
+.risalita { margin: 4px 0 14px; }
+.risalita .sezione-titolo { margin-bottom: 8px; }
+.risalita-elenco { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px 4px; }
+.risalita-voce {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--piastrella);
+  border: 1px solid var(--linea);
+  color: var(--testo);
+  text-decoration: none;
+  min-width: 92px;
+}
+.risalita-voce b { color: var(--cloro-testo); font-family: var(--titoli); font-size: 15px; }
+.risalita-voce span { font-weight: 800; font-size: 13px; }
+.risalita-voce small { color: var(--tenue); font-size: 11px; font-weight: 700; }
+
+/* tempi limite */
+.elenco-limiti .limite-voce { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; }
+.limite-voce a { display: flex; flex-direction: column; gap: 2px; color: var(--testo); text-decoration: none; min-width: 0; }
+.limite-voce small, .limite-atleta a small { color: var(--tenue); font-size: 12px; font-weight: 600; }
+.interruttore { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: 13px; color: var(--tenue); white-space: nowrap; }
+.interruttore input { width: 20px; height: 20px; accent-color: var(--cloro); }
+.limite-atleta { padding: 12px 14px; margin-bottom: 8px; }
+.limite-atleta > a { display: flex; flex-direction: column; color: var(--testo); text-decoration: none; margin-bottom: 8px; }
+.limiti-atleta { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.limiti-atleta li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'gara tempo' 'nota nota';
+  gap: 0 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--fondo-2);
+  border-left: 3px solid var(--linea-forte);
+}
+.limiti-atleta li span { grid-area: gara; font-weight: 800; }
+.limiti-atleta li b { grid-area: tempo; font-family: var(--titoli); font-variant-numeric: tabular-nums; }
+.limiti-atleta li small { grid-area: nota; color: var(--tenue); font-size: 12px; font-weight: 600; }
+.limiti-atleta li.esito-preso { border-left-color: var(--cloro); }
+.limiti-atleta li.esito-preso small { color: var(--cloro-testo); font-weight: 800; }
+.limiti-atleta li.esito-quasi { border-left-color: var(--arancio); }
+.limiti-atleta li.esito-quasi small { color: var(--arancio); font-weight: 800; }
+.tabella-scorre { overflow-x: auto; margin: 0 -16px; padding: 0 16px; }
+.tabella-limiti { border-collapse: collapse; font-size: 13px; min-width: 100%; }
+.tabella-limiti th, .tabella-limiti td { padding: 8px 10px; border-bottom: 1px solid var(--linea); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tabella-limiti th:first-child, .tabella-limiti td:first-child { text-align: left; }
+.tabella-limiti thead th { color: var(--tenue); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+.tabella-modifica input {
+  width: 84px;
+  font: inherit;
+  text-align: right;
+  color: var(--testo);
+  background: var(--piastrella);
+  border: 1px solid var(--linea);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+.tabella-modifica input:focus { outline: none; border-color: var(--cloro-testo); }
+
+/* quanto vale, obiettivi */
+.riga-campi { display: flex; flex-wrap: wrap; gap: 10px; }
+.riga-campi > * { flex: 1 1 180px; }
+.cifra-indice { color: var(--testo); text-decoration: none; }
+.cifra-indice b { color: var(--cloro-testo); }
+.obiettivo { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.obiettivo-testa { display: flex; align-items: center; gap: 10px; }
+.obiettivo-testa > b { flex: 1; }
+.obiettivo-testa span { color: var(--tenue); font-size: 13px; font-weight: 600; }
+.obiettivo-testa span b { color: var(--testo); font-family: var(--titoli); }
+.tasto-icona.piccolo { width: 30px; height: 30px; font-size: 18px; }
+.barra-progresso { height: 8px; border-radius: 99px; background: var(--fondo-2); overflow: hidden; }
+.barra-progresso i { display: block; height: 100%; border-radius: 99px; background: var(--cloro); }
+.obiettivo.raggiunto { border-color: var(--cloro-testo); }
+.modulo-obiettivo { display: flex; flex-direction: row; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+.modulo-obiettivo select { flex: 1 1 140px; }
+.modulo-obiettivo input {
+  flex: 1 1 110px;
+  font: inherit;
+  color: var(--testo);
+  background: var(--piastrella);
+  border: 1px solid var(--linea);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+/* coriandoli */
+.coriandoli { position: fixed; inset: 0; pointer-events: none; z-index: 100; overflow: hidden; }
+.coriandoli i {
+  position: absolute;
+  top: -20px;
+  border-radius: 2px;
+  animation: cade var(--d) cubic-bezier(.25, .6, .5, 1) var(--w) forwards;
+}
+@keyframes cade {
+  to { transform: translate(var(--x), 105vh) rotate(var(--r)); opacity: 0.9; }
+}
+
+/* ---------- admin (anche dal computer) ---------- */
+
+.bottone-pericolo { background: transparent; color: var(--pericolo); border: 1px solid var(--pericolo); }
+.riga-lavoro { display: flex; flex-direction: row; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.riga-lavoro input, .riga-lavoro select { flex: 1 1 200px; }
+.riga-lavoro input {
+  font: inherit;
+  color: var(--testo);
+  background: var(--piastrella);
+  border: 1px solid var(--linea);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.stagioni-lette { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; }
+.stagioni-lette li { padding: 8px 10px; border-radius: 10px; background: var(--piastrella); border: 1px solid var(--linea); display: flex; flex-direction: column; }
+.stagioni-lette li.fatta { border-color: var(--cloro-testo); }
+.stagioni-lette small { color: var(--tenue); font-size: 11px; font-weight: 600; }
+.riga-limite { flex-direction: row !important; align-items: center; justify-content: space-between; }
+.riga-limite a { display: flex; flex-direction: column; color: var(--testo); text-decoration: none; }
+.colonne-limite { border: 0; padding: 0; margin: 4px 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.colonne-limite legend { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+.incolla summary { cursor: pointer; font-weight: 700; color: var(--cloro-testo); margin: 6px 0; }
+.incolla textarea { width: 100%; font: 13px ui-monospace, Menlo, monospace; color: var(--testo); background: var(--piastrella); border: 1px solid var(--linea); border-radius: 12px; padding: 10px; }
+.editor-limite { margin-top: 12px; }
+.cifre:has(> :nth-child(4)) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (min-width: 900px) {
+  .pagina-admin { max-width: 1160px; }
+  .griglia-admin { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
+  .griglia-consigli { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .pagina-admin .tabella-scorre { margin: 0; padding: 0; }
+  .tabella-modifica input { width: 96px; }
+}
+@media (max-width: 420px) {
+  .cifre:has(> :nth-child(4)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

@@ -95,8 +95,64 @@ test('testi dei PDF: solo i nuovi, dai più recenti', async () => {
   const n = await aggiornaTesti({
     db, adesso: '2026-11-15T00:00:00Z', log: () => {}, estrai: async (u) => { letti.push(u); return ['pagina uno ROSSI', 'pagina due']; },
   });
-  assert.equal(n, 2);
+  assert.equal(n.length, 2);
   assert.deepEqual(letti, ['https://esempio.it/c.pdf', 'https://esempio.it/a.pdf']);
   assert.deepEqual(docs.get(`testi/${idTesto('https://esempio.it/a.pdf')}`).p, ['pagina uno ROSSI', 'pagina due']);
-  assert.equal(await aggiornaTesti({ db, adesso: '2026-11-15T00:05:00Z', estrai: async () => [] }), 0);
+  assert.equal((await aggiornaTesti({ db, adesso: '2026-11-15T00:05:00Z', estrai: async () => [] })).length, 0);
+});
+
+test('start list: si trova l\'atleta (anche con il cognome prima) e non l\'omonimo di un altro anno', async () => {
+  const { trovaAtleta, formeNome } = await import('../src/testi.js');
+  assert.ok(formeNome("Maria Chiara D'Angelo").includes('DANGELO MARIA CHIARA'));
+  const pagine = ['100 SL Maschi\n 1  ROSSI MARCO      2008  NUOTO ESEMPIO  52.10\n 2  BIANCHI LUCA  2009'];
+  assert.equal(trovaAtleta(pagine, { n: 'Marco Rossi', y: 2008 }), 'ROSSI MARCO');
+  assert.equal(trovaAtleta(pagine, { n: 'Marco Rossi', y: 2011 }), null);
+  assert.equal(trovaAtleta(['Batteria 3 corsia 4 BIANCHI LUCA'], { n: 'Luca Bianchi', y: 2009 }), 'BIANCHI LUCA');
+  assert.equal(trovaAtleta(pagine, { n: 'Marco Ross', y: 2008 }), null);
+});
+
+test('classifiche: posizioni, movimenti della settimana e Indice Cloro', async () => {
+  const { scriviClassifiche, indiceCloro } = await import('../src/graduatorie.js');
+  assert.deepEqual(indiceCloro([{ c: '100SL', pt: 600 }, { c: '100SL', pt: 640 }, { c: '200SL', pt: 500 }]), { valore: 588, gare: ['100SL', '200SL'] });
+  const docs = new Map();
+  const db = {
+    async leggiTanti(ps) { return new Map(ps.map((p) => [p, docs.get(p) ?? null])); },
+    async scriviTanti(e) { for (const { percorso, dati } of e) docs.set(percorso, structuredClone(dati)); },
+  };
+  const atleta = (n, t) => ({ n, y: 2010, sx: 'M', societa: new Set(['S']), risultati: [{ c: '100SL', v: 25, t, d: '2026-11-01', pt: Math.round(1e8 / t) }] });
+  let atleti = new Map([['a', atleta('A', 60_000)], ['b', atleta('B', 61_000)]]);
+  await scriviClassifiche({ db, atleti, st: 2026, adesso: '2026-11-15T01:00:00Z' });
+  let doc = docs.get('classifiche/2026-25-100SL-M');
+  assert.deepEqual(doc.righe.map((r) => r.split('|')[0]), ['a', 'b']);
+  assert.deepEqual(doc.b, { a: 1, b: 2 });
+  // Una settimana dopo: b supera a, arriva c.
+  atleti = new Map([['a', atleta('A', 60_000)], ['b', atleta('B', 59_000)], ['c', atleta('C', 58_000)]]);
+  await scriviClassifiche({ db, atleti, st: 2026, adesso: '2026-11-23T01:00:00Z' });
+  doc = docs.get('classifiche/2026-25-100SL-M');
+  assert.deepEqual(doc.righe.map((r) => r.split('|')[0]), ['c', 'b', 'a']);
+  assert.deepEqual(doc.b, { a: 1, b: 2 });
+  assert.deepEqual(doc.p, { a: 1, b: 2, c: 1 });
+  assert.ok(docs.get('classifiche/2026-indice-M').righe[0].startsWith('c|'));
+});
+
+test('lavori dell\'admin: rileggere una gara e una stagione', async () => {
+  const { eseguiLavori } = await import('../src/admin.js');
+  const docs = new Map([
+    ['meta/live', { gare: { g1: { sedi: ['s1', 's2'] } }, sedi: { s1: { firma: 'x' }, s2: { firma: 'y' } } }],
+  ]);
+  const lavori = [{ id: 'a', tipo: 'gara', gara: 'g1' }, { id: 'b', tipo: 'stagione', stagione: '2023' }];
+  const db = {
+    async dove() { return lavori; },
+    async leggi(p) { return docs.get(p) ?? null; },
+    async scrivi(p, d) { docs.set(p, d); },
+    async aggiorna(p, d) { docs.set(p, { ...(docs.get(p) ?? {}), ...d }); },
+  };
+  const avviate = [];
+  await eseguiLavori({
+    db, invio: null, sito: 'S', log: () => {}, avviaWorkflow: async (st) => avviate.push(st),
+  });
+  assert.equal(docs.get('meta/live').sedi.s1.firma, null);
+  assert.deepEqual(avviate, ['2023']);
+  assert.equal(docs.get('lavori/a').stato, 'fatto');
+  assert.equal(docs.get('lavori/b').esito, 'graduatorie avviate');
 });

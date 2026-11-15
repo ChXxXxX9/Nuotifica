@@ -120,6 +120,31 @@
       "collectionGroup": "atleti",
       "fieldPath": "f",
       "indexes": []
+    },
+    {
+      "collectionGroup": "classifiche",
+      "fieldPath": "righe",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "classifiche",
+      "fieldPath": "b",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "classifiche",
+      "fieldPath": "p",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "limiti",
+      "fieldPath": "t",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "meta",
+      "fieldPath": "regole",
+      "indexes": []
     }
   ]
 }

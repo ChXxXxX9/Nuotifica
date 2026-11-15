@@ -40,7 +40,9 @@ export async function testoPdf(url) {
 function elencoDaFare(posts, stato) {
   const tempo = (v) => new Date(v ?? 0).getTime();
   return posts
-    .flatMap((p) => (p.file ?? []).map((f) => ({ url: f.url, quando: tempo(f.aggiuntoIl ?? p.ultimoCambio) })))
+    .flatMap((p) => (p.file ?? []).map((f, indice) => ({
+      url: f.url, quando: tempo(f.aggiuntoIl ?? p.ultimoCambio), post: String(p.id), indice, etichetta: f.etichetta ?? '', tipo: f.tipo ?? '',
+    })))
     .filter((f) => ePdf(f.url) && !stato.fatti?.[idTesto(f.url)])
     .sort((a, b) => b.quando - a.quando);
 }
@@ -58,8 +60,8 @@ export async function aggiornaTesti({ db, adesso, log = console.log, estrai = te
   const stato = (await db.leggi('meta/testi')) ?? {};
   stato.fatti ??= {};
   const daFare = elencoDaFare(posts, stato).slice(0, MAX_PER_GIRO);
-  if (!daFare.length) return 0;
-  let fatti = 0;
+  if (!daFare.length) return [];
+  const letti = [];
   for (const f of daFare) {
     const id = idTesto(f.url);
     try {
@@ -72,7 +74,7 @@ export async function aggiornaTesti({ db, adesso, log = console.log, estrai = te
       });
       await db.scrivi(`testi/${id}`, { p: pagine, n: pagine.length, agg: comeData(adesso) });
       stato.fatti[id] = adesso;
-      fatti++;
+      letti.push({ ...f, pagine });
     } catch (e) {
       log(`Testo di un documento non estratto: ${e.message}`);
       stato.fatti[id] = `errore ${adesso}`;
@@ -82,5 +84,84 @@ export async function aggiornaTesti({ db, adesso, log = console.log, estrai = te
   const attuali = new Set(posts.flatMap((p) => (p.file ?? []).map((f) => idTesto(f.url))));
   for (const id of Object.keys(stato.fatti)) if (!attuali.has(id)) delete stato.fatti[id];
   await db.scrivi('meta/testi', stato);
-  return fatti;
+  return letti;
+}
+
+/* ---------- "Sei in start list" ---------- */
+
+const pulito = (t = '') => String(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()
+  .replace(/['’`]/g, '').replace(/[^A-Z0-9]+/g, ' ').trim();
+
+/** I modi in cui un nome può comparire in un elenco: "MARCO ROSSI", "ROSSI MARCO", "DE ROSSI MARIA CHIARA"… */
+export function formeNome(nome = '') {
+  const parole = pulito(nome).split(' ').filter(Boolean);
+  const forme = new Set();
+  for (let i = 0; i < parole.length; i++) forme.add([...parole.slice(i), ...parole.slice(0, i)].join(' '));
+  return [...forme].filter((f) => f.length >= 5);
+}
+
+/**
+ * Cerca un atleta nel testo di un documento. Se le righe con il nome hanno anche un anno di nascita,
+ * deve essere il suo (così due omonimi non si confondono). Restituisce la forma trovata o null.
+ */
+export function trovaAtleta(pagine, { n, y }) {
+  const forme = formeNome(n);
+  for (const pagina of pagine) {
+    for (const riga of pagina.split('\n')) {
+      const r = ` ${pulito(riga)} `;
+      const forma = forme.find((f) => r.includes(` ${f} `));
+      if (!forma) continue;
+      const anni = r.match(/\b(19|20)\d{2}\b/g);
+      if (!anni || !y || anni.includes(String(y))) return forma;
+    }
+  }
+  return null;
+}
+
+const TIPI_ELENCO = { ammessi: 'è tra gli ammessi', startlist: 'è in start list', iscritti: 'è tra gli iscritti' };
+
+/** Avvisa chi segue un atleta che compare in un elenco appena uscito (ammessi, start list, iscritti). */
+export async function avvisaElenchi({
+  db, invio, sito, letti, log = console.log,
+}) {
+  const elenchi = letti.filter((d) => TIPI_ELENCO[d.tipo] || /ammess|start|iscritt|batteri/i.test(d.etichetta));
+  if (!elenchi.length) return 0;
+  const utenti = (await db.elenca('users')).filter((u) => u.seguiti?.length && u.pushOn !== false && u.tokens?.length);
+  const chiavi = [...new Set(utenti.flatMap((u) => u.seguiti))];
+  if (!chiavi.length) return 0;
+  const schede = await db.leggiTanti(chiavi.map((k) => `atleti/${k}`));
+  const trovati = new Map(); // chiave -> [{ doc, forma }]
+  for (const k of chiavi) {
+    const a = schede.get(`atleti/${k}`);
+    if (!a?.n) continue;
+    for (const d of elenchi) {
+      const forma = trovaAtleta(d.pagine, a);
+      if (forma) {
+        if (!trovati.has(k)) trovati.set(k, []);
+        trovati.get(k).push({ d, forma, nome: a.n });
+      }
+    }
+  }
+  let inviate = 0;
+  for (const u of utenti) {
+    const loro = u.seguiti.flatMap((k) => trovati.get(k) ?? []);
+    if (!loro.length) continue;
+    let messaggi = loro.map(({ d, forma, nome }) => ({
+      titolo: `${nome} ${TIPI_ELENCO[d.tipo] ?? 'è in un elenco nuovo'}`.slice(0, 60),
+      corpo: `${d.etichetta || 'Documento del Comitato'}: tocca per vederlo.`.slice(0, 180),
+      url: `${sito}/#/documento/${encodeURIComponent(d.post)}/${d.indice}?q=${encodeURIComponent(forma)}`,
+      tag: `elenco-${idTesto(d.url)}-${nome}`.slice(0, 60),
+    }));
+    if (messaggi.length > 3) {
+      messaggi = [{
+        titolo: `I tuoi atleti sono in ${new Set(loro.map((x) => x.d.url)).size} elenchi nuovi`,
+        corpo: `${[...new Set(loro.map((x) => x.nome.split(' ')[0]))].slice(0, 4).join(', ')}: apri Cloro per vederli.`,
+        url: `${sito}/#/`,
+        tag: 'elenchi-nuovi',
+      }];
+    }
+    for (const token of u.tokens) for (const m of messaggi) if (await invio.push(token, m) === 'ok') inviate++;
+  }
+  log(`Elenchi: ${elenchi.length} documenti, ${trovati.size} atleti seguiti trovati, ${inviate} notifiche.`);
+  return inviate;
 }

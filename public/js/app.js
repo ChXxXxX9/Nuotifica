@@ -16,8 +16,12 @@ import { applicaTema, temaScelto } from './tema.js';
 import { vistaAtleti, vistaAtleta, leggiSeguiti } from './viste-atleti.js';
 import { forseBenvenuto } from './benvenuto.js';
 import {
-  vistaSoloApp, vistaReinstalla, richiamoReinstalla, gestisciTrasloco,
+  vistaSoloApp, gestisciTrasloco, modoPc, vistaPcSoloAdmin,
 } from './installazione.js';
+import {
+  vistaClassifiche, vistaLimiti, vistaLimite, vistaQuantoVale,
+} from './viste-classifiche.js';
+import { impostaRegoleCategorie } from './formato.js';
 import { vistaDocumento, ePdf } from './viste-documento.js';
 import { vistaSquadre, vistaSquadra } from './viste-squadre.js';
 
@@ -669,7 +673,6 @@ async function vistaPerTe() {
   })}
     <main class="pagina">
       <h1 class="nascosto">Per te</h1>
-      ${richiamoReinstalla()}
       ${mancaPush ? `<a class="richiamo" href="#/installa">${ICONE.campana}<span><strong>Attiva le notifiche</strong><small>Tempi dei tuoi atleti e avvisi appena escono.</small></span></a>` : ''}
       ${sezioneGare()}
       ${sezioneSeguiti()}
@@ -860,6 +863,24 @@ async function mostra() {
     }
   }
   if (!stato.profilo) return vistaImpostazioni({ primaVolta: true });
+  // Dal computer (non installata) Cloro è solo per l'admin.
+  if (modoPc()) {
+    if (stato.admin !== true) {
+      caricamento('Controllo l\'accesso…');
+      stato.admin = await eAdmin();
+      if (!stato.admin) return vistaPcSoloAdmin();
+    }
+    if (p === '') {
+      location.replace('#/admin');
+      return null;
+    }
+  }
+  // Impostazioni dell'admin per tutti: categorie per età e atleti da non mostrare.
+  if (!stato.configCaricata) {
+    stato.configCaricata = true;
+    api.leggiCategorie().then((r) => impostaRegoleCategorie(r)).catch(() => {});
+    api.leggiNascosti().then((d) => { stato.nascosti = d?.k ?? []; }).catch(() => {});
+  }
   if (stato.admin === undefined) {
     stato.admin = false;
     eAdmin().then((si) => {
@@ -873,7 +894,6 @@ async function mostra() {
   forseBenvenuto({ giaUtente: Boolean(creato && creato < DATA_TRASLOCO) });
 
   if (p === 'impostazioni') return vistaImpostazioni();
-  if (p === 'reinstalla') return vistaReinstalla();
   if (p === 'consigli') return vistaConsigli();
   if (p === 'admin') return vistaAdmin();
   if (p === 'installa') return vistaInstalla();
@@ -881,7 +901,11 @@ async function mostra() {
   if ((m = p.match(/^gara\/([\w-]+)$/))) return vistaGara(m[1]);
   if (p === 'atleti') return vistaAtleti();
   if ((m = p.match(/^atleta\/(.+)$/))) return vistaAtleta(decodeURIComponent(m[1]));
-  if (p === 'classifiche' || p === 'squadre') return vistaSquadre(new URLSearchParams(location.hash.split('?')[1] ?? '').get('q') ?? '');
+  if (p === 'classifiche') return vistaClassifiche();
+  if (p === 'squadre') return vistaSquadre(new URLSearchParams(location.hash.split('?')[1] ?? '').get('q') ?? '');
+  if (p === 'limiti') return vistaLimiti();
+  if ((m = p.match(/^limiti\/(.+)$/))) return vistaLimite(decodeURIComponent(m[1]));
+  if (p === 'quanto-vale') return vistaQuantoVale();
   if ((m = p.match(/^squadra\/(.+)$/))) return vistaSquadra(decodeURIComponent(m[1]));
   if ((m = p.match(/^documento\/([^/]+)\/(\d+)$/))) return vistaDocumento(decodeURIComponent(m[1]), m[2]);
   return vistaPerTe();

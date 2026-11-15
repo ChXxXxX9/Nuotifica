@@ -1,3 +1,4 @@
+import { REGOLE_BASE, categoria as categoriaNome, stagioneDi as stagioneNumero } from './categorie.js';
 // Formati: tempi, gare, date. Stesse regole del controllore (controller/src/tempi.js).
 
 /** Millisecondi -> 2'05"40 (o 58"88). */
@@ -109,3 +110,33 @@ export function metri(codice = '') {
   const m = codice.match(/^(?:(\d)x)?(\d+)/);
   return m ? Number(m[2]) * Number(m[1] ?? 1) : 0;
 }
+
+/* ---------- categorie FIN (età = anno di fine stagione − anno di nascita) ---------- */
+// Le regole stanno in categorie.js (le stesse del controllore); l'admin le può correggere
+// (config/categorie): l'app le carica all'avvio in stato.regoleCategorie.
+
+const CODICI = {
+  'Esordienti B': 'EB', 'Esordienti A': 'EA', Ragazzi: 'R', Juniores: 'J', Cadetti: 'C', Seniores: 'S',
+};
+export const NOMI_CATEGORIE = Object.fromEntries(Object.entries(CODICI).map(([n, c]) => [c, n]));
+let regoleAttuali = REGOLE_BASE;
+export function impostaRegoleCategorie(regole) {
+  regoleAttuali = regole && Object.keys(regole).length ? regole : REGOLE_BASE;
+}
+export const regoleCategorie = () => regoleAttuali;
+
+/** Categoria di un atleta in una stagione ("2026" = 2026/27): EB, EA, R, J, C, S (o null se più piccolo). */
+export function categoria(anno, sesso, stagione) {
+  const nome = categoriaNome(anno, sesso, stagione, regoleAttuali);
+  return nome ? (CODICI[nome] ?? nome) : null;
+}
+
+/** "esordienti" (EB, EA) o "categoria" (Ragazzi e oltre). */
+export const gruppoCategoria = (c) => (c === 'EB' || c === 'EA' ? 'esordienti' : c ? 'categoria' : null);
+
+/** Stagione di una data ("2026-11-15" -> "2026"). */
+export const stagioneDi = (data = '') => String(stagioneNumero(data));
+
+/** Stagione in corso. */
+export const stagioneCorrente = () => stagioneDi(new Date().toISOString().slice(0, 10));
+export const nomeStagione = (st) => `${st}/${String(Number(st) + 1).slice(2)}`;

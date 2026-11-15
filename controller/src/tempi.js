@@ -128,3 +128,4 @@ export function impronta(testo) {
 export function giornoQuota(adesso = new Date().toISOString()) {
   return new Date(adesso).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
 }
+

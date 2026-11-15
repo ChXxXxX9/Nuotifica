@@ -76,11 +76,33 @@ service cloud.firestore {
     match /annunci/{id} {
       allow read: if admin();
       allow create: if admin()
-        && request.resource.data.keys().hasOnly(['titolo', 'corpo', 'stato', 'creato'])
+        && request.resource.data.keys().hasOnly(['titolo', 'corpo', 'stato', 'creato', 'url'])
+        && (!('url' in request.resource.data) || (request.resource.data.url is string && request.resource.data.url.size() <= 120 && request.resource.data.url.matches('^#/.*')))
         && request.resource.data.titolo is string && request.resource.data.titolo.size() <= 60
         && request.resource.data.corpo is string && request.resource.data.corpo.size() <= 180
         && request.resource.data.stato == 'da-inviare';
       allow update, delete: if false;
+    }
+
+    // Configurazione gestita dall'admin: atleti da non mostrare (config/nascosti),
+    // categorie per età (config/categorie).
+    match /config/{id} {
+      allow read: if registrato();
+      allow write: if admin();
+    }
+
+    // Lavori chiesti dall'admin al controllore (rileggere una stagione, una gara…).
+    match /lavori/{id} {
+      allow read: if admin();
+      allow create: if admin() && request.resource.data.stato == 'da-fare'
+        && request.resource.data.tipo in ['stagione', 'gara', 'prova', 'testi', 'nascondi'];
+      allow update, delete: if false;
+    }
+
+    // Graduatorie del Lazio e Indice Cloro.
+    match /classifiche/{id} {
+      allow read: if registrato();
+      allow write: if false;
     }
 
     // Gare, risultati, schede atleta e indice di ricerca: solo per chi ha fatto l'accesso.
@@ -118,6 +140,16 @@ service cloud.firestore {
       allow read: if registrato();
       allow write: if false;
     }
+    // Tempi limite: li scrive l'admin (anche dal computer), li leggono tutti gli iscritti.
+    match /limiti/{limite} {
+      allow read: if registrato();
+      allow create, update: if admin()
+        && request.resource.data.nome is string && request.resource.data.nome.size() <= 80
+        && request.resource.data.vasca in [25, 50]
+        && request.resource.data.t is map && request.resource.data.t.size() <= 400
+        && request.resource.data.stato in ['bozza', 'da-notificare', 'pubblicato'];
+      allow delete: if admin();
+    }
 
     // Dati di lavoro del controllore.
     match /primati/{id} {
@@ -134,7 +166,9 @@ service cloud.firestore {
       }
 
       function valido(d) {
-        return d.keys().hasOnly(['settori', 'gruppi', 'tipi', 'pushOn', 'tokens', 'seguiti', 'creato', 'aggiornato'])
+        return d.keys().hasOnly(['settori', 'gruppi', 'tipi', 'pushOn', 'tokens', 'seguiti', 'obiettivi', 'limiti', 'creato', 'aggiornato'])
+          && (!('obiettivi' in d) || (d.obiettivi is map && d.obiettivi.size() <= 60))
+          && (!('limiti' in d) || (d.limiti is list && d.limiti.size() <= 10))
           && d.settori is list && d.settori.size() <= 12
           && d.gruppi is list && d.gruppi.size() <= 2
           && d.tipi is list && d.tipi.size() <= 12

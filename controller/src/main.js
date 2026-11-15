@@ -15,7 +15,9 @@ import { leggiPost, mappaCategorie, impostaSito } from './parse.js';
 import { leggiFonti, scarica } from './fonti.js';
 import { aggiornaGare } from './gare.js';
 import { aggiornaNazionali } from './nazionali.js';
-import { impostaAdmin, inviaAnnunci } from './admin.js';
+import {
+  impostaAdmin, inviaAnnunci, inviaLimiti, eseguiLavori,
+} from './admin.js';
 import { testiDaFare } from './testi.js';
 import { appendFile } from 'node:fs/promises';
 import { oggiRoma, giornoQuota } from './tempi.js';
@@ -349,7 +351,8 @@ async function principale() {
     await impostaAdmin({
       db, chiamaGoogle, progetto, email: process.env.ADMIN_EMAIL,
     });
-    const n = await inviaAnnunci({ db, invio, sito });
+    const n = await inviaAnnunci({ db, invio, sito }) + await inviaLimiti({ db, invio, sito });
+    await eseguiLavori({ db, invio, sito });
     if (n && process.env.GITHUB_ACTIONS) console.log(`::notice title=Annunci::${n} notifiche mandate`);
   } catch (e) {
     console.log(`::warning title=Admin::${String(e.message).slice(0, 300)}`);

@@ -206,8 +206,91 @@ export async function leggiStagione({
   const squadre = await aggiornaSquadre({
     db, atleti, st, adesso,
   });
-  log(`Graduatorie ${st}: ${richieste} richieste, ${atleti.size} atleti (${nuovi.size} nuovi), ${cambiati.size} primati, ${squadre} squadre.`);
-  return { atleti: atleti.size, nuovi: nuovi.size, richieste, squadre };
+  // 4. Classifiche per l'app (gara per gara e Indice Cloro), con i movimenti per la stagione in corso.
+  const classifiche = await scriviClassifiche({
+    db, atleti, st, adesso,
+  });
+  log(`Graduatorie ${st}: ${richieste} richieste, ${atleti.size} atleti (${nuovi.size} nuovi), ${cambiati.size} primati, ${squadre} squadre, ${classifiche} classifiche.`);
+  return {
+    atleti: atleti.size, nuovi: nuovi.size, richieste, squadre, classifiche,
+  };
+}
+
+const PESI_INDICE = [0.5, 0.3, 0.2];
+const GIORNI_BASE = 6.5;
+
+/** Indice Cloro: media pesata dei punti delle 3 gare migliori (una per specialità, la vasca migliore). */
+export function indiceCloro(risultati = []) {
+  const perGara = new Map();
+  for (const v of risultati) if (v.pt && (!perGara.has(v.c) || v.pt > perGara.get(v.c).pt)) perGara.set(v.c, v);
+  const migliori = [...perGara.values()].sort((a, b) => b.pt - a.pt).slice(0, 3);
+  if (!migliori.length) return null;
+  const pesi = PESI_INDICE.slice(0, migliori.length);
+  const totale = pesi.reduce((a, b) => a + b, 0);
+  return { valore: Math.round(migliori.reduce((x, v, i) => x + v.pt * pesi[i], 0) / totale), gare: migliori.map((v) => v.c) };
+}
+
+/**
+ * classifiche/{stagione}-{vasca}-{gara}-{sesso} e classifiche/{stagione}-indice-{sesso}:
+ * righe "chiave|nome|anno|società|valore|data" in ordine. Per la stagione in corso anche
+ * b (posizioni della settimana scorsa, per ▲▼ e NUOVO), bd (quando) e p (posizione migliore).
+ */
+export async function scriviClassifiche({
+  db, atleti, st, adesso,
+}) {
+  const tabelle = new Map();
+  const aggiungi = (chiave, riga) => {
+    if (!tabelle.has(chiave)) tabelle.set(chiave, []);
+    tabelle.get(chiave).push(riga);
+  };
+  for (const [k, a] of atleti) {
+    const s = [...a.societa][0] ?? '';
+    for (const v of a.risultati) {
+      aggiungi(`${v.v}-${v.c}-${a.sx}`, {
+        k, n: a.n, y: a.y, s, valore: v.t, d: v.d,
+      });
+    }
+    const indice = indiceCloro(a.risultati);
+    if (indice) {
+      aggiungi(`indice-${a.sx}`, {
+        k, n: a.n, y: a.y, s, valore: indice.valore, d: indice.gare.join(','),
+      });
+    }
+  }
+  const corrente = String(st) === stagione(oggiRoma(adesso));
+  const percorsi = [...tabelle.keys()].map((x) => `classifiche/${st}-${x}`);
+  const prima = corrente ? await db.leggiTanti(percorsi) : new Map();
+  const scritture = [];
+  for (const [chiave, righe] of tabelle) {
+    const percorso = `classifiche/${st}-${chiave}`;
+    const indice = chiave.startsWith('indice');
+    righe.sort((x, y) => (indice ? y.valore - x.valore : x.valore - y.valore) || x.n.localeCompare(y.n));
+    const dati = {
+      righe: righe.map((r) => [r.k, r.n, r.y ?? '', r.s, r.valore, r.d ?? ''].join('|')),
+      agg: comeData(adesso),
+    };
+    if (corrente) {
+      const posizioni = Object.fromEntries(righe.map((r, i) => [r.k, i + 1]));
+      const vecchio = prima.get(percorso);
+      const vecchiePosizioni = vecchio ? Object.fromEntries((vecchio.righe ?? []).map((riga, i) => [riga.split('|')[0], i + 1])) : null;
+      if (!vecchio) {
+        dati.b = posizioni;
+        dati.bd = adesso;
+      } else if (!vecchio.bd || Date.parse(adesso) - Date.parse(vecchio.bd) > GIORNI_BASE * 86_400_000) {
+        dati.b = vecchiePosizioni;
+        dati.bd = adesso;
+      } else {
+        dati.b = vecchio.b ?? vecchiePosizioni;
+        dati.bd = vecchio.bd;
+      }
+      const picco = { ...(vecchio?.p ?? {}) };
+      for (const [k, pos] of Object.entries(posizioni)) picco[k] = Math.min(picco[k] ?? pos, pos);
+      dati.p = picco;
+    }
+    scritture.push({ percorso, dati });
+  }
+  await db.scriviTanti(scritture);
+  return scritture.length;
 }
 
 const chiaveTabella = (v, c, sx) => `${v}|${c}|${sx}`;

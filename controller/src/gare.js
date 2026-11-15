@@ -19,6 +19,7 @@ import {
 } from './tempi.js';
 import { comeData } from './firestore.js';
 import { gruppiNazionali, righeGara } from './cronometraggio.js';
+import { REGOLE_BASE, categoria } from './categorie.js';
 import {
   migraRicerca, scrittureRicerca, scrittureNoti, chiaveSquadra,
 } from './ricerca.js';
@@ -120,6 +121,7 @@ export function costruisciSede({
     const v = valoreRiga(r);
     const noto = noti.get(r.id);
     const nuova = !noto || noto.v !== v;
+    let sbPrima = null;
     if (!nuova) {
       if (noto.b) riga.b = noto.b;
       if (noto.dp) riga.dp = noto.dp;
@@ -130,6 +132,7 @@ export function costruisciSede({
       const tabella = primati.get(percorso);
       const st = stagione(r.data ?? gara.dal);
       const prima = leggiPrimato(tabella[r.atleta.chiave]);
+      sbPrima = prima?.st === st ? prima.s : null;
       if (prima?.p && r.ms < prima.p) {
         riga.b = 'PB';
         riga.dp = r.ms - prima.p;
@@ -148,7 +151,7 @@ export function costruisciSede({
     ricorda[r.id] = [v, riga.b ?? '', riga.dp ?? ''].join('|').replace(/\|+$/, '');
     evento.b.get(chiaveBatt).r.push(riga);
     if (!nuova) continue;
-    nuove.push({ riga: r, uscita: riga });
+    nuove.push({ riga: r, uscita: riga, sbPrima });
 
     // Scheda dell'atleta: solo i risultati nuovi.
     if (r.atleta.chiave && (r.ms || r.stato === 'Squalificato')) {
@@ -245,14 +248,38 @@ export function documentoGara(info, sediStato, adesso) {
   };
 }
 
+/**
+ * Un tempo nuovo rispetto ai tempi limite pubblicati della sua stagione, vasca, gara, sesso e categoria.
+ * Restituisce { limite } se è sotto un limite che prima non aveva, { quasi, manca } se ci è vicino (mezzo secondo).
+ */
+export function confrontaLimiti(tempo, limiti, regole = REGOLE_BASE) {
+  const st = stagione(tempo.data ?? '');
+  const cat = categoria(tempo.y, tempo.sesso, st, regole);
+  const esito = {};
+  for (const l of limiti) {
+    if (String(l.st) !== String(st) || Number(l.vasca) !== Number(tempo.vasca)) continue;
+    const limite = l.t?.[`${tempo.gara.codice}|${tempo.sesso}|${cat}`] ?? l.t?.[`${tempo.gara.codice}|${tempo.sesso}|*`];
+    if (!limite) continue;
+    if (tempo.t <= limite) {
+      if (!(tempo.sbPrima && tempo.sbPrima <= limite) && !esito.limite) esito.limite = l.nome;
+    } else if (tempo.t - limite <= 500 && (!esito.manca || tempo.t - limite < esito.manca)) {
+      esito.quasi = l.nome;
+      esito.manca = tempo.t - limite;
+    }
+  }
+  return esito;
+}
+
 /** Testo della notifica per un nuovo tempo di un atleta seguito. */
 export function messaggioTempo(atleta, voce, gara, sito) {
   const nome = atleta.n.split(' ')[0];
   const pb = voce.b === 'PB';
-  const titolo = pb ? `Nuovo personale per ${nome}!` : `${atleta.n} ha nuotato`;
+  const titolo = voce.limite ? `${nome} ha preso il limite!` : pb ? `Nuovo personale per ${nome}!` : `${atleta.n} ha nuotato`;
   const pezzi = [`${voce.gara.breve} in ${formatta(voce.t)}`];
+  if (voce.limite) pezzi.push(voce.limite);
   if (pb && voce.dp) pezzi.push(`−${formatta(-voce.dp).replace(/^0"/, '0"')}`);
   if (voce.pt) pezzi.push(`${voce.pt} punti`);
+  if (!voce.limite && voce.quasi) pezzi.push(`a ${formatta(voce.manca)} dal limite ${voce.quasi}`);
   pezzi.push(gara.nome);
   return {
     titolo,
@@ -419,9 +446,11 @@ export async function aggiornaGare({
     }
     // Avvisi solo per le sedi già lette in passato (niente notifiche per i risultati vecchi).
     if (prima) {
-      for (const { riga: r, uscita } of righeNuove) {
+      for (const { riga: r, uscita, sbPrima } of righeNuove) {
         if (!uscita.k || !uscita.t || r.gara.staffetta) continue;
-        nuoviTempi.push({ ...uscita, gara: r.gara, garaId: g.id, garaNome: g.nome });
+        nuoviTempi.push({
+          ...uscita, gara: r.gara, garaId: g.id, garaNome: g.nome, sesso: r.sesso, vasca: g.vasca, data: r.data ?? g.dal, sbPrima,
+        });
       }
     }
     log(`Sede ${s.piscina || sedeBreve(s.sede)} (${g.nome}): ${righe.length} righe, ${righeNuove.length} nuove.`);
@@ -505,6 +534,16 @@ export async function aggiornaGare({
   // Notifiche a chi segue gli atleti con tempi nuovi.
   let conteggi = { push: 0, errori: 0, utenti: 0 };
   if (nuoviTempi.length && invio) {
+    // Tempi limite: "ha preso il limite!" (la prima volta in stagione) o "a 0"30 dal limite".
+    try {
+      const limiti = await db.dove('limiti', 'stato', 'pubblicato');
+      if (limiti.length) {
+        const regole = (await db.leggi('config/categorie'))?.regole ?? REGOLE_BASE;
+        for (const t of nuoviTempi) Object.assign(t, confrontaLimiti(t, limiti, regole));
+      }
+    } catch (e) {
+      log(`Tempi limite non controllati: ${e.message}`);
+    }
     conteggi = await avvisaTempi({ db, invio, nuoviTempi, atleti: tuttiAtleti, sito, log });
   }
   return { sedi: daLeggere.length, gare: garaToccata.size, atleti: tuttiAtleti.size, nuoviTempi: nuoviTempi.length, ...conteggi };

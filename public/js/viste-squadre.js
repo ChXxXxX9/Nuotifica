@@ -4,15 +4,13 @@ import {
   stato, api, esc, barraTop, tabBar, disegna, caricamento, paginaErrore, conCache, giaInCache, percorso, memoria,
 } from './nucleo.js';
 import {
-  tempo, nomeGara, ordineGara, giorno, iniziali,
+  tempo, nomeGara, ordineGara, giorno, iniziali, categoria, gruppoCategoria, stagioneDi,
 } from './formato.js';
+import { menuClassifiche } from './viste-classifiche.js';
 
+const nascosto = (k) => (stato.nascosti ?? []).includes(k);
 const normalizza = (t = '') => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const nomeStagione = (st) => `${st}/${String(Number(st) + 1).slice(2)}`;
-const stagioneDi = (data = '') => {
-  const anno = Number(data.slice(0, 4));
-  return String(Number(data.slice(5, 7)) >= 9 ? anno : anno - 1);
-};
 
 const leggiElenco = () => conCache('squadre', (fresco) => api.leggiSquadre(fresco), { durata: 600_000 });
 const leggiSquadra = (id) => conCache(`squadra:${id}`, (fresco) => api.leggiSquadra(id, fresco), { durata: 300_000 });
@@ -55,7 +53,8 @@ export async function vistaSquadre(q = '') {
   disegna(`
     ${barraTop()}
     <main class="pagina">
-      <h1 class="titolo-pagina">Squadre</h1>
+      <h1 class="titolo-pagina">Classifiche</h1>
+      ${menuClassifiche('squadre')}
       <p class="intro">Le società del Lazio: chi nuota per loro, i migliori tempi di sempre e di ogni stagione, le staffette.</p>
       <label class="cerca">
         <span class="nascosto">Cerca una squadra</span>
@@ -103,7 +102,7 @@ export async function vistaSquadra(id) {
     return {
       k, n, y, sx, da, a,
     };
-  });
+  }).filter((x) => !nascosto(x.k));
   const perChiave = new Map(membri.map((x) => [x.k, x]));
   const stagioni = [...(sq.st ?? [])].sort().reverse();
   const ultima = stagioni[0] ?? '';
@@ -120,6 +119,7 @@ export async function vistaSquadra(id) {
     st: 'sempre',
     v: vasche.includes(pref.v) ? pref.v : (vasche.includes(25) ? 25 : vasche[0] ?? 25),
     sx: pref.sx === 'F' ? 'F' : 'M',
+    gruppo: ['esordienti', 'categoria'].includes(pref.gruppo) ? pref.gruppo : 'tutti',
     aperta: null,
     exAperti: false,
   };
@@ -132,12 +132,14 @@ export async function vistaSquadra(id) {
     for (const [kt, righe] of Object.entries(sorgente)) {
       const [v, c, sx] = kt.split('|');
       if (Number(v) !== scelta.v || sx !== scelta.sx) continue;
-      gare.set(c, righe.map((riga) => {
+      const filtrate = righe.map((riga) => {
         const [k, t, d, s] = riga.split('|');
         return {
           k, t: Number(t), d, s: s ?? scelta.st,
         };
-      }));
+      }).filter((r) => !nascosto(r.k)).filter((r) => scelta.gruppo === 'tutti'
+        || gruppoCategoria(categoria(perChiave.get(r.k)?.y, scelta.sx, r.s === 'sempre' ? stagioneDi(r.d) : r.s)) === scelta.gruppo);
+      if (filtrate.length) gare.set(c, filtrate);
     }
     return [...gare].sort((a, b) => ordineGara(a[0]) - ordineGara(b[0]));
   };
@@ -149,8 +151,17 @@ export async function vistaSquadra(id) {
     const miglioriStaff = new Map();
     for (const x of staff.sort((a, b) => a.t - b.t)) if (!miglioriStaff.has(`${x.c}|${x.cat}`)) miglioriStaff.set(`${x.c}|${x.cat}`, x);
     const stagioneVista = scelta.st === 'sempre' ? ultima : scelta.st;
-    const attuali = membri.filter((x) => x.da <= stagioneVista && x.a >= stagioneVista).sort((a, b) => a.n.localeCompare(b.n, 'it'));
-    const ex = membri.filter((x) => x.a < stagioneVista).sort((a, b) => b.a.localeCompare(a.a) || a.n.localeCompare(b.n, 'it'));
+    const precedente = String(Number(stagioneVista) - 1);
+    // Atleti della squadra: chi ha gareggiato in questa stagione o nella precedente.
+    // Ex: chi non gareggia almeno dalla stagione scorsa.
+    const nelGruppo = (x) => scelta.gruppo === 'tutti' || gruppoCategoria(categoria(x.y, x.sx, stagioneVista)) === scelta.gruppo;
+    const attuali = membri.filter((x) => x.da <= stagioneVista && x.a >= precedente && nelGruppo(x))
+      .sort((a, b) => b.a.localeCompare(a.a) || a.n.localeCompare(b.n, 'it'));
+    const ex = membri.filter((x) => x.a < precedente).sort((a, b) => b.a.localeCompare(a.a) || a.n.localeCompare(b.n, 'it'));
+    const etichettaCat = (x) => {
+      const c = categoria(x.y, x.sx, stagioneVista);
+      return c ? { EB: 'Es. B', EA: 'Es. A', R: 'Ragazzi', J: 'Juniores', C: 'Cadetti', S: 'Seniores' }[c] : '';
+    };
     const nomeAtleta = (k) => perChiave.get(k)?.n ?? k.replace(/-\d{4}$/, '').replace(/-/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
 
     disegna(`
@@ -160,7 +171,7 @@ export async function vistaSquadra(id) {
           <span class="iniziali" style="width:56px;height:56px;border-radius:18px;font-size:18px" aria-hidden="true">${esc(iniziali(sq.n ?? id))}</span>
           <h1>${esc(sq.n ?? id)}</h1>
           <div class="cifre">
-            <div class="cifra"><b>${membri.filter((x) => x.a === ultima).length}</b><small>Atleti ${esc(ultima ? nomeStagione(ultima) : '')}</small></div>
+            <div class="cifra"><b>${membri.filter((x) => x.a >= String(Number(ultima) - 1)).length}</b><small>Atleti attivi</small></div>
             <div class="cifra"><b>${membri.length}</b><small>Dal 2018</small></div>
             <div class="cifra"><b>${stagioni.length}</b><small>Stagioni</small></div>
           </div>
@@ -176,8 +187,12 @@ export async function vistaSquadra(id) {
           <button class="segmento" role="tab" data-sx="F" aria-selected="${scelta.sx === 'F'}">Femmine</button>
         </div>
 
+        <div class="filtri" role="toolbar" aria-label="Categorie" style="margin-top:10px">
+          ${[['tutti', 'Tutti'], ['categoria', 'Categoria'], ['esordienti', 'Esordienti']].map(([id, nome]) => `<button class="chip" data-gruppo="${id}" aria-pressed="${scelta.gruppo === id}">${nome}</button>`).join('')}
+        </div>
+
         <section class="sezione">
-          <div class="sezione-testa"><h2 class="sezione-titolo">Migliori per gara</h2><span class="nota">${scelta.st === 'sempre' ? 'di sempre' : esc(nomeStagione(scelta.st))}</span></div>
+          <div class="sezione-testa"><h2 class="sezione-titolo">Migliori per gara${scelta.gruppo === 'tutti' ? '' : ` · ${scelta.gruppo === 'categoria' ? 'Categoria' : 'Esordienti'}`}</h2><span class="nota">${scelta.st === 'sempre' ? 'di sempre' : esc(nomeStagione(scelta.st))}</span></div>
           ${scelta.st !== 'sempre' && tabelleStagione === null ? '<p class="caricamento">Carico la stagione…</p>' : gare.length ? `
             <ul class="elenco classifica-squadra">${gare.map(([c, righe]) => {
     const primo = righe[0];
@@ -210,11 +225,13 @@ export async function vistaSquadra(id) {
         </section>
 
         <section class="sezione">
-          <div class="sezione-testa"><h2 class="sezione-titolo">Atleti ${esc(nomeStagione(stagioneVista))}</h2><span class="nota">${attuali.length}</span></div>
+          <div class="sezione-testa"><h2 class="sezione-titolo">Atleti${scelta.gruppo === 'tutti' ? '' : ` · ${scelta.gruppo === 'categoria' ? 'Categoria' : 'Esordienti'}`}</h2><span class="nota">${attuali.length}</span></div>
+          <p class="nota" style="margin:-4px 0 10px">Hanno gareggiato nel ${esc(nomeStagione(precedente))} o nel ${esc(nomeStagione(stagioneVista))}.</p>
           ${attuali.length ? `<ul class="elenco risultati-ricerca">${attuali.map((x) => `
-            <li><a href="#/atleta/${encodeURIComponent(x.k)}"><b>${esc(x.n)}</b><small>${esc([x.y, x.sx === 'F' ? 'F' : 'M'].filter(Boolean).join(' · '))}</small></a></li>`).join('')}</ul>` : '<p class="nota">Nessuno in questa stagione.</p>'}
+            <li><a href="#/atleta/${encodeURIComponent(x.k)}"><b>${esc(x.n)}</b><small>${esc([x.y, x.sx === 'F' ? 'F' : 'M', etichettaCat(x)].filter(Boolean).join(' · '))}</small></a></li>`).join('')}</ul>` : '<p class="nota">Nessuno qui.</p>'}
           ${ex.length ? `
             <button class="bottone bottone-secondario" data-ex style="margin-top:12px">${scelta.exAperti ? 'Nascondi' : 'Mostra'} gli ex atleti (${ex.length})</button>
+            <p class="nota" style="margin-top:6px">Ex: non gareggiano almeno dal ${esc(nomeStagione(precedente))}.</p>
             ${scelta.exAperti ? `<ul class="elenco risultati-ricerca" style="margin-top:10px">${ex.map((x) => `
               <li><a href="#/atleta/${encodeURIComponent(x.k)}"><b>${esc(x.n)}</b><small>${esc(x.da === x.a ? nomeStagione(x.da) : `${nomeStagione(x.da)} – ${nomeStagione(x.a)}`)}</small></a></li>`).join('')}</ul>` : ''}` : ''}
         </section>
@@ -240,17 +257,23 @@ export async function vistaSquadra(id) {
       el.querySelectorAll('[data-v]').forEach((b) => b.addEventListener('click', () => {
         scelta.v = Number(b.dataset.v);
         scelta.aperta = null;
-        memoria('squadra-vista', { v: scelta.v, sx: scelta.sx });
+        memoria('squadra-vista', { v: scelta.v, sx: scelta.sx, gruppo: scelta.gruppo });
         ridisegna(true);
       }));
       el.querySelectorAll('[data-sx]').forEach((b) => b.addEventListener('click', () => {
         scelta.sx = b.dataset.sx;
         scelta.aperta = null;
-        memoria('squadra-vista', { v: scelta.v, sx: scelta.sx });
+        memoria('squadra-vista', { v: scelta.v, sx: scelta.sx, gruppo: scelta.gruppo });
         ridisegna(true);
       }));
       el.querySelectorAll('[data-gara]').forEach((b) => b.addEventListener('click', () => {
         scelta.aperta = scelta.aperta === b.dataset.gara ? null : b.dataset.gara;
+        ridisegna(true);
+      }));
+      el.querySelectorAll('[data-gruppo]').forEach((b) => b.addEventListener('click', () => {
+        scelta.gruppo = b.dataset.gruppo;
+        scelta.aperta = null;
+        memoria('squadra-vista', { v: scelta.v, sx: scelta.sx, gruppo: scelta.gruppo });
         ridisegna(true);
       }));
       el.querySelector('[data-ex]')?.addEventListener('click', () => {

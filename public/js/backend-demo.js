@@ -91,6 +91,38 @@ const POST = [
   },
 ];
 
+const nascosti = [];
+const lavori = [];
+const limiti = [{
+  id: 'regionali-2026', nome: 'Regionali di Categoria 2027', vasca: 25, st: '2026', stato: 'pubblicato',
+  t: {
+    '100SL|M|R': 57_500, '100SL|M|J': 55_800, '100SL|F|R': 63_900, '100SL|F|J': 62_100, '200SL|M|R': 2 * 60_000 + 6_500,
+    '100DO|M|R': 66_000, '100DO|F|R': 72_400, '1500SL|M|*': 17 * 60_000, '1500SL|F|*': 18 * 60_000, '100DO|M|*': 60_500, '100DO|F|*': 66_800,
+  },
+}];
+
+/** Classifiche di prova dagli atleti di esempio (come quelle che scrive il controllore dalle graduatorie). */
+function classificaDemo(id) {
+  const [st, a, b, c] = id.split('-');
+  const righe = [];
+  for (const [k, x] of Object.entries(DEMO.atleti)) {
+    if (a === 'indice') {
+      if (x.sx !== b) continue;
+      const punti = (x.r ?? []).filter((v) => v.pt).map((v) => v.pt).sort((p, q) => q - p).slice(0, 3);
+      if (punti.length) righe.push([k, x.n, x.y ?? '', x.s ?? '', Math.round(punti.reduce((p, q) => p + q, 0) / punti.length), '']);
+      continue;
+    }
+    if (x.sx !== c) continue;
+    const migliore = (x.r ?? []).filter((v) => v.t && String(v.v) === a && v.c === b).sort((p, q) => p.t - q.t)[0];
+    if (migliore) righe.push([k, x.n, x.y ?? '', x.s ?? '', migliore.t + (st === '2026' ? 0 : 700), migliore.d]);
+  }
+  righe.sort((p, q) => (a === 'indice' ? q[4] - p[4] : p[4] - q[4]));
+  const b2 = {};
+  righe.forEach((r, i) => { b2[r[0]] = i % 3 === 0 ? i + 2 : i % 3 === 1 ? Math.max(1, i - 1) : i + 1; });
+  if (righe[1]) delete b2[righe[1][0]];
+  return righe.length ? { righe: righe.map((r) => r.join('|')), b: b2, p: Object.fromEntries(righe.map((r, i) => [r[0], Math.max(1, i)])) } : null;
+}
+
 /** Squadre di prova costruite dagli atleti di esempio (come fa il controllore con le graduatorie). */
 let cacheSquadre = null;
 function squadreDemo() {
@@ -236,6 +268,33 @@ export function creaBackendDemo() {
     },
     async aggiornaConsiglio(id, dati) { await pausa(); Object.assign(consigli.find((c) => c.id === id) ?? {}, dati); },
     async creaAnnuncio(a) { await pausa(); annunci.unshift({ ...a, stato: 'da-inviare', creato: new Date() }); },
+    async leggiUtenti() {
+      await pausa(120);
+      return Array.from({ length: 12 }, (_, i) => ({
+        id: `u${i}`, creato: new Date(Date.now() - i * 86_400_000 * 3), aggiornato: new Date(Date.now() - i * 3_600_000), settori: ['nuoto'], seguiti: i % 4, pushOn: i % 3 !== 0, dispositivi: 1 + (i % 2),
+      }));
+    },
+    async creaLavoro(tipo, dati = {}) { await pausa(); lavori.unshift({ id: String(Date.now()), tipo, ...dati, stato: 'da-fare', creato: new Date() }); },
+    async leggiNascosti() { await pausa(60); return { k: [...nascosti] }; },
+    async salvaNascosti(dati) { await pausa(); nascosti.splice(0, nascosti.length, ...(dati.k ?? [])); },
+    async leggiLimiti() { await pausa(80); return limiti.map((l) => ({ ...l })); },
+    async leggiLimitiPubblicati() { await pausa(80); return limiti.filter((l) => l.stato !== 'bozza').map((l) => ({ ...l })); },
+    async salvaLimite(id, dati) {
+      await pausa();
+      if (id) {
+        Object.assign(limiti.find((l) => l.id === id) ?? {}, dati);
+        return id;
+      }
+      const nuovo = { id: `l${Date.now()}`, ...dati };
+      limiti.push(nuovo);
+      return nuovo.id;
+    },
+    async eliminaLimite(id) { await pausa(); limiti.splice(limiti.findIndex((l) => l.id === id), 1); },
+    async leggiClassifica(id) { await pausa(90); return classificaDemo(id); },
+    async salvaObiettivi(uid, obiettivi) { await pausa(); profilo.obiettivi = obiettivi; },
+    async salvaLimitiSeguiti(uid, l) { await pausa(); profilo.limiti = l; },
+    async leggiCategorie() { await pausa(40); return null; },
+    async salvaCategorie() { await pausa(); },
     async segui(uid, k) { await pausa(); profilo.seguiti = [...new Set([...(profilo.seguiti ?? []), k])]; },
     async smettiDiSeguire(uid, k) { await pausa(); profilo.seguiti = (profilo.seguiti ?? []).filter((x) => x !== k); },
   };
