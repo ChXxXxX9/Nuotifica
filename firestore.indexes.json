@@ -145,6 +145,26 @@
       "collectionGroup": "meta",
       "fieldPath": "regole",
       "indexes": []
+    },
+    {
+      "collectionGroup": "pacchi",
+      "fieldPath": "a",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "pacchi",
+      "fieldPath": "t",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "cerca",
+      "fieldPath": "l",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "indicizzati",
+      "fieldPath": "k",
+      "indexes": []
     }
   ]
 }

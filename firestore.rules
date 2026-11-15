@@ -139,6 +139,16 @@ service cloud.firestore {
     }
 
     // Ricerca degli atleti (due lettere per documento), squadre e testi dei documenti del Comitato.
+    // Tutta Italia: migliori di ogni stagione "a pacchi" e indice di ricerca a tre lettere.
+    match /pacchi/{pacco} {
+      allow read: if registrato();
+      allow write: if false;
+    }
+    match /cerca/{prefisso} {
+      allow read: if registrato();
+      allow write: if false;
+    }
+
     match /ricerca/{prefisso} {
       allow read: if registrato();
       allow write: if false;

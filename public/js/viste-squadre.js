@@ -6,7 +6,7 @@ import {
 import {
   tempo, nomeGara, ordineGara, giorno, iniziali, categoria, gruppoCategoria, stagioneDi,
 } from './formato.js';
-import { menuClassifiche } from './viste-classifiche.js';
+import { menuClassifiche, REGIONI } from './viste-classifiche.js';
 
 const nascosto = (k) => (stato.nascosti ?? []).includes(k);
 const normalizza = (t = '') => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -18,9 +18,9 @@ const leggiStagione = (id, st) => conCache(`squadra:${id}:${st}`, () => api.legg
 
 function righeElenco(elenco) {
   return Object.entries(elenco ?? {}).map(([id, riga]) => {
-    const [n, attivi, totale, ultima] = riga.split('|');
+    const [n, attivi, totale, ultima, reg] = riga.split('|');
     return {
-      id, n, attivi: Number(attivi) || 0, totale: Number(totale) || 0, ultima,
+      id, n, attivi: Number(attivi) || 0, totale: Number(totale) || 0, ultima, reg: reg || '12',
     };
   });
 }
@@ -40,29 +40,39 @@ export async function vistaSquadre(q = '') {
   }
   if (!qui()) return;
   const parole = (t) => normalizza(t).split(/\s+/).filter((p) => p.length >= 2);
+  const presenti = new Set(tutte.map((x) => x.reg));
+  let regione = memoria('squadre-regione') ?? '12';
+  if (regione !== 'it' && !presenti.has(regione)) regione = '12';
   const filtra = (t) => {
     const p = parole(t);
-    const scelte = p.length ? tutte.filter((x) => p.every((w) => normalizza(x.n).includes(w))) : tutte;
+    const qui = regione === 'it' ? tutte : tutte.filter((x) => x.reg === regione);
+    const scelte = p.length ? qui.filter((x) => p.every((w) => normalizza(x.n).includes(w))) : qui;
     return scelte.sort((a, b) => (b.ultima ?? '').localeCompare(a.ultima ?? '') || b.attivi - a.attivi || a.n.localeCompare(b.n, 'it'));
   };
   const voce = (x) => `
     <li><a href="#/squadra/${encodeURIComponent(x.id)}">
       <span class="iniziali" aria-hidden="true">${esc(iniziali(x.n))}</span>
-      <span class="chi"><b>${esc(x.n)}</b><small>${x.attivi} ${x.attivi === 1 ? 'atleta' : 'atleti'} nel ${esc(nomeStagione(x.ultima))} · ${x.totale} dal 2018</small></span>
+      <span class="chi"><b>${esc(x.n)}</b><small>${x.attivi} ${x.attivi === 1 ? 'atleta' : 'atleti'} nel ${esc(nomeStagione(x.ultima))} · ${x.totale} dal 2018${regione === 'it' && REGIONI[x.reg] ? ` · ${esc(REGIONI[x.reg])}` : ''}</small></span>
     </a></li>`;
   disegna(`
     ${barraTop()}
     <main class="pagina">
       <h1 class="titolo-pagina">Classifiche</h1>
       ${menuClassifiche('squadre')}
-      <p class="intro">Le società del Lazio: chi nuota per loro, i migliori tempi di sempre e di ogni stagione, le staffette.</p>
+      <p class="intro">Le società: chi nuota per loro, i migliori tempi di sempre e di ogni stagione, le staffette.</p>
+      ${presenti.size > 1 ? `<div class="scelte-classifica"><label class="modulo"><span>Dove</span>
+        <select data-regione>
+          <option value="it"${regione === 'it' ? ' selected' : ''}>Tutta Italia</option>
+          ${Object.entries(REGIONI).filter(([id]) => presenti.has(id)).sort((a, b) => a[1].localeCompare(b[1], 'it'))
+    .map(([id, nome]) => `<option value="${id}"${regione === id ? ' selected' : ''}>${esc(nome)}</option>`).join('')}
+        </select></label></div>` : ''}
       <label class="cerca">
         <span class="nascosto">Cerca una squadra</span>
         <input type="search" placeholder="Nome della squadra" autocomplete="off" enterkeyhint="search" value="${esc(testoIniziale)}">
       </label>
       ${tutte.length ? '<ul class="elenco elenco-squadre" data-elenco></ul>' : `
         <div class="vuoto"><strong>Squadre in arrivo</strong>Stiamo leggendo le graduatorie stagione per stagione: le squadre compaiono qui nelle prossime ore.</div>`}
-      <p class="nota" style="margin-top:18px">Altre classifiche in arrivo: graduatorie del Lazio con chi sale e chi scende, tempi limite, "quanto vale questo tempo?".</p>
+      <p class="nota" style="margin-top:18px">Le squadre delle altre regioni arrivano man mano che carichiamo le graduatorie di tutta Italia.</p>
     </main>
     ${tabBar('classifiche')}`, (el) => {
     const input = el.querySelector('input');
@@ -74,6 +84,11 @@ export async function vistaSquadre(q = '') {
       box.innerHTML = scelte.length ? scelte.slice(0, 120).map(voce).join('') : '<li class="vuoto"><strong>Nessuna squadra</strong>Prova con un\'altra parola del nome.</li>';
     };
     input.addEventListener('input', mostra);
+    el.querySelector('[data-regione]')?.addEventListener('change', (e) => {
+      regione = e.target.value;
+      memoria('squadre-regione', regione);
+      mostra();
+    });
     mostra();
   });
 }

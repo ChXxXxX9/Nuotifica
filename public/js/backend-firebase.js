@@ -229,6 +229,12 @@ export async function creaBackendFirebase(config) {
 
     leggiIndice: (lettera) => avvolgi(async () => (await leggiVeloce(F.doc(db, 'indici', lettera), (s) => s.data().l ?? [])) ?? []),
 
+    /** Pacchi di più stagioni (i migliori di ogni stagione di tutta Italia). Quelli che non ci sono: null. */
+    leggiPacchi: (ids) => avvolgi(() => Promise.all(ids.map((id) => leggiVeloce(F.doc(db, 'pacchi', id), (s) => s.data()).catch(() => null)))),
+
+    /** Indice a tre lettere (tutta Italia). */
+    leggiCerca: (prefisso) => avvolgi(async () => (await leggiVeloce(F.doc(db, 'cerca', prefisso), (s) => s.data().l ?? [])) ?? []),
+
     /** Pezzo dell'indice di ricerca: atleti con una parola del nome che inizia con queste due lettere. */
     leggiRicerca: (prefisso) => avvolgi(async () => (await leggiVeloce(F.doc(db, 'ricerca', prefisso), (s) => s.data().l ?? [])) ?? []),
 

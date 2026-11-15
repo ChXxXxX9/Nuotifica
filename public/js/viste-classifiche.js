@@ -186,12 +186,12 @@ export async function vistaClassifiche() {
             </section>` : ''}
           <ol class="classifica">${mostrate.map((r) => `
             <li class="${seguiti.has(r.k) ? 'seguito' : ''}">
-              <${lazio || seguiti.has(r.k) ? `a href="#/atleta/${encodeURIComponent(r.k)}"` : 'div class="riga-classifica"'}>
+              <a href="#/atleta/${encodeURIComponent(r.k)}">
                 <span class="pos"><b>${r.pos}</b>${badgeMovimento(r.mov)}</span>
                 <span class="chi"><b>${esc(r.n)}</b><small>${esc([r.y, r.s].filter(Boolean).join(' · '))}${r.picco && r.picco < r.pos ? ` · picco ${r.picco}°` : ''}</small></span>
                 <span class="quanto">${indice ? `<b>${r.valore}</b><small>${esc((r.d ?? '').split(',').filter(Boolean).map((c) => nomeGara(c, { breve: true })).join(' · '))}</small>`
     : `<b>${esc(tempo(r.valore))}</b><small>${esc([punti(r.valore, scelta.c, scelta.sx, scelta.v, r.d) ? `${punti(r.valore, scelta.c, scelta.sx, scelta.v, r.d)} pt` : '', r.d ? giorno(r.d) : ''].filter(Boolean).join(' · '))}</small>`}</span>
-              </${lazio || seguiti.has(r.k) ? 'a' : 'div'}>
+              </a>
             </li>`).join('')}</ol>
           ${!scelta.tutti && righe.length > 100 ? `<button class="bottone bottone-secondario" data-tutti style="margin-top:12px">Mostra tutti (${righe.length})</button>` : ''}`}
       </main>

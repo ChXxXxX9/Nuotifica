@@ -186,3 +186,50 @@ test('classifiche su richiesta: Italia per categoria e regione intera', async ()
   assert.ok(!docs.get('classifiche/2025-25-100SL-M-9-tutte').b);
   assert.ok(![...docs.keys()].some((p) => p.startsWith('richieste/')));
 });
+
+test('pacchi: ogni atleta sempre nello stesso pacco, e si rilegge uguale', async () => {
+  const { secchio, idPacco, preparaPacchi, leggiPacco } = await import('../src/pacchi.js');
+  assert.equal(secchio('rossi-marco-2008'), secchio('rossi-marco-2008'));
+  assert.ok(secchio('rossi-marco-2008') < 512);
+  const atleti = new Map([['rossi-marco-2008', {
+    n: 'Marco Rossi', y: 2008, sx: 'M', s: 'Nuoto Esempio', reg: '9', risultati: [{ c: '100SL', v: 25, t: 52_100, d: '2026-03-01', l: 'Firenze' }],
+  }]]);
+  const pacchi = preparaPacchi(atleti, 2025);
+  const doc = pacchi.get(idPacco(2025, 'rossi-marco-2008'));
+  const a = leggiPacco(doc, 'rossi-marco-2008');
+  assert.equal(a.n, 'Marco Rossi');
+  assert.equal(a.reg, '9');
+  assert.deepEqual(a.r[0], {
+    i: 'p2025-100SL-25', c: '100SL', v: 25, t: 52_100, d: '2026-03-01', gn: 'Firenze', l: 'Firenze', f: 1,
+  });
+});
+
+test('una stagione di tutta Italia nei pacchi: niente schede, indice a tre lettere, primati solo del Lazio', async () => {
+  const docs = new Map();
+  const db = {
+    conta: { letture: 0, scritture: 0 },
+    async leggi(p) { return docs.get(p) ?? null; },
+    async scrivi(p, d) { docs.set(p, structuredClone(d)); },
+    async scriviTanti(e) { for (const { percorso, dati } of e) docs.set(percorso, structuredClone(dati)); },
+    async leggiTanti(ps) { return new Map(ps.map((p) => [p, docs.get(p) ?? null])); },
+    async elenca(c) { return [...docs].filter(([p]) => p.startsWith(`${c}/`) && p.split('/').length === 2).map(([p, d]) => ({ id: p.split('/')[1], ...d })); },
+    async commit(ops) {
+      for (const o of ops) {
+        const d = { ...(docs.get(o.percorso) ?? {}), ...structuredClone(o.dati ?? {}) };
+        for (const [c, v] of Object.entries(o.aggiungi ?? {})) d[c] = [...new Set([...(d[c] ?? []), ...v])];
+        docs.set(o.percorso, d);
+      }
+    },
+  };
+  const chiedi = async (campi) => (campi['solr[codice_gara]'] === '01' && campi['solr[sesso]'] === 'M' && campi['solr[id_lunghezza_vasca]'] === '1'
+    && campi['solr[id_comitato]'] === '9' ? campione : JSON.stringify({ content: '' }));
+  const esito = await leggiStagione({
+    db, chiedi, st: 2024, adesso: '2026-11-15T02:00:00Z', log: () => {}, modo: 'pacchi', regioni: ['12', '9'],
+  });
+  assert.equal(esito.atleti, 2);
+  assert.ok(![...docs.keys()].some((p) => p.startsWith('atleti/')));
+  assert.ok([...docs.keys()].some((p) => p.startsWith('pacchi/2024-')));
+  assert.ok(docs.get('cerca/mar').l.some((v) => v.startsWith('desempio-marco-2007|') && v.endsWith('|9')));
+  assert.ok(!docs.get('primati/25-100SL-M'));
+  assert.ok(docs.get('meta/squadre').squadre['nuoto-esempio-roma'].endsWith('|9'));
+});

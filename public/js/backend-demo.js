@@ -242,6 +242,8 @@ export function creaBackendDemo() {
       return tutte.filter((v) => v.split('|')[1].normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
         .split(/[\s'’-]+/).some((p) => p.replace(/[^a-z]/g, '').startsWith(prefisso)));
     },
+    async leggiPacchi(ids) { await pausa(60); return ids.map(() => null); },
+    async leggiCerca(prefisso) { return this.leggiRicerca(prefisso.slice(0, 2)).then((l) => l.filter((v) => v.split('|')[1].normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().split(/[\s'’-]+/).some((p) => p.replace(/[^a-z]/g, '').startsWith(prefisso)))); },
     async leggiSquadre() { await pausa(60); return squadreDemo().elenco; },
     async leggiSquadra(id) { await pausa(80); const sq = squadreDemo().docs.get(id); return sq ? { id, ...sq } : null; },
     async leggiStagioneSquadra(id, st) { await pausa(60); return squadreDemo().stagioni.get(`${id}/${st}`) ?? null; },

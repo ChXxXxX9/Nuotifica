@@ -18,8 +18,10 @@ import { punti } from './punti.js';
 import { comeData } from './firestore.js';
 import { stagione, leggiPrimato } from './gare.js';
 import {
-  scrittureRicerca, scrittureNoti, leggiNotiTutti, chiaveSquadra,
+  scrittureRicerca, scrittureNoti, leggiNotiTutti, chiaveSquadra, scrittureCerca, leggiIndicizzati, scrittureIndicizzati,
 } from './ricerca.js';
+import { preparaPacchi } from './pacchi.js';
+import { migraCerca } from './ricerca.js';
 
 export const CODICI = {
   '00': '50SL', '01': '100SL', '02': '200SL', '04': '400SL', '08': '800SL', 15: '1500SL',
@@ -91,20 +93,47 @@ export function scegliStagione(stato, adesso) {
   const corrente = Number(stagione(oggiRoma(adesso)));
   const ore = (s) => (stato.fatte?.[s] ? (Date.parse(adesso) - Date.parse(stato.fatte[s])) / 3_600_000 : Infinity);
   if (ore(corrente) > 20) return corrente;
-  for (let s = corrente - 1; s >= PRIMA_STAGIONE; s--) if (!stato.fatte?.[s]) return s;
   if (ore(corrente - 1) > 24 * 7) return corrente - 1; // ritardatari della stagione scorsa
   return null;
 }
 
-/** Legge una stagione intera e salva tutto. Restituisce il numero di atleti aggiornati. */
+/** Stagione passata del Lazio da mettere nei pacchi (se non è già stata letta con tutta Italia). */
+export function scegliPacchiLazio(stato, adesso) {
+  const corrente = Number(stagione(oggiRoma(adesso)));
+  for (let s = corrente - 2; s >= PRIMA_STAGIONE; s--) {
+    if (!stato.fatte?.[s] && !stato.pacchiLazio?.[s] && !stato.italia?.[s]) return s;
+  }
+  return null;
+}
+
+/** Stagione da leggere per tutta Italia: quella in corso ogni settimana, poi indietro fino al 2018/19. */
+export function scegliItalia(stato, adesso) {
+  const corrente = Number(stagione(oggiRoma(adesso)));
+  const giorni = (s) => (stato.italia?.[s] ? (Date.parse(adesso) - Date.parse(stato.italia[s])) / 86_400_000 : Infinity);
+  if (giorni(corrente) > 7) return corrente;
+  for (let s = corrente - 1; s >= PRIMA_STAGIONE; s--) if (!stato.italia?.[s]) return s;
+  if (giorni(corrente - 1) > 30) return corrente - 1;
+  return null;
+}
+
+/** Tutti i comitati regionali (per leggere tutta Italia una regione alla volta: ognuna sta sotto le 5000 righe). */
+export const TUTTE_LE_REGIONI = ['12', '1', '3', '5', '6', '7', '8', '9', '10', '11', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22'];
+
+/**
+ * Legge una stagione e salva tutto. Restituisce il numero di atleti.
+ *   modo "schede": una scheda per atleta (atleti/{chiave}) — la stagione in corso del Lazio, aggiornata ogni notte;
+ *   modo "pacchi": i migliori della stagione nei pacchi (pochissime scritture) — le stagioni passate e tutta Italia.
+ * In entrambi i casi: squadre, e per il Lazio primati e classifiche.
+ */
 export async function leggiStagione({
-  db, chiedi, st, adesso, log = console.log,
+  db, chiedi, st, adesso, log = console.log, regioni = [COMITATO], modo = 'schede',
 }) {
   const atleti = new Map();
   let richieste = 0;
-  for (const [vasca, idVasca] of VASCHE) {
-    for (const sesso of ['M', 'F']) {
-      for (const [codFin, codice] of Object.entries(CODICI)) {
+  for (const reg of regioni) {
+    for (const [vasca, idVasca] of VASCHE) {
+      for (const sesso of ['M', 'F']) {
+        for (const [codFin, codice] of Object.entries(CODICI)) {
         let righe;
         try {
           righe = leggiGraduatoria(await chiedi({
@@ -113,12 +142,12 @@ export async function leggiStagione({
             'solr[kindtime]': '3',
             'solr[stagione]': String(st),
             'solr[codice_gara]': codFin.padStart(2, '0'),
-            'solr[id_comitato]': COMITATO,
+            'solr[id_comitato]': reg,
             'solr[limit]': '5000',
           }));
           richieste++;
         } catch (e) {
-          log(`Graduatoria ${st} ${codice} ${sesso} ${vasca}m non letta: ${e.message}`);
+          log(`Graduatoria ${st} ${codice} ${sesso} ${vasca}m (regione ${reg}) non letta: ${e.message}`);
           continue;
         }
         for (const r of righe) {
@@ -128,7 +157,7 @@ export async function leggiStagione({
           if (!k) continue;
           if (!atleti.has(k)) {
             atleti.set(k, {
-              n: `${nome} ${cognome}`.trim(), y: r.anno, sx: sesso, societa: new Set(), fin: r.idAtleta, risultati: [],
+              n: `${nome} ${cognome}`.trim(), y: r.anno, sx: sesso, societa: new Set(), fin: r.idAtleta, reg, risultati: [],
             });
           }
           const a = atleti.get(k);
@@ -148,6 +177,7 @@ export async function leggiStagione({
           if (pt) voce.pt = pt;
           a.risultati.push(voce);
         }
+        }
       }
     }
   }
@@ -156,11 +186,34 @@ export async function leggiStagione({
     return { atleti: 0, richieste };
   }
 
-  // 1. Schede degli atleti: per quelli già conosciuti si aggiungono solo i tempi (nome e società restano).
-  const noti = await leggiNotiTutti(db);
+  // 1a. Pacchi: tutti gli atleti della stagione in pochi documenti; nell'indice "cerca" chi non c'è ancora.
+  if (modo === 'pacchi') {
+    const pacchi = preparaPacchi(new Map([...atleti].map(([k, a]) => [k, { ...a, s: [...a.societa][0] ?? '' }])), st);
+    await db.scriviTanti([...pacchi].map(([id, dati]) => ({ percorso: `pacchi/${id}`, dati: { ...dati, agg: comeData(adesso) } })));
+    const indicizzati = await leggiIndicizzati(db);
+    const nuoviIndice = new Map();
+    const nuoviLazio = new Map();
+    for (const [k, a] of atleti) {
+      if (indicizzati.has(k)) continue;
+      const voce = {
+        n: a.n, y: a.y, s: [...a.societa][0] ?? '', reg: a.reg,
+      };
+      nuoviIndice.set(k, voce);
+      if (a.reg === COMITATO) nuoviLazio.set(k, voce);
+    }
+    // Il Lazio anche nell'indice a due lettere (ricerca veloce), gli altri solo in quello a tre.
+    const soloAltri = new Map([...nuoviIndice].filter(([k]) => !nuoviLazio.has(k)));
+    await db.commit([
+      ...scrittureRicerca(nuoviLazio), ...scrittureCerca(soloAltri), ...scrittureIndicizzati(nuoviIndice.keys()),
+    ]);
+    log(`Pacchi ${st}: ${pacchi.size} documenti, ${nuoviIndice.size} atleti nuovi nella ricerca.`);
+  }
+
+  // 1b. Schede degli atleti: per quelli già conosciuti si aggiungono solo i tempi (nome e società restano).
+  const noti = modo === 'schede' ? await leggiNotiTutti(db) : new Set();
   const operazioni = [];
   const nuovi = new Map();
-  for (const [k, a] of atleti) {
+  for (const [k, a] of modo === 'schede' ? atleti : []) {
     const s = [...a.societa][0] ?? '';
     const dati = noti.has(k) ? {} : { n: a.n, s, sx: a.sx, ...(a.y ? { y: a.y } : {}) };
     operazioni.push({
@@ -172,8 +225,11 @@ export async function leggiStagione({
     });
     if (!noti.has(k)) nuovi.set(k, { n: a.n, y: a.y, s });
   }
-  operazioni.push(...scrittureRicerca(nuovi), ...scrittureNoti(nuovi.keys()));
-  await db.commit(operazioni);
+  if (operazioni.length) {
+    operazioni.push(...scrittureRicerca(nuovi), ...scrittureNoti(nuovi.keys()));
+    await db.commit(operazioni);
+  }
+  const lazio = new Map([...atleti].filter(([, a]) => a.reg === COMITATO));
 
   // 2. Primati (badge PB/SB nelle gare in diretta).
   const corrente = stagione(oggiRoma(adesso));
@@ -181,7 +237,7 @@ export async function leggiStagione({
   for (const [vasca] of VASCHE) for (const sx of ['M', 'F']) for (const c of Object.values(CODICI)) percorsi.push(`primati/${vasca}-${c}-${sx}`);
   const letti = await db.leggiTanti(percorsi);
   const cambiati = new Map();
-  for (const [k, a] of atleti) {
+  for (const [k, a] of lazio) {
     for (const v of a.risultati) {
       const p = `primati/${v.v}-${v.c}-${a.sx}`;
       const tabella = cambiati.get(p) ?? letti.get(p)?.atleti ?? {};
@@ -206,10 +262,10 @@ export async function leggiStagione({
   const squadre = await aggiornaSquadre({
     db, atleti, st, adesso,
   });
-  // 4. Classifiche per l'app (gara per gara e Indice Cloro), con i movimenti per la stagione in corso.
-  const classifiche = await scriviClassifiche({
-    db, atleti, st, adesso,
-  });
+  // 4. Classifiche del Lazio per l'app (gara per gara e Indice Cloro), con i movimenti per la stagione in corso.
+  const classifiche = lazio.size ? await scriviClassifiche({
+    db, atleti: lazio, st, adesso,
+  }) : 0;
   log(`Graduatorie ${st}: ${richieste} richieste, ${atleti.size} atleti (${nuovi.size} nuovi), ${cambiati.size} primati, ${squadre} squadre, ${classifiche} classifiche.`);
   return {
     atleti: atleti.size, nuovi: nuovi.size, richieste, squadre, classifiche,
@@ -310,9 +366,10 @@ export async function aggiornaSquadre({
   for (const [k, a] of atleti) {
     for (const nome of a.societa) {
       const id = chiaveSquadra(nome);
-      if (!perSquadra.has(id)) perSquadra.set(id, { n: nome, membri: new Map(), t: new Map() });
+      if (!perSquadra.has(id)) perSquadra.set(id, { n: nome, membri: new Map(), t: new Map(), regioni: new Map() });
       const sq = perSquadra.get(id);
       sq.membri.set(k, a);
+      if (a.reg) sq.regioni.set(a.reg, (sq.regioni.get(a.reg) ?? 0) + 1);
       for (const v of a.risultati) {
         const kt = chiaveTabella(v.v, v.c, a.sx);
         if (!sq.t.has(kt)) sq.t.set(kt, new Map());
@@ -364,7 +421,9 @@ export async function aggiornaSquadre({
     operazioni.push({ percorso: `squadre/${id}`, dati, maschera: Object.keys(dati), oraServer: ['agg'] });
     const ultima = Math.max(...[...membri.values()].map((x) => Number(x[5])));
     const attivi = [...membri.values()].filter((x) => Number(x[5]) === ultima).length;
-    elenco[id] = `${nome}|${attivi}|${membri.size}|${ultima}`;
+    // Regione della squadra: quella della maggior parte dei suoi atleti (se non si sa, quella di prima).
+    const regione = [...sq.regioni].sort((x, y) => y[1] - x[1])[0]?.[0] ?? String(elenco[id] ?? '').split('|')[4] ?? '';
+    elenco[id] = `${nome}|${attivi}|${membri.size}|${ultima}|${regione}`;
   }
   scritture.push({ percorso: 'meta/squadre', dati: { squadre: elenco, aggiornato: comeData(adesso) } });
   await db.commit(operazioni);
@@ -374,13 +433,15 @@ export async function aggiornaSquadre({
 
 /** Un giro: una stagione per volta, se c'è spazio nel tetto giornaliero di scritture. */
 export async function giroGraduatorie({
-  db, fonti, scarica, adesso = new Date().toISOString(), log = console.log, forza = null,
+  db, fonti, scarica, adesso = new Date().toISOString(), log = console.log, forza = null, lavoro = 'notte',
+  puoContinuare = () => true,
 }) {
   if (!fonti?.naz) return { saltato: 'fonte' };
   const stato = (await db.leggi('meta/graduatorie')) ?? {};
   stato.fatte ??= {};
-  const st = forza ?? scegliStagione(stato, adesso);
-  if (st === null) return { saltato: 'tutto letto' };
+  stato.pacchiLazio ??= {};
+  stato.italia ??= {};
+  const salva = () => db.scrivi('meta/graduatorie', stato);
   const chiedi = async (campi) => {
     await pausa(PAUSA);
     return scarica(`${fonti.naz}&currentpage=1&format=json&view=grricerca`, {
@@ -389,23 +450,68 @@ export async function giroGraduatorie({
       modulo: { 'solr[settore]': 'NUO', ...campi },
     });
   };
-  const esito = await leggiStagione({
-    db, chiedi, st, adesso, log,
-  });
-  if (esito.atleti) {
-    stato.fatte[st] = adesso;
-    await db.scrivi('meta/graduatorie', stato);
-    // Con la stagione in corso si mettono in coda anche le classifiche nazionali in vasca corta
-    // (il controllore le prepara poche per volta): così sono già pronte quando qualcuno le apre.
-    if (String(st) === stagione(oggiRoma(adesso))) {
-      const v = Number(oggiRoma(adesso).slice(5, 7)) >= 5 && Number(oggiRoma(adesso).slice(5, 7)) <= 8 ? 50 : 25;
-      await db.scriviTanti(Object.values(CODICI).flatMap((c) => ['M', 'F'].map((sx) => ({
-        percorso: `richieste/${st}-${v}-${c}-${sx}-it-tutte`,
-        dati: {
-          st: String(st), v, c, sx, reg: 'it', cat: 'tutte', creato: adesso,
-        },
-      }))));
-    }
+  // Una volta sola: l'indice a tre lettere (tutta Italia) parte da quello del Lazio.
+  if (!stato.cercaV) {
+    await migraCerca(db, log);
+    stato.cercaV = 1;
+    await salva();
   }
-  return { stagione: st, ...esito };
+  const corrente = stagione(oggiRoma(adesso));
+
+  /** Stagione del Lazio con una scheda per atleta (quella in corso, o una scelta a mano). */
+  const schede = async (st) => {
+    const esito = await leggiStagione({
+      db, chiedi, st, adesso, log,
+    });
+    if (esito.atleti) {
+      stato.fatte[st] = adesso;
+      await salva();
+      // Con la stagione in corso si mettono in coda anche le classifiche nazionali della vasca del periodo
+      // (il controllore le prepara poche per volta): così sono già pronte quando qualcuno le apre.
+      if (String(st) === corrente) {
+        const mese = Number(oggiRoma(adesso).slice(5, 7));
+        const v = mese >= 5 && mese <= 8 ? 50 : 25;
+        await db.scriviTanti(Object.values(CODICI).flatMap((c) => ['M', 'F'].map((sx) => ({
+          percorso: `richieste/${st}-${v}-${c}-${sx}-it-tutte`,
+          dati: {
+            st: String(st), v, c, sx, reg: 'it', cat: 'tutte', creato: adesso,
+          },
+        }))));
+      }
+    }
+    return { stagione: st, ...esito };
+  };
+  /** Una stagione nei pacchi: solo il Lazio o tutta Italia. */
+  const pacchi = async (st, italia) => {
+    const esito = await leggiStagione({
+      db, chiedi, st, adesso, log, modo: 'pacchi', regioni: italia ? TUTTE_LE_REGIONI : [COMITATO],
+    });
+    if (esito.atleti) {
+      (italia ? stato.italia : stato.pacchiLazio)[st] = adesso;
+      await salva();
+    }
+    return { stagione: st, italia, ...esito };
+  };
+
+  if (forza && lavoro === 'italia') return pacchi(forza, true);
+  if (forza) return schede(forza);
+  if (lavoro === 'lazio') {
+    // Tutte le stagioni passate del Lazio, finché c'è spazio nel limite di oggi.
+    const fatte = [];
+    for (let st = scegliPacchiLazio(stato, adesso); st !== null && puoContinuare(3_500); st = scegliPacchiLazio(stato, adesso)) {
+      fatte.push(await pacchi(st, false));
+    }
+    return { lazio: fatte };
+  }
+  if (lavoro === 'italia') {
+    const st = scegliItalia(stato, adesso);
+    return st === null ? { saltato: 'tutta Italia già letta' } : pacchi(st, true);
+  }
+  // Di notte: prima la stagione in corso del Lazio (se serve), poi una stagione di tutta Italia.
+  const esiti = [];
+  const st = scegliStagione(stato, adesso);
+  if (st !== null) esiti.push(await schede(st));
+  const stItalia = scegliItalia(stato, adesso);
+  if (stItalia !== null && puoContinuare(8_000)) esiti.push(await pacchi(stItalia, true));
+  return esiti.length ? { esiti } : { saltato: 'tutto letto' };
 }

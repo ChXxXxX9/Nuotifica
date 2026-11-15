@@ -8,6 +8,10 @@ on:
     - cron: '41 0,2,4 * * *'
   workflow_dispatch:
     inputs:
+      lavoro:
+        description: 'Vuoto = giro della notte; "lazio" = tutte le stagioni passate del Lazio; "italia" = una stagione di tutta Italia'
+        required: false
+        default: ''
       stagione:
         description: 'Stagione da leggere subito (es. 2025 per 2025/26). Vuoto = la prossima da fare.'
         required: false
@@ -23,7 +27,7 @@ concurrency:
 jobs:
   graduatorie:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -34,4 +38,4 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           FONTI: ${{ secrets.FONTI }}
-        run: node src/giro-graduatorie.js ${{ inputs.stagione }}
+        run: node src/giro-graduatorie.js ${{ inputs.lavoro }} ${{ inputs.stagione }}

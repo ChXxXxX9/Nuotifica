@@ -7,9 +7,11 @@ import {
   tempo, nomeGara, ordineGara, giorno, iniziali, differenza, codici, stagioneCorrente, stagioneDi, nomeStagione,
 } from './formato.js';
 import {
-  leggiLimiti, limitiSeguiti, limitePer, migliore, rispettoAlLimite, leggiTempo, nomeCategoriaAtleta,
+  leggiLimiti, limitiSeguiti, limitePer, migliore, rispettoAlLimite, leggiTempo, nomeCategoriaAtleta, REGIONI,
 } from './viste-classifiche.js';
 import { coriandoli } from './coriandoli.js';
+import { idPacco, leggiPacco } from './pacchi.js';
+import { punti } from './punti.js';
 import { schedaRisultato } from './viste-gare.js';
 import { riempiPosizioni } from './posizioni.js';
 
@@ -32,15 +34,41 @@ export function risultatiPuliti(r = []) {
   return [...perTempo.values()].sort((a, b) => (b.d ?? '').localeCompare(a.d ?? ''));
 }
 
-export async function leggiAtleta(k, { fresco = false } = {}) {
+const PRIMA_STAGIONE_PACCHI = 2018;
+
+/** I migliori di ogni stagione dai pacchi (tutta Italia, dal 2018/19): una lettura per stagione. */
+async function leggiDaiPacchi(k) {
+  const corrente = Number(stagioneCorrente());
+  const stagioni = [];
+  for (let st = corrente; st >= PRIMA_STAGIONE_PACCHI; st--) stagioni.push(st);
+  const docs = await conCache(`pacchi:${k}`, () => api.leggiPacchi(stagioni.map((st) => idPacco(st, k))), { durata: 600_000 });
+  const trovati = (docs ?? []).map((doc) => leggiPacco(doc, k)).filter(Boolean);
+  if (!trovati.length) return null;
+  const ultimo = trovati[0];
+  const r = trovati.flatMap((x) => x.r.map((v) => {
+    const pt = punti(v.t, v.c, ultimo.sx, v.v, v.d);
+    return pt ? { ...v, pt } : v;
+  }));
+  return {
+    n: ultimo.n, y: ultimo.y, sx: ultimo.sx, s: ultimo.s, reg: ultimo.reg, r,
+  };
+}
+
+/** Scheda di un atleta: la sua scheda (gare lette e graduatorie del Lazio) più i pacchi di tutta Italia. */
+export async function leggiAtleta(k, { fresco = false, pacchi = true } = {}) {
   if (fresco) stato.cache.delete(`atleta:${k}`);
   const pulisci = (a) => (a ? { ...a, k, r: risultatiPuliti(a.r) } : null);
-  return conCache(`atleta:${k}`, async (fresco) => pulisci(await api.leggiAtleta(k, (nuovo) => fresco(pulisci(nuovo)))), { durata: 60_000 });
+  const base = conCache(`atleta:${k}`, async (fresco) => pulisci(await api.leggiAtleta(k, (nuovo) => fresco(pulisci(nuovo)))), { durata: 60_000 });
+  if (!pacchi) return base;
+  const [scheda, daiPacchi] = await Promise.all([base, leggiDaiPacchi(k).catch(() => null)]);
+  if (!daiPacchi) return scheda;
+  if (!scheda) return pulisci(daiPacchi);
+  return { ...scheda, reg: scheda.reg ?? daiPacchi.reg, r: risultatiPuliti([...scheda.r, ...daiPacchi.r]) };
 }
 
 /** Dati brevi degli atleti seguiti, per "Per te". */
 export async function leggiSeguiti(chiavi) {
-  const schede = await Promise.all(chiavi.map((k) => leggiAtleta(k).catch(() => null)));
+  const schede = await Promise.all(chiavi.map((k) => leggiAtleta(k, { pacchi: false }).catch(() => null)));
   return chiavi.map((k, i) => {
     const a = schede[i];
     if (!a) return { k, n: k.replace(/-\d{4}$/, '').replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) };
@@ -106,12 +134,37 @@ async function leggiPezzo(p) {
   return voci;
 }
 
+/** Pezzo dell'indice a tre lettere (tutta Italia). */
+async function leggiPezzoItalia(p) {
+  const chiave = `cerca-${p}`;
+  const salvato = memoria(chiave);
+  if (salvato && Date.now() - salvato.quando < ORE_INDICE * 3_600_000) return salvato.voci;
+  const elenco = await conCache(`cerca:${p}`, () => api.leggiCerca(p), { durata: 600_000 });
+  const perChiave = new Map();
+  for (const riga of elenco ?? []) {
+    const [k, n, y, sq, reg] = riga.split('|');
+    perChiave.set(k, {
+      k, n, y, s: sq, reg, cerca: `${testoCerca(n)} ${testoCerca(n).replace(/\s+/g, '')} ${testoCerca(sq ?? '')}`,
+    });
+  }
+  const voci = [...perChiave.values()];
+  try {
+    memoria(chiave, { quando: Date.now(), voci });
+  } catch { /* poco spazio */ }
+  return voci;
+}
+
 /** Atleti: si legge un solo pezzo piccolo dell'indice (quello della parola più lunga scritta). */
 export async function cerca(testo) {
   const parole = testoCerca(testo).split(/\s+/).filter((p) => p.length >= 2);
   if (!parole.length) return [];
   const guida = [...parole].sort((x, y) => y.length - x.length)[0];
-  const voci = await leggiPezzo(prefisso(guida));
+  // Con almeno tre lettere si cerca in tutta Italia; con due, nel Lazio (indice più piccolo).
+  const lettere = normalizza(guida).replace(/[^a-z]/g, '');
+  const soloLazio = () => leggiPezzo(prefisso(guida));
+  const voci = lettere.length >= 3
+    ? await leggiPezzoItalia(lettere.slice(0, 3)).then((v) => (v.length ? v : soloLazio())).catch(soloLazio)
+    : await soloLazio();
   const nascosti = new Set(stato.nascosti ?? []);
   const trovati = voci.filter((v) => !nascosti.has(v.k) && parole.every((p) => v.cerca.includes(p)));
   const primo = parole[0];
@@ -128,15 +181,17 @@ export async function cercaSquadre(testo) {
   const elenco = await conCache('squadre', (fresco) => api.leggiSquadre(fresco), { durata: 600_000 });
   return Object.entries(elenco ?? {})
     .map(([id, riga]) => {
-      const [n, attivi, totale, ultima] = riga.split('|');
-      return { id, n, attivi: Number(attivi), totale: Number(totale), ultima };
+      const [n, attivi, totale, ultima, reg] = riga.split('|');
+      return {
+        id, n, attivi: Number(attivi), totale: Number(totale), ultima, reg,
+      };
     })
     .filter((x) => parole.every((p) => testoCerca(x.n).includes(p)))
     .sort((a, b) => b.attivi - a.attivi)
     .slice(0, 8);
 }
 
-const voceSquadra = (x) => `<li><a href="#/squadra/${encodeURIComponent(x.id)}"><b>${esc(x.n)}</b><small>Squadra · ${x.attivi} ${x.attivi === 1 ? 'atleta' : 'atleti'} nell'ultima stagione</small></a></li>`;
+const voceSquadra = (x) => `<li><a href="#/squadra/${encodeURIComponent(x.id)}"><b>${esc(x.n)}</b><small>Squadra · ${x.attivi} ${x.attivi === 1 ? 'atleta' : 'atleti'} nell'ultima stagione${x.reg && x.reg !== '12' && REGIONI[x.reg] ? ` · ${esc(REGIONI[x.reg])}` : ''}</small></a></li>`;
 
 export async function vistaAtleti() {
   const seguiti = stato.profilo?.seguiti ?? [];
@@ -160,7 +215,7 @@ export async function vistaAtleti() {
         ${ICONE.squadra ?? ICONE.atleti ?? ''}
         <span><strong>Squadre</strong><small>Componenti, migliori tempi di sempre e di ogni stagione, staffette.</small></span>
       </a>
-      <p class="nota" style="margin-top:18px">Ci sono gli atleti del Lazio dal 2018/19 e quelli delle gare che leggiamo: l'elenco cresce gara dopo gara.</p>
+      <p class="nota" style="margin-top:18px">Ci sono gli atleti del Lazio dal 2018/19 e quelli delle gare che leggiamo; stiamo aggiungendo quelli di tutta Italia, una stagione alla volta.</p>
     </main>
     ${tabBar('atleti')}`, (el) => {
     const input = el.querySelector('input');
@@ -181,8 +236,8 @@ export async function vistaAtleti() {
         if (mio !== giro) return;
         box.innerHTML = trovati.length || squadre.length
           ? `<ul class="elenco risultati-ricerca">${squadre.map(voceSquadra).join('')}${trovati.map((v) => `
-              <li><a href="#/atleta/${encodeURIComponent(v.k)}"><b>${esc(v.n)}</b><small>${esc([v.y, v.s].filter(Boolean).join(' · '))}</small></a></li>`).join('')}</ul>`
-          : '<div class="vuoto"><strong>Nessuno trovato</strong>Prova con il cognome (o il nome della squadra).</div>';
+              <li><a href="#/atleta/${encodeURIComponent(v.k)}"><b>${esc(v.n)}</b><small>${esc([v.y, v.s, v.reg && v.reg !== '12' ? REGIONI[v.reg] : ''].filter(Boolean).join(' · '))}</small></a></li>`).join('')}</ul>`
+          : '<div class="vuoto"><strong>Nessuno trovato</strong>Prova con il cognome (o il nome della squadra). Stiamo aggiungendo gli atleti di tutta Italia: se manca qualcuno, arriva nei prossimi giorni.</div>';
       } catch (err) {
         if (mio === giro) box.innerHTML = `<p class="errore">${esc(err.message)}</p>`;
       }
@@ -281,7 +336,7 @@ export async function vistaAtleta(k) {
     return;
   }
   if (!a) {
-    disegna(`${barraTop({ indietro: true })}<main class="pagina"><h1 class="titolo-pagina">Atleta non trovato</h1><p class="intro">Torna alla <a href="#/atleti">ricerca</a>.</p></main>${tabBar('atleti')}`);
+    disegna(`${barraTop({ indietro: true })}<main class="pagina"><h1 class="titolo-pagina">Scheda in arrivo</h1><p class="intro">Non abbiamo ancora i tempi di questo atleta: stiamo caricando quelli di tutta Italia, una stagione alla volta, e nei prossimi giorni ci sarà anche lui. Intanto torna alla <a href="#/atleti">ricerca</a>.</p></main>${tabBar('atleti')}`);
     return;
   }
 
@@ -313,7 +368,7 @@ export async function vistaAtleta(k) {
         <section class="testa-atleta">
           <span class="iniziali" style="width:56px;height:56px;border-radius:18px;font-size:18px" aria-hidden="true">${esc(iniziali(a.n))}</span>
           <h1>${esc(a.n)}</h1>
-          <p class="info">${esc([a.y, a.sx === 'F' ? 'Femmine' : a.sx === 'M' ? 'Maschi' : ''].filter(Boolean).join(' · '))}${a.s ? ` · <a href="#/squadre?q=${encodeURIComponent(a.s)}">${esc(a.s)}</a>` : ''}</p>
+          <p class="info">${esc([a.y, a.sx === 'F' ? 'Femmine' : a.sx === 'M' ? 'Maschi' : ''].filter(Boolean).join(' · '))}${a.s ? ` · <a href="#/squadre?q=${encodeURIComponent(a.s)}">${esc(a.s)}</a>` : ''}${a.reg && a.reg !== '12' && REGIONI[a.reg] ? ` · ${esc(REGIONI[a.reg])}` : ''}</p>
           <button class="bottone ${seguito ? 'bottone-secondario' : ''}" data-segui aria-pressed="${seguito}">${seguito ? 'Seguito ✓' : 'Segui'}</button>
           <div class="cifre">
             <div class="cifra"><b>${risultati.filter((x) => x.t).length}</b><small>Tempi in ${gare} ${gare === 1 ? 'gara' : 'gare'}</small></div>
