@@ -304,6 +304,8 @@ export async function aggiornaGare({
       }
     }
     gruppi.push(...(stato.naz?.gruppi ?? []));
+    const inCorso = (stato.naz?.gruppi ?? []).filter((g) => g.dal <= oggi && oggi <= piuGiorni(g.al, 1));
+    log(`Cronometraggio nazionale: ${stato.naz?.gruppi?.length ?? 0} gare in elenco${inCorso.length ? `, in corso: ${inCorso.map((g) => g.nome).join(', ')}` : ''}.`);
   }
   if (!gruppi.length) return { gare: 0 };
 
@@ -358,7 +360,10 @@ export async function aggiornaGare({
       log(`Sede ${sedeBreve(s.sede)}: risultati non leggibili (${e.message}).`);
       continue;
     }
-    if (nazionale && !righe.length) continue; // gara non ancora iniziata
+    if (nazionale && !righe.length) {
+      log(`${g.nome}: ancora nessun risultato.`);
+      continue;
+    }
     const noti = prima ? leggiNoti((await db.leggi(`stato-live/${s.sede}`))?.righe) : new Map();
 
     // Personali e stagionali: si leggono le tabelle delle gare coinvolte (una lettura ciascuna).
