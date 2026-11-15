@@ -291,6 +291,8 @@ export function creaBackendDemo() {
     },
     async eliminaLimite(id) { await pausa(); limiti.splice(limiti.findIndex((l) => l.id === id), 1); },
     async leggiClassifica(id) { await pausa(90); return classificaDemo(id); },
+    async leggiClassificaRete(id) { await pausa(90); return classificaDemo(id); },
+    async chiediClassifica() { await pausa(60); },
     async salvaObiettivi(uid, obiettivi) { await pausa(); profilo.obiettivi = obiettivi; },
     async salvaLimitiSeguiti(uid, l) { await pausa(); profilo.limiti = l; },
     async leggiCategorie() { await pausa(40); return null; },

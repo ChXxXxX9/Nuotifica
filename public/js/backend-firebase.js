@@ -343,6 +343,20 @@ export async function creaBackendFirebase(config) {
 
     leggiClassifica: (id, fresco) => avvolgi(() => leggiVeloce(F.doc(db, 'classifiche', id), (s) => s.data(), fresco)),
 
+    /** Lettura senza copia locale (per vedere se una classifica chiesta è pronta). */
+    leggiClassificaRete: (id) => avvolgi(async () => {
+      const snap = await F.getDocFromServer(F.doc(db, 'classifiche', id));
+      return snap.exists() ? snap.data() : null;
+    }),
+
+    /** Chiede al controllore di preparare (o aggiornare) una classifica. Se è già stata chiesta, va bene così. */
+    chiediClassifica: (r) => avvolgi(async () => {
+      const id = `${r.st}-${r.v}-${r.c}-${r.sx}-${r.reg}-${r.cat}`;
+      try {
+        await F.setDoc(F.doc(db, 'richieste', id), { ...r, creato: new Date().toISOString() });
+      } catch { /* già in coda */ }
+    }),
+
     salvaObiettivi: (uid, obiettivi) => avvolgi(() => F.updateDoc(F.doc(db, 'users', uid), { obiettivi, aggiornato: F.serverTimestamp() })),
 
     salvaLimitiSeguiti: (uid, limiti) => avvolgi(() => F.updateDoc(F.doc(db, 'users', uid), { limiti, aggiornato: F.serverTimestamp() })),

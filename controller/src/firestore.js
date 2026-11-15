@@ -90,6 +90,11 @@ export function creaFirestore(chiamaGoogle, progetto) {
       });
     },
 
+    async elimina(percorso) {
+      conta.scritture++;
+      await chiamaGoogle(`${base}/${percorso}`, { method: 'DELETE', consenti404: true });
+    },
+
     /** Scrive più documenti in blocchi da 400 (il limite è 500 per commit). */
     async scriviTanti(elenco) {
       for (let i = 0; i < elenco.length; i += 400) {

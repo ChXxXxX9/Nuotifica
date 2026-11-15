@@ -219,6 +219,29 @@ export async function leggiStagione({
 const PESI_INDICE = [0.5, 0.3, 0.2];
 const GIORNI_BASE = 6.5;
 
+/**
+ * Movimenti stile Spotify per la stagione in corso: b = posizioni della settimana scorsa (bd = da quando),
+ * p = posizione migliore raggiunta. `righe` in ordine, con la chiave k.
+ */
+export function aggiungiMovimenti(dati, righe, vecchio, adesso) {
+  const posizioni = Object.fromEntries(righe.map((r, i) => [r.k, i + 1]));
+  const vecchiePosizioni = vecchio ? Object.fromEntries((vecchio.righe ?? []).map((riga, i) => [riga.split('|')[0], i + 1])) : null;
+  if (!vecchio) {
+    dati.b = posizioni;
+    dati.bd = adesso;
+  } else if (!vecchio.bd || Date.parse(adesso) - Date.parse(vecchio.bd) > GIORNI_BASE * 86_400_000) {
+    dati.b = vecchiePosizioni;
+    dati.bd = adesso;
+  } else {
+    dati.b = vecchio.b ?? vecchiePosizioni;
+    dati.bd = vecchio.bd;
+  }
+  const picco = { ...(vecchio?.p ?? {}) };
+  for (const [k, pos] of Object.entries(posizioni)) picco[k] = Math.min(picco[k] ?? pos, pos);
+  dati.p = picco;
+  return dati;
+}
+
 /** Indice Cloro: media pesata dei punti delle 3 gare migliori (una per specialità, la vasca migliore). */
 export function indiceCloro(risultati = []) {
   const perGara = new Map();
@@ -269,24 +292,7 @@ export async function scriviClassifiche({
       righe: righe.map((r) => [r.k, r.n, r.y ?? '', r.s, r.valore, r.d ?? ''].join('|')),
       agg: comeData(adesso),
     };
-    if (corrente) {
-      const posizioni = Object.fromEntries(righe.map((r, i) => [r.k, i + 1]));
-      const vecchio = prima.get(percorso);
-      const vecchiePosizioni = vecchio ? Object.fromEntries((vecchio.righe ?? []).map((riga, i) => [riga.split('|')[0], i + 1])) : null;
-      if (!vecchio) {
-        dati.b = posizioni;
-        dati.bd = adesso;
-      } else if (!vecchio.bd || Date.parse(adesso) - Date.parse(vecchio.bd) > GIORNI_BASE * 86_400_000) {
-        dati.b = vecchiePosizioni;
-        dati.bd = adesso;
-      } else {
-        dati.b = vecchio.b ?? vecchiePosizioni;
-        dati.bd = vecchio.bd;
-      }
-      const picco = { ...(vecchio?.p ?? {}) };
-      for (const [k, pos] of Object.entries(posizioni)) picco[k] = Math.min(picco[k] ?? pos, pos);
-      dati.p = picco;
-    }
+    if (corrente) aggiungiMovimenti(dati, righe, prima.get(percorso), adesso);
     scritture.push({ percorso, dati });
   }
   await db.scriviTanti(scritture);

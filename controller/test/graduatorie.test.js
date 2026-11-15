@@ -156,3 +156,33 @@ test('lavori dell\'admin: rileggere una gara e una stagione', async () => {
   assert.equal(docs.get('lavori/a').stato, 'fatto');
   assert.equal(docs.get('lavori/b').esito, 'graduatorie avviate');
 });
+
+test('classifiche su richiesta: Italia per categoria e regione intera', async () => {
+  const { eseguiRichieste, anniCategoria, richiestaValida } = await import('../src/classifiche.js');
+  assert.deepEqual(anniCategoria('EA', 'M', 2026), { dal: 2014, al: 2015 });
+  assert.ok(!richiestaValida({ st: '2026', v: 25, c: '100SL', sx: 'M', reg: '9', cat: 'EA' }));
+  const docs = new Map([
+    ['richieste/a', { st: '2026', v: 25, c: '100SL', sx: 'M', reg: 'it', cat: 'EA', creato: '1' }],
+    ['richieste/b', { st: '2025', v: 25, c: '100SL', sx: 'M', reg: '9', cat: 'tutte', creato: '2' }],
+  ]);
+  const db = {
+    async elenca(c) { return [...docs].filter(([p]) => p.startsWith(`${c}/`)).map(([p, d]) => ({ id: p.split('/')[1], ...d })); },
+    async leggi(p) { return docs.get(p) ?? null; },
+    async scrivi(p, d) { docs.set(p, d); },
+    async elimina(p) { docs.delete(p); },
+  };
+  const chiamate = [];
+  const scarica = async (url, opz) => { chiamate.push(opz.modulo); return campione; };
+  const n = await eseguiRichieste({
+    db, fonti: { naz: 'N?x=1' }, scarica, adesso: '2026-11-15T12:00:00Z', log: () => {},
+  });
+  assert.equal(n, 2);
+  assert.equal(chiamate[0]['solr[id_comitato]'], '');
+  assert.equal(chiamate[0]['solr[dalyob]'], '2014');
+  assert.equal(chiamate[1]['solr[id_comitato]'], '9');
+  const it = docs.get('classifiche/2026-25-100SL-M-it-EA');
+  assert.equal(it.righe.length, 2);
+  assert.ok(it.b);
+  assert.ok(!docs.get('classifiche/2025-25-100SL-M-9-tutte').b);
+  assert.ok(![...docs.keys()].some((p) => p.startsWith('richieste/')));
+});

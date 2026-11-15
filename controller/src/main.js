@@ -19,6 +19,7 @@ import {
   impostaAdmin, inviaAnnunci, inviaLimiti, eseguiLavori,
 } from './admin.js';
 import { testiDaFare } from './testi.js';
+import { eseguiRichieste } from './classifiche.js';
 import { appendFile } from 'node:fs/promises';
 import { oggiRoma, giornoQuota } from './tempi.js';
 import {
@@ -335,6 +336,14 @@ async function principale() {
     }
   } catch (e) {
     console.log(`::warning title=Gare::${String(e.message).slice(0, 500)}`);
+  }
+
+  // Classifiche nazionali e delle altre regioni chieste dall'app.
+  try {
+    const n = await eseguiRichieste({ db, fonti, scarica, adesso });
+    if (n) console.log(`Classifiche preparate: ${n}.`);
+  } catch (e) {
+    console.log(`::warning title=Classifiche::${String(e.message).slice(0, 300)}`);
   }
 
   // Testo dei PDF del Comitato (per cercare dentro i documenti dall'app): se ce ne sono di nuovi,

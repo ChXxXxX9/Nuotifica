@@ -13,6 +13,14 @@ export const GARE = ['50SL', '100SL', '200SL', '400SL', '800SL', '1500SL', '50DO
   '50FA', '100FA', '200FA', '100MI', '200MI', '400MI'];
 const CATEGORIE = ['tutte', 'EB', 'EA', 'R', 'J', 'C', 'S'];
 const PRIMA_STAGIONE = 2018;
+export const REGIONI = {
+  1: 'Piemonte', 3: 'Lombardia', 5: 'Veneto', 6: 'Friuli Venezia Giulia', 7: 'Liguria', 8: 'Emilia Romagna', 9: 'Toscana',
+  10: 'Umbria', 11: 'Marche', 12: 'Lazio', 13: 'Abruzzo', 14: 'Molise', 15: 'Campania', 16: 'Puglia', 17: 'Basilicata',
+  18: 'Calabria', 19: 'Sicilia', 20: 'Sardegna', 21: 'Bolzano', 22: 'Trento',
+};
+const LAZIO = '12';
+const ORE_VALIDITA = 24;
+const nomeRegione = (reg) => (reg === 'it' ? 'Italia' : REGIONI[reg] ?? reg);
 
 const nascosto = (k) => (stato.nascosti ?? []).includes(k);
 
@@ -78,22 +86,36 @@ export async function vistaClassifiche() {
   const qui = () => percorso() === 'classifiche';
   const corrente = stagioneCorrente();
   const scelta = {
-    st: corrente, v: 25, sx: 'M', c: '100SL', cat: 'tutte', tutti: false, ...(memoria('classifica-scelta') ?? {}), ...(stato.sceltaClassifica ?? {}),
+    st: corrente, v: 25, sx: 'M', c: '100SL', cat: 'tutte', reg: LAZIO, tutti: false, ...(memoria('classifica-scelta') ?? {}), ...(stato.sceltaClassifica ?? {}),
   };
+  if (scelta.c === 'indice' && scelta.reg !== LAZIO) scelta.c = '100SL';
   if (Number(scelta.st) > Number(corrente)) scelta.st = corrente;
   const stagioni = [];
   for (let s = Number(corrente); s >= PRIMA_STAGIONE; s--) stagioni.push(String(s));
 
-  const idDoc = () => (scelta.c === 'indice' ? `${scelta.st}-indice-${scelta.sx}` : `${scelta.st}-${scelta.v}-${scelta.c}-${scelta.sx}`);
+  // Lazio: classifiche complete (dalle graduatorie di notte). Italia e altre regioni: preparate su richiesta.
+  const richiesta = () => ({
+    st: scelta.st, v: scelta.v, c: scelta.c, sx: scelta.sx, reg: scelta.reg, cat: scelta.reg === 'it' ? scelta.cat : 'tutte',
+  });
+  const idDoc = () => {
+    if (scelta.c === 'indice') return `${scelta.st}-indice-${scelta.sx}`;
+    if (scelta.reg === LAZIO) return `${scelta.st}-${scelta.v}-${scelta.c}-${scelta.sx}`;
+    const r = richiesta();
+    return `${r.st}-${r.v}-${r.c}-${r.sx}-${r.reg}-${r.cat}`;
+  };
   let doc;
   let caricando = true;
   let errore = null;
+  let inPreparazione = false;
+  let attesa = null;
 
   const ridisegna = (aggiornamento = false) => {
     const indice = scelta.c === 'indice';
+    const lazio = scelta.reg === LAZIO;
     const righe = doc ? conPosizioni(righeClassifica(doc), doc, {
-      indice, cat: scelta.cat, sx: scelta.sx, st: scelta.st,
+      indice, cat: scelta.reg === 'it' ? 'tutte' : scelta.cat, sx: scelta.sx, st: scelta.st,
     }) : [];
+    const dove = nomeRegione(scelta.reg);
     const risalita = righe.filter((r) => typeof r.mov === 'number' && r.mov > 0).sort((a, b) => b.mov - a.mov).slice(0, 6);
     const seguiti = new Set(stato.profilo?.seguiti ?? []);
     const mostrate = scelta.tutti ? righe : righe.slice(0, 100);
@@ -103,6 +125,14 @@ export async function vistaClassifiche() {
         <h1 class="titolo-pagina">Classifiche</h1>
         ${menuClassifiche('classifiche')}
         <div class="scelte-classifica">
+          <label class="campo-mini">Dove
+            <select data-reg>
+              <option value="${LAZIO}" ${scelta.reg === LAZIO ? 'selected' : ''}>Lazio</option>
+              <option value="it" ${scelta.reg === 'it' ? 'selected' : ''}>Italia</option>
+              <optgroup label="Altre regioni">${Object.entries(REGIONI).filter(([id]) => id !== LAZIO).sort((a, b) => a[1].localeCompare(b[1], 'it'))
+    .map(([id, nome]) => `<option value="${id}" ${scelta.reg === id ? 'selected' : ''}>${esc(nome)}</option>`).join('')}</optgroup>
+            </select>
+          </label>
           <label class="campo-mini">Stagione
             <select data-st>${stagioni.map((s) => `<option value="${s}" ${s === scelta.st ? 'selected' : ''}>${nomeStagione(s)}</option>`).join('')}</select>
           </label>
@@ -115,16 +145,17 @@ export async function vistaClassifiche() {
           </div>
         </div>
         <div class="filtri" role="toolbar" aria-label="Gara">
-          <button class="chip chip-indice" data-c="indice" aria-pressed="${indice}">Indice Cloro</button>
+          ${lazio ? `<button class="chip chip-indice" data-c="indice" aria-pressed="${indice}">Indice Cloro</button>` : ''}
           ${GARE.map((c) => `<button class="chip" data-c="${c}" aria-pressed="${scelta.c === c}">${esc(nomeGara(c, { breve: true }))}</button>`).join('')}
         </div>
         <div class="filtri" role="toolbar" aria-label="Categoria">
           ${CATEGORIE.map((c) => `<button class="chip" data-cat="${c}" aria-pressed="${scelta.cat === c}">${c === 'tutte' ? 'Assoluti' : esc(NOMI_CATEGORIE[c])}</button>`).join('')}
         </div>
-        <p class="nota" style="margin:2px 0 10px">${esc(indice ? 'Indice Cloro: media pesata dei punti delle 3 gare migliori della stagione.' : `Migliori tempi della stagione ${nomeStagione(scelta.st)} degli atleti del Lazio, vasca da ${scelta.v} m.`)}${doc?.agg ? ` Aggiornata ${esc(quando(doc.agg?.toDate ? doc.agg.toDate() : new Date(doc.agg)))}.` : ''}</p>
+        <p class="nota" style="margin:2px 0 10px">${esc(indice ? 'Indice Cloro: media pesata dei punti delle 3 gare migliori della stagione (atleti del Lazio).' : `Migliori tempi della stagione ${nomeStagione(scelta.st)}${scelta.reg === 'it' ? ' in Italia' : ` degli atleti ${scelta.reg === LAZIO ? 'del Lazio' : `della regione ${dove}`}`}, vasca da ${scelta.v} m${doc?.parziale ? ` (i primi ${righeClassifica(doc).length})` : ''}.`)}${doc?.agg ? ` Aggiornata ${esc(quando(doc.agg?.toDate ? doc.agg.toDate() : new Date(doc.agg)))}.` : ''}</p>
+        ${inPreparazione ? `<p class="avviso-preparazione">${doc ? 'Aggiornamento in corso: tra qualche minuto vedi i tempi nuovi.' : `Sto preparando la classifica ${scelta.reg === 'it' ? 'nazionale' : `della regione ${esc(dove)}`}: è pronta in pochi minuti, puoi restare qui.`}</p>` : ''}
 
-        ${caricando ? '<p class="caricamento">Carico la classifica…</p>' : errore ? `<p class="errore">${esc(errore)}</p>` : !righe.length ? `
-          <div class="vuoto"><strong>${doc ? 'Nessuno in questa categoria' : 'Classifica in arrivo'}</strong>${doc ? 'Prova un\'altra categoria o un\'altra gara.' : 'Le graduatorie si caricano di notte, una stagione dopo l\'altra: torna domani.'}</div>` : `
+        ${caricando ? '<p class="caricamento">Carico la classifica…</p>' : errore ? `<p class="errore">${esc(errore)}</p>` : !righe.length ? (inPreparazione && !doc ? '<p class="caricamento">In preparazione…</p>' : `
+          <div class="vuoto"><strong>${doc ? 'Nessuno qui' : 'Classifica in arrivo'}</strong>${doc ? 'Prova un\'altra categoria o un\'altra gara.' : 'Le graduatorie del Lazio si caricano di notte, una stagione dopo l\'altra: torna domani.'}</div>`) : `
           ${risalita.length ? `
             <section class="risalita" aria-label="In risalita">
               <h2 class="sezione-titolo">In risalita</h2>
@@ -134,12 +165,12 @@ export async function vistaClassifiche() {
             </section>` : ''}
           <ol class="classifica">${mostrate.map((r) => `
             <li class="${seguiti.has(r.k) ? 'seguito' : ''}">
-              <a href="#/atleta/${encodeURIComponent(r.k)}">
+              <${lazio || seguiti.has(r.k) ? `a href="#/atleta/${encodeURIComponent(r.k)}"` : 'div class="riga-classifica"'}>
                 <span class="pos"><b>${r.pos}</b>${badgeMovimento(r.mov)}</span>
                 <span class="chi"><b>${esc(r.n)}</b><small>${esc([r.y, r.s].filter(Boolean).join(' · '))}${r.picco && r.picco < r.pos ? ` · picco ${r.picco}°` : ''}</small></span>
                 <span class="quanto">${indice ? `<b>${r.valore}</b><small>${esc((r.d ?? '').split(',').filter(Boolean).map((c) => nomeGara(c, { breve: true })).join(' · '))}</small>`
     : `<b>${esc(tempo(r.valore))}</b><small>${esc([punti(r.valore, scelta.c, scelta.sx, scelta.v, r.d) ? `${punti(r.valore, scelta.c, scelta.sx, scelta.v, r.d)} pt` : '', r.d ? giorno(r.d) : ''].filter(Boolean).join(' · '))}</small>`}</span>
-              </a>
+              </${lazio || seguiti.has(r.k) ? 'a' : 'div'}>
             </li>`).join('')}</ol>
           ${!scelta.tutti && righe.length > 100 ? `<button class="bottone bottone-secondario" data-tutti style="margin-top:12px">Mostra tutti (${righe.length})</button>` : ''}`}
       </main>
@@ -148,18 +179,26 @@ export async function vistaClassifiche() {
         Object.assign(scelta, modifica, { tutti: false });
         stato.sceltaClassifica = { ...scelta };
         memoria('classifica-scelta', {
-          v: scelta.v, sx: scelta.sx, c: scelta.c, cat: scelta.cat,
+          v: scelta.v, sx: scelta.sx, c: scelta.c, cat: scelta.cat, reg: scelta.reg,
         });
         carica();
       };
       el.querySelector('[data-st]').addEventListener('change', (e) => cambia({ st: e.target.value }));
+      el.querySelector('[data-reg]').addEventListener('change', (e) => cambia({
+        reg: e.target.value, ...(e.target.value !== LAZIO && scelta.c === 'indice' ? { c: '100SL' } : {}),
+      }));
       el.querySelectorAll('[data-v]').forEach((b) => b.addEventListener('click', () => cambia({ v: Number(b.dataset.v) })));
       el.querySelectorAll('[data-sx]').forEach((b) => b.addEventListener('click', () => cambia({ sx: b.dataset.sx })));
       el.querySelectorAll('[data-c]').forEach((b) => b.addEventListener('click', () => cambia({ c: b.dataset.c })));
       el.querySelectorAll('[data-cat]').forEach((b) => b.addEventListener('click', () => {
+        // Per l'Italia ogni categoria è una classifica a sé (i primi 3000 di tutti non bastano per i più piccoli).
+        if (scelta.reg === 'it') {
+          cambia({ cat: b.dataset.cat });
+          return;
+        }
         scelta.cat = b.dataset.cat;
         memoria('classifica-scelta', {
-          v: scelta.v, sx: scelta.sx, c: scelta.c, cat: scelta.cat,
+          v: scelta.v, sx: scelta.sx, c: scelta.c, cat: scelta.cat, reg: scelta.reg,
         });
         ridisegna(true);
       }));
@@ -171,9 +210,12 @@ export async function vistaClassifiche() {
     }, { aggiornamento });
   };
 
+  const dataDi = (d) => (d?.agg?.toDate ? d.agg.toDate() : d?.agg ? new Date(d.agg) : null);
   async function carica() {
     caricando = true;
     errore = null;
+    inPreparazione = false;
+    clearTimeout(attesa);
     const id = idDoc();
     ridisegna(true);
     try {
@@ -186,7 +228,31 @@ export async function vistaClassifiche() {
       doc = null;
     }
     caricando = false;
+    // Italia e altre regioni: se manca (o è di ieri, per la stagione in corso) la si chiede al controllore.
+    const vecchia = doc && scelta.st === corrente && Date.now() - (dataDi(doc)?.getTime() ?? 0) > ORE_VALIDITA * 3_600_000;
+    if (!errore && scelta.reg !== LAZIO && scelta.c !== 'indice' && (!doc || vecchia)) {
+      inPreparazione = true;
+      api.chiediClassifica(richiesta()).catch(() => {});
+      aspetta(id, dataDi(doc)?.getTime() ?? 0, Date.now());
+    }
     ridisegna(true);
+  }
+  /** Controlla ogni 20 secondi se la classifica chiesta è pronta (per 8 minuti al massimo). */
+  function aspetta(id, primaDel, inizio) {
+    attesa = setTimeout(async () => {
+      if (!qui() || id !== idDoc()) return;
+      try {
+        const nuovo = await api.leggiClassificaRete(id);
+        if (nuovo && (dataDi(nuovo)?.getTime() ?? 0) > primaDel) {
+          doc = nuovo;
+          inPreparazione = false;
+          stato.cache.set(`classifica:${id}`, { valore: nuovo, quando: Date.now() });
+          ridisegna(true);
+          return;
+        }
+      } catch { /* riproviamo */ }
+      if (Date.now() - inizio < 8 * 60_000) aspetta(id, primaDel, inizio);
+    }, 20_000);
   }
   ridisegna();
   carica();
@@ -371,7 +437,7 @@ export async function vistaQuantoVale() {
     <main class="pagina">
       <h1 class="titolo-pagina">Classifiche</h1>
       ${menuClassifiche('quanto-vale')}
-      <p class="intro">Scrivi un tempo: ti diciamo quanti punti vale, dove sarebbe nella graduatoria del Lazio di quest'anno e quali tempi limite prende.</p>
+      <p class="intro">Scrivi un tempo: ti diciamo quanti punti vale, dove sarebbe nelle graduatorie di quest'anno del Lazio e d'Italia e quali tempi limite prende.</p>
       <form class="modulo quanto-vale" novalidate>
         <div class="riga-campi">
           <label class="campo">Gara
@@ -431,8 +497,12 @@ export async function vistaQuantoVale() {
     const pt = punti(ms, scelta.c, scelta.sx, scelta.v, new Date().toISOString().slice(0, 10));
     const anno = Number(scelta.y) || null;
     const cat = anno ? categoria(anno, scelta.sx, st) : null;
+    let italia = null;
     const mostra = (classifica) => {
       const righe = classifica ? righeClassifica(classifica) : [];
+      const righeIt = italia ? righeClassifica(italia) : [];
+      const davantiIt = righeIt.filter((r) => r.valore < ms).length;
+      const fuoriIt = italia?.parziale && davantiIt >= righeIt.length;
       const davanti = righe.filter((r) => r.valore < ms).length;
       const inCat = cat ? righe.filter((r) => categoria(r.y, scelta.sx, st) === cat) : [];
       const davantiCat = inCat.filter((r) => r.valore < ms).length;
@@ -446,6 +516,7 @@ export async function vistaQuantoVale() {
           <div class="cifra"><b>${pt ?? '–'}</b><small>Punti World Aquatics</small></div>
           <div class="cifra"><b>${classifica ? `${davanti + 1}°` : '–'}</b><small>${classifica ? `su ${righe.length + 1} nel Lazio` : 'Graduatoria in arrivo'}</small></div>
           ${cat ? `<div class="cifra"><b>${classifica ? `${davantiCat + 1}°` : '–'}</b><small>${esc(NOMI_CATEGORIE[cat])}</small></div>` : ''}
+          <div class="cifra"><b>${italia ? (fuoriIt ? `>${righeIt.length}°` : `${davantiIt + 1}°`) : '…'}</b><small>${italia ? 'in Italia' : 'Italia in preparazione'}</small></div>
         </div>
         <p class="nota" style="margin-top:8px">Graduatoria del Lazio ${esc(nomeStagione(st))}, vasca da ${scelta.v} m${classifica && righe[0] ? ` · il primo ha ${esc(tempo(righe[0].valore))}` : ''}.</p>
         ${esitiLimiti.length ? `
@@ -457,10 +528,21 @@ export async function vistaQuantoVale() {
           </section>` : ''}`;
     };
     mostra(null);
+    let lazio = null;
     try {
-      const doc = await leggiClassifica(`${st}-${scelta.v}-${scelta.c}-${scelta.sx}`);
-      if (mio === giro && qui()) mostra(doc);
+      lazio = await leggiClassifica(`${st}-${scelta.v}-${scelta.c}-${scelta.sx}`);
+      if (mio === giro && qui()) mostra(lazio);
     } catch { /* resta senza graduatoria */ }
+    // La classifica nazionale: se non c'è ancora (o è vecchia) la si chiede, e si vede al prossimo calcolo.
+    const r = {
+      st, v: scelta.v, c: scelta.c, sx: scelta.sx, reg: 'it', cat: 'tutte',
+    };
+    try {
+      italia = await leggiClassifica(`${st}-${scelta.v}-${scelta.c}-${scelta.sx}-it-tutte`);
+      const agg = italia?.agg?.toDate ? italia.agg.toDate() : italia?.agg ? new Date(italia.agg) : null;
+      if (!italia || !agg || Date.now() - agg.getTime() > ORE_VALIDITA * 3_600_000) api.chiediClassifica(r).catch(() => {});
+      if (mio === giro && qui()) mostra(lazio);
+    } catch { /* niente Italia per ora */ }
   }
 }
 
