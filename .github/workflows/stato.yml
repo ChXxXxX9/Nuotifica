@@ -1,0 +1,23 @@
+name: Stato del caricamento
+
+# A mano: quante stagioni di tutta Italia sono state caricate, quanti atleti e squadre.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stato:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Stato
+        working-directory: controller
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node src/stato-caricamento.js
