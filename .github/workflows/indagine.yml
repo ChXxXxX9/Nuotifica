@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   indagine:
@@ -43,8 +43,12 @@ jobs:
           openssl pkeyutl -encrypt -pubin -inkey pub.pem -pkeyopt rsa_padding_mode:oaep -in k.bin -out k.bin.enc
           mkdir cifrati && mv esiti.tgz.enc k.bin.enc cifrati/
           rm -rf esiti esiti.tgz k.bin
-      - uses: actions/upload-artifact@v4
-        with:
-          name: esiti
-          path: ${{ runner.temp }}/cifrati
-          retention-days: 1
+      - name: Salva (solo cifrati) in un ramo temporaneo
+        run: |
+          cd "$RUNNER_TEMP/cifrati"
+          git init -q -b indagine-esiti
+          git config user.name "Cloro"
+          git config user.email "noreply@cloro.web.app"
+          git add -A
+          git commit -qm "Esiti cifrati"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" indagine-esiti
