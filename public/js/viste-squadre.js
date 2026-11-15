@@ -7,14 +7,31 @@ import {
   tempo, nomeGara, ordineGara, giorno, iniziali, categoria, gruppoCategoria, stagioneDi,
 } from './formato.js';
 import { menuClassifiche, REGIONI } from './viste-classifiche.js';
+import { squadraDaStagioni } from './dati-italia.js';
 
 const nascosto = (k) => (stato.nascosti ?? []).includes(k);
 const normalizza = (t = '') => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const nomeStagione = (st) => `${st}/${String(Number(st) + 1).slice(2)}`;
 
 const leggiElenco = () => conCache('squadre', (fresco) => api.leggiSquadre(fresco), { durata: 600_000 });
-const leggiSquadra = (id) => conCache(`squadra:${id}`, (fresco) => api.leggiSquadra(id, fresco), { durata: 300_000 });
-const leggiStagione = (id, st) => conCache(`squadra:${id}:${st}`, () => api.leggiStagioneSquadra(id, st), { durata: 300_000 });
+/**
+ * Squadra: stagione per stagione da tutta Italia (Realtime Database), più le staffette lette nelle gare
+ * (Firestore). Se tutta Italia non c'è ancora, la squadra com'era prima (Firestore).
+ */
+const leggiSquadra = (id) => conCache(`squadra:${id}`, async () => {
+  const [italia, prima] = await Promise.all([
+    api.leggiSquadraItalia(id).catch(() => null),
+    api.leggiSquadra(id).catch(() => null),
+  ]);
+  const sq = squadraDaStagioni(italia);
+  if (!sq) return prima;
+  return { id, ...sq, sf: prima?.sf ?? [] };
+}, { durata: 300_000 });
+const leggiStagione = async (id, st) => {
+  const sq = await leggiSquadra(id);
+  if (sq?.stagioni) return sq.stagioni[st] ?? null;
+  return conCache(`squadra:${id}:${st}`, () => api.leggiStagioneSquadra(id, st), { durata: 300_000 });
+};
 
 function righeElenco(elenco) {
   return Object.entries(elenco ?? {}).map(([id, riga]) => {
@@ -52,7 +69,7 @@ export async function vistaSquadre(q = '') {
   const voce = (x) => `
     <li><a href="#/squadra/${encodeURIComponent(x.id)}">
       <span class="iniziali" aria-hidden="true">${esc(iniziali(x.n))}</span>
-      <span class="chi"><b>${esc(x.n)}</b><small>${x.attivi} ${x.attivi === 1 ? 'atleta' : 'atleti'} nel ${esc(nomeStagione(x.ultima))} · ${x.totale} dal 2018${regione === 'it' && REGIONI[x.reg] ? ` · ${esc(REGIONI[x.reg])}` : ''}</small></span>
+      <span class="chi"><b>${esc(x.n)}</b><small>${x.attivi} ${x.attivi === 1 ? 'atleta' : 'atleti'} nel ${esc(nomeStagione(x.ultima))}${regione === 'it' && REGIONI[x.reg] ? ` · ${esc(REGIONI[x.reg])}` : ''}</small></span>
     </a></li>`;
   disegna(`
     ${barraTop()}
@@ -187,7 +204,7 @@ export async function vistaSquadra(id) {
           <h1>${esc(sq.n ?? id)}</h1>
           <div class="cifre">
             <div class="cifra"><b>${membri.filter((x) => x.a >= String(Number(ultima) - 1)).length}</b><small>Atleti attivi</small></div>
-            <div class="cifra"><b>${membri.length}</b><small>Dal 2018</small></div>
+            <div class="cifra"><b>${membri.length}</b><small>Da sempre</small></div>
             <div class="cifra"><b>${stagioni.length}</b><small>Stagioni</small></div>
           </div>
         </section>
@@ -250,7 +267,7 @@ export async function vistaSquadra(id) {
             ${scelta.exAperti ? `<ul class="elenco risultati-ricerca" style="margin-top:10px">${ex.map((x) => `
               <li><a href="#/atleta/${encodeURIComponent(x.k)}"><b>${esc(x.n)}</b><small>${esc(x.da === x.a ? nomeStagione(x.da) : `${nomeStagione(x.da)} – ${nomeStagione(x.a)}`)}</small></a></li>`).join('')}</ul>` : ''}` : ''}
         </section>
-        <p class="nota" style="margin-top:20px">Tempi dalle graduatorie (dal 2018/19, solo cronometraggio automatico) e dalle gare che leggiamo.</p>
+        <p class="nota" style="margin-top:20px">Tempi dalle graduatorie di ogni stagione e dalle gare che leggiamo. Prima del 2018/19 ci possono essere anche tempi presi a mano.</p>
       </main>
       ${tabBar('classifiche')}`, (el) => {
       el.querySelectorAll('[data-st]').forEach((b) => b.addEventListener('click', async () => {

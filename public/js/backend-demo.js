@@ -242,8 +242,13 @@ export function creaBackendDemo() {
       return tutte.filter((v) => v.split('|')[1].normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
         .split(/[\s'’-]+/).some((p) => p.replace(/[^a-z]/g, '').startsWith(prefisso)));
     },
-    async leggiPacchi(ids) { await pausa(60); return ids.map(() => null); },
-    async leggiCerca(prefisso) { return this.leggiRicerca(prefisso.slice(0, 2)).then((l) => l.filter((v) => v.split('|')[1].normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().split(/[\s'’-]+/).some((p) => p.replace(/[^a-z]/g, '').startsWith(prefisso)))); },
+    async leggiAtletaItalia() { await pausa(60); return null; },
+    async cercaItalia(testo) {
+      const righe = await this.leggiRicerca(testo.slice(0, 2));
+      const chiavi = (n) => { const p = n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/['’`-]+/g, ' ').split(/\s+/); return p.map((_, i) => [...p.slice(i), ...p.slice(0, i)].join(' ')); };
+      return righe.filter((v) => chiavi(v.split('|')[1]).some((c) => c.startsWith(testo))).map((v) => `${v}|12`);
+    },
+    async leggiSquadraItalia() { await pausa(60); return null; },
     async leggiSquadre() { await pausa(60); return squadreDemo().elenco; },
     async leggiSquadra(id) { await pausa(80); const sq = squadreDemo().docs.get(id); return sq ? { id, ...sq } : null; },
     async leggiStagioneSquadra(id, st) { await pausa(60); return squadreDemo().stagioni.get(`${id}/${st}`) ?? null; },

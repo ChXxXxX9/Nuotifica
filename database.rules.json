@@ -1,0 +1,19 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "a": {
+      "$atleta": {
+        ".read": "auth != null"
+      }
+    },
+    "c": {
+      ".read": "auth != null && query.orderByKey == true && query.limitToFirst <= 400"
+    },
+    "sqs": {
+      "$squadra": {
+        ".read": "auth != null"
+      }
+    }
+  }
+}

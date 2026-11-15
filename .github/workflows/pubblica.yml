@@ -9,6 +9,7 @@ on:
       - 'firebase.json'
       - 'firestore.rules'
       - 'firestore.indexes.json'
+      - 'database.rules.json'
       - '.github/workflows/pubblica.yml'
   workflow_dispatch:
 
@@ -76,6 +77,16 @@ jobs:
             # l'errore compare anche come annotazione della corsa
             msg=$(grep -v '^\s*$' "$RUNNER_TEMP/deploy.log" | tail -n 25 | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
             echo "::error title=Pubblicazione::$msg"
+            exit 1
+          fi
+
+      - name: Regole del Realtime Database
+        run: |
+          set -o pipefail
+          if ! npx --yes "$FIREBASE_TOOLS" deploy --only database \
+               --project "$PROGETTO" --non-interactive --force 2>&1 | tee "$RUNNER_TEMP/deploy-db.log"; then
+            msg=$(grep -v '^\s*$' "$RUNNER_TEMP/deploy-db.log" | tail -n 25 | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=Regole Realtime Database::$msg"
             exit 1
           fi
 

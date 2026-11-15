@@ -16,6 +16,8 @@ export const CONFIG = {
     messagingSenderId: '929572098468',
     appId: '1:929572098468:web:4701760e8219fdca14b131',
   },
+  // Realtime Database: tutta Italia (atleti di ogni stagione, ricerca, squadre).
+  rtdb: 'https://nuotifica-default-rtdb.europe-west1.firebasedatabase.app',
   // Chiave pubblica "Web Push" (facoltativa): se vuota, Firebase usa la sua chiave predefinita.
   vapidKey: '',
   // Indirizzo principale dell'app. Con "trasferimento" attivo, chi la usa dal vecchio indirizzo

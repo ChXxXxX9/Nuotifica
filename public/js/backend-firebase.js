@@ -98,6 +98,18 @@ export async function creaBackendFirebase(config) {
     }
   }
 
+  /** Realtime Database (tutta Italia: atleti, ricerca, squadre), con il token di chi ha fatto l'accesso. */
+  async function leggiRtdb(percorso, parametri = {}) {
+    if (!config.rtdb) return null;
+    const utente = auth.currentUser;
+    if (!utente) throw Object.assign(new Error('Accedi per vedere i dati.'), { code: 'permission-denied' });
+    const q = new URLSearchParams({ ...parametri, auth: await utente.getIdToken() });
+    const r = await fetch(`${config.rtdb}/${percorso.split('/').map(encodeURIComponent).join('/')}.json?${q}`);
+    if (r.status === 401 || r.status === 403) throw Object.assign(new Error('permission-denied'), { code: 'permission-denied' });
+    if (!r.ok) throw Object.assign(new Error(`rete ${r.status}`), { code: 'unavailable' });
+    return r.json();
+  }
+
   return {
     demo: false,
 
@@ -229,11 +241,16 @@ export async function creaBackendFirebase(config) {
 
     leggiIndice: (lettera) => avvolgi(async () => (await leggiVeloce(F.doc(db, 'indici', lettera), (s) => s.data().l ?? [])) ?? []),
 
-    /** Pacchi di più stagioni (i migliori di ogni stagione di tutta Italia). Quelli che non ci sono: null. */
-    leggiPacchi: (ids) => avvolgi(() => Promise.all(ids.map((id) => leggiVeloce(F.doc(db, 'pacchi', id), (s) => s.data()).catch(() => null)))),
+    /** Un atleta di tutta Italia: i migliori di ogni stagione (Realtime Database). */
+    leggiAtletaItalia: (k) => avvolgi(() => leggiRtdb(`a/${k}`)),
 
-    /** Indice a tre lettere (tutta Italia). */
-    leggiCerca: (prefisso) => avvolgi(async () => (await leggiVeloce(F.doc(db, 'cerca', prefisso), (s) => s.data().l ?? [])) ?? []),
+    /** Ricerca in tutta Italia: voci "chiave|nome|anno|società|regione" il cui nome inizia con `testo`. */
+    cercaItalia: (testo, quanti = 80) => avvolgi(async () => Object.values(await leggiRtdb('c', {
+      orderBy: '"$key"', startAt: JSON.stringify(testo), endAt: JSON.stringify(`${testo}\uf8ff`), limitToFirst: String(quanti),
+    }) ?? {})),
+
+    /** Una squadra, stagione per stagione (Realtime Database). */
+    leggiSquadraItalia: (id) => avvolgi(() => leggiRtdb(`sqs/${id}`)),
 
     /** Pezzo dell'indice di ricerca: atleti con una parola del nome che inizia con queste due lettere. */
     leggiRicerca: (prefisso) => avvolgi(async () => (await leggiVeloce(F.doc(db, 'ricerca', prefisso), (s) => s.data().l ?? [])) ?? []),
