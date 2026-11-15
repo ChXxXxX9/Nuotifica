@@ -4,12 +4,14 @@ import {
   percorso, memoria, avviso, conAttesa,
 } from './nucleo.js';
 import {
-  tempo, nomeGara, ordineGara, giorno, iniziali, differenza, categoria, NOMI_CATEGORIE, stagioneCorrente, stagioneDi, nomeStagione,
+  tempo, nomeGara, ordineGara, giorno, iniziali, differenza, codici, stagioneCorrente, stagioneDi, nomeStagione,
 } from './formato.js';
 import {
-  leggiLimiti, limitiSeguiti, limitePer, migliore, rispettoAlLimite, leggiTempo,
+  leggiLimiti, limitiSeguiti, limitePer, migliore, rispettoAlLimite, leggiTempo, nomeCategoriaAtleta,
 } from './viste-classifiche.js';
 import { coriandoli } from './coriandoli.js';
+import { schedaRisultato } from './viste-gare.js';
+import { riempiPosizioni } from './posizioni.js';
 
 export const MAX_SEGUITI = 10;
 
@@ -342,6 +344,7 @@ export async function vistaAtleta(k) {
               <div class="scheda grafico">
                 <div class="grafico-testa"><b>${esc(nomeGara(g))}</b><small>${puntiGrafico.length} ${puntiGrafico.length === 1 ? 'tempo' : 'tempi'}</small></div>
                 ${grafico(puntiGrafico)}
+                <div data-posizioni-pb><div data-posizioni></div></div>
               </div>` : ''}
           </section>` : ''}
 
@@ -349,9 +352,9 @@ export async function vistaAtleta(k) {
           <div class="sezione-testa"><h2 class="sezione-titolo">Tutte le gare</h2></div>
           ${risultati.length ? `
             <ul class="storico">
-              ${risultati.slice(0, mostraTutte ? Infinity : 60).map((x) => `
+              ${risultati.slice(0, mostraTutte ? Infinity : 60).map((x, i) => `
                 <li>
-                  <${x.ci ? 'a' : 'div'} class="voce-storico" ${x.ci ? `href="#/gara/${encodeURIComponent(x.g)}?c=${encodeURIComponent(x.ci ?? '')}&e=${encodeURIComponent(x.c)}"` : ''}>
+                  <button type="button" class="voce-storico" data-voce="${i}" aria-expanded="false">
                     <span style="min-width:0">
                       <span class="cosa" style="display:block">${esc(nomeGara(x.c, { breve: true }))} <span class="nota" style="font-weight:600">· vasca ${x.v}</span></span>
                       <span class="dove" style="display:block">${esc(giorno(x.d))} · ${esc(x.gn ?? '')}${x.f ? ' <span class="nota">· migliore della stagione</span>' : ''}</span>
@@ -363,7 +366,7 @@ export async function vistaAtleta(k) {
                         ${x.b === 'PB' && x.dp ? `<span class="punti">${esc(differenza(x.dp))}</span>` : (x.pt ? `<span class="punti">${x.pt} pt</span>` : '')}
                       </span>
                     </span>
-                  </${x.ci ? 'a' : 'div'}>
+                  </button>
                 </li>`).join('')}
             </ul>
             ${!mostraTutte && risultati.length > 60 ? `<button class="bottone bottone-secondario" data-tutte style="margin-top:10px">Mostra tutti i ${risultati.length} tempi</button>` : ''}` : '<div class="vuoto"><strong>Ancora nessun tempo</strong>Appena nuota una gara la trovi qui.</div>'}
@@ -375,6 +378,39 @@ export async function vistaAtleta(k) {
       el.querySelectorAll('[data-vasca]').forEach((b) => b.addEventListener('click', () => disegnaScheda({ vasca: Number(b.dataset.vasca), aggiornamento: true })));
       el.querySelectorAll('[data-gara]').forEach((b) => b.addEventListener('click', () => disegnaScheda({ vasca: v, gara: b.dataset.gara, aggiornamento: true })));
       collegaObiettivi(el);
+      // Personale della gara scelta: dove si piazza nelle graduatorie della sua stagione.
+      const pbScelto = pb.find((x) => x.c === g);
+      const boxPb = el.querySelector('[data-posizioni-pb]');
+      if (pbScelto && boxPb) {
+        riempiPosizioni(boxPb, {
+          t: pbScelto.t, c: pbScelto.c, v: pbScelto.v, sx: a.sx, st: stagioneDi(pbScelto.d), y: a.y, k,
+        });
+      }
+      // Ogni gara dello storico si apre (una alla volta) con parziali, punti e posizione in classifica.
+      const mostrati = risultati.slice(0, mostraTutte ? Infinity : 60);
+      el.querySelectorAll('[data-voce]').forEach((b) => b.addEventListener('click', () => {
+        const prima = el.querySelector('.voce-storico[aria-expanded="true"]');
+        if (prima) {
+          prima.setAttribute('aria-expanded', 'false');
+          prima.parentElement.querySelector('.dettaglio')?.remove();
+          if (prima === b) return;
+        }
+        const x = mostrati[Number(b.dataset.voce)];
+        b.setAttribute('aria-expanded', 'true');
+        b.insertAdjacentHTML('afterend', schedaRisultato({
+          r: {
+            t: x.t, sp: x.sp, b: x.b, dp: x.dp, pt: x.pt, x: x.x, n: a.n,
+          },
+          codice: x.c,
+          nomeBatt: [x.cat, `vasca ${x.v} m`].filter(Boolean).join(' · '),
+          extra: `<p class="nota" style="margin:8px 0 0">${esc([giorno(x.d), x.gn, x.f ? 'migliore della stagione dalle graduatorie' : ''].filter(Boolean).join(' · '))}</p>${x.ci ? `
+            <a class="bottone bottone-secondario bottone-piccolo" style="margin-top:10px" href="#/gara/${encodeURIComponent(x.g)}?c=${encodeURIComponent(x.ci)}&e=${encodeURIComponent(x.c)}">Apri la gara</a>` : ''}`,
+        }));
+        const scheda = b.nextElementSibling;
+        riempiPosizioni(scheda, {
+          t: x.t, c: x.c, v: x.v, sx: a.sx, st: stagioneDi(x.d), y: a.y, k,
+        });
+      }));
       el.querySelector('[data-tutte]')?.addEventListener('click', () => {
         mostraTutte = true;
         disegnaScheda({ vasca: v, gara: g, aggiornamento: true });
@@ -384,7 +420,7 @@ export async function vistaAtleta(k) {
   /* Tempi limite seguiti: per ogni gara nuotata quest'anno, preso / quasi / quanto manca. */
   function esitiLimiti() {
     if (!limiti) return [];
-    const cat = categoria(a.y, a.sx, st);
+    const cat = codici(a.y, a.sx, st);
     return limitiSeguiti(limiti).filter((l) => String(l.st) === st).map((l) => {
       const gareL = [...new Set(Object.keys(l.t ?? {}).map((x) => x.split('|')[0]))];
       const voci = gareL.map((c) => {
@@ -403,7 +439,7 @@ export async function vistaAtleta(k) {
         <div class="sezione-testa"><h2 class="sezione-titolo">Tempi limite</h2><a href="#/limiti">Scegli</a></div>
         ${esiti.map(({ l, voci }) => `
           <div class="scheda limite-atleta">
-            <a href="#/limiti/${encodeURIComponent(l.id)}"><b>${esc(l.nome)}</b><small>Vasca ${l.vasca} m${categoria(a.y, a.sx, st) ? ` · ${esc(NOMI_CATEGORIE[categoria(a.y, a.sx, st)])}` : ''}</small></a>
+            <a href="#/limiti/${encodeURIComponent(l.id)}"><b>${esc(l.nome)}</b><small>Vasca ${l.vasca} m${codici(a.y, a.sx, st).length ? ` · ${esc(nomeCategoriaAtleta(codici(a.y, a.sx, st), a.sx))}` : ''}</small></a>
             <ul class="limiti-atleta">${voci.map((v) => `
               <li class="esito-${v.esito.tipo}"><span>${esc(nomeGara(v.c, { breve: true }))}</span><b>${esc(tempo(v.sb.t))}</b><small>${v.esito.tipo === 'preso' ? 'preso ✓' : `${v.esito.tipo === 'quasi' ? 'quasi! ' : ''}manca ${esc(tempo(v.esito.diff))}`} · limite ${esc(tempo(v.lim))}</small></li>`).join('')}
             </ul>

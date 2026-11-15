@@ -4,15 +4,26 @@ import {
   stato, api, esc, barraTop, tabBar, disegna, caricamento, paginaErrore, conCache, percorso, memoria, avviso, conAttesa,
 } from './nucleo.js';
 import {
-  tempo, nomeGara, giorno, quando, categoria, NOMI_CATEGORIE, stagioneCorrente, nomeStagione, stagioneDi, differenza,
+  tempo, nomeGara, giorno, quando, stagioneCorrente, nomeStagione, stagioneDi, differenza,
+  codici, nomeCodice,
 } from './formato.js';
 import { punti } from './punti.js';
 import { leggiAtleta } from './viste-atleti.js';
 
 export const GARE = ['50SL', '100SL', '200SL', '400SL', '800SL', '1500SL', '50DO', '100DO', '200DO', '50RA', '100RA', '200RA',
   '50FA', '100FA', '200FA', '100MI', '200MI', '400MI'];
-const CATEGORIE = ['tutte', 'EB', 'EA', 'R', 'J', 'C', 'S'];
-const PRIMA_STAGIONE = 2018;
+const PRIMA_STAGIONE = 1967; // le graduatorie federali partono dal 1967/68
+const PRIMA_NOTTE = 2018; // le classifiche del Lazio preparate di notte partono dal 2018/19
+
+/** Menu delle categorie, diviso per categoria: Ragazzi (tutti), R14, R1, R2; Juniores, J1, J2… */
+export function menuCategorie(sx, scelta) {
+  const gruppi = sx === 'F'
+    ? [['Esordienti', ['EB', 'EA']], ['Ragazze', ['R', 'R1', 'R2']], ['Juniores', ['J', 'J1', 'J2']], ['Cadette e Seniores', ['C', 'S']]]
+    : [['Esordienti', ['EB', 'EA']], ['Ragazzi', ['R', 'R14', 'R1', 'R2']], ['Juniores', ['J', 'J1', 'J2']], ['Cadetti e Seniores', ['C', 'S']]];
+  const nome = (c) => (['R', 'J'].includes(c) ? `${nomeCodice(c, sx)} (tutti gli anni)` : nomeCodice(c, sx));
+  return `<option value="tutte" ${scelta === 'tutte' ? 'selected' : ''}>Assoluti</option>${gruppi.map(([g, cs]) => `
+    <optgroup label="${esc(g)}">${cs.map((c) => `<option value="${c}" ${scelta === c ? 'selected' : ''}>${esc(nome(c))}</option>`).join('')}</optgroup>`).join('')}`;
+}
 export const REGIONI = {
   1: 'Piemonte', 3: 'Lombardia', 5: 'Veneto', 6: 'Friuli Venezia Giulia', 7: 'Liguria', 8: 'Emilia Romagna', 9: 'Toscana',
   10: 'Umbria', 11: 'Marche', 12: 'Lazio', 13: 'Abruzzo', 14: 'Molise', 15: 'Campania', 16: 'Puglia', 17: 'Basilicata',
@@ -48,7 +59,9 @@ export function righeClassifica(doc) {
 
 /** Posizioni (a pari merito stessa posizione) e movimenti rispetto alla settimana scorsa. */
 export function conPosizioni(righe, doc, { indice = false, cat = 'tutte', sx, st } = {}) {
-  const filtrate = cat === 'tutte' ? righe : righe.filter((r) => categoria(r.y, sx, st) === cat);
+  // "Di sempre": la categoria è quella che l'atleta aveva quando ha nuotato quel tempo.
+  const filtrate = cat === 'tutte' ? righe
+    : righe.filter((r) => codici(r.y, sx, st === 'tutte' ? stagioneDi(r.d ?? '') : st).includes(cat));
   let pos = 0;
   let ultimo = null;
   const base = doc?.b ?? null;
@@ -89,17 +102,21 @@ export async function vistaClassifiche() {
     st: corrente, v: 25, sx: 'M', c: '100SL', cat: 'tutte', reg: LAZIO, tutti: false, ...(memoria('classifica-scelta') ?? {}), ...(stato.sceltaClassifica ?? {}),
   };
   if (scelta.c === 'indice' && scelta.reg !== LAZIO) scelta.c = '100SL';
-  if (Number(scelta.st) > Number(corrente)) scelta.st = corrente;
+  if (scelta.st !== 'tutte' && Number(scelta.st) > Number(corrente)) scelta.st = corrente;
+  if (scelta.sx === 'F' && scelta.cat === 'R14') scelta.cat = 'R';
   const stagioni = [];
   for (let s = Number(corrente); s >= PRIMA_STAGIONE; s--) stagioni.push(String(s));
+  // Lazio: per le stagioni non ancora preparate di notte (e per "di sempre") si usa quella su richiesta.
+  let lazioSuRichiesta = false;
 
   // Lazio: classifiche complete (dalle graduatorie di notte). Italia e altre regioni: preparate su richiesta.
   const richiesta = () => ({
     st: scelta.st, v: scelta.v, c: scelta.c, sx: scelta.sx, reg: scelta.reg, cat: scelta.reg === 'it' ? scelta.cat : 'tutte',
   });
+  const notturna = () => scelta.reg === LAZIO && scelta.st !== 'tutte' && Number(scelta.st) >= PRIMA_NOTTE && !lazioSuRichiesta;
   const idDoc = () => {
     if (scelta.c === 'indice') return `${scelta.st}-indice-${scelta.sx}`;
-    if (scelta.reg === LAZIO) return `${scelta.st}-${scelta.v}-${scelta.c}-${scelta.sx}`;
+    if (notturna()) return `${scelta.st}-${scelta.v}-${scelta.c}-${scelta.sx}`;
     const r = richiesta();
     return `${r.st}-${r.v}-${r.c}-${r.sx}-${r.reg}-${r.cat}`;
   };
@@ -134,7 +151,13 @@ export async function vistaClassifiche() {
             </select>
           </label>
           <label class="campo-mini">Stagione
-            <select data-st>${stagioni.map((s) => `<option value="${s}" ${s === scelta.st ? 'selected' : ''}>${nomeStagione(s)}</option>`).join('')}</select>
+            <select data-st>
+              <option value="tutte" ${scelta.st === 'tutte' ? 'selected' : ''}>Di sempre</option>
+              ${stagioni.map((s) => `<option value="${s}" ${s === scelta.st ? 'selected' : ''}>${nomeStagione(s)}</option>`).join('')}
+            </select>
+          </label>
+          <label class="campo-mini">Categoria
+            <select data-categoria>${menuCategorie(scelta.sx, scelta.cat)}</select>
           </label>
           ${indice ? '' : `<div class="segmenti" role="tablist" aria-label="Vasca">
             ${[25, 50].map((v) => `<button class="segmento" role="tab" data-v="${v}" aria-selected="${scelta.v === v}">${v} m</button>`).join('')}
@@ -145,13 +168,11 @@ export async function vistaClassifiche() {
           </div>
         </div>
         <div class="filtri" role="toolbar" aria-label="Gara">
-          ${lazio ? `<button class="chip chip-indice" data-c="indice" aria-pressed="${indice}">Indice Cloro</button>` : ''}
+          ${lazio && scelta.st !== 'tutte' ? `<button class="chip chip-indice" data-c="indice" aria-pressed="${indice}">Indice Cloro</button>` : ''}
           ${GARE.map((c) => `<button class="chip" data-c="${c}" aria-pressed="${scelta.c === c}">${esc(nomeGara(c, { breve: true }))}</button>`).join('')}
         </div>
-        <div class="filtri" role="toolbar" aria-label="Categoria">
-          ${CATEGORIE.map((c) => `<button class="chip" data-cat="${c}" aria-pressed="${scelta.cat === c}">${c === 'tutte' ? 'Assoluti' : esc(NOMI_CATEGORIE[c])}</button>`).join('')}
-        </div>
-        <p class="nota" style="margin:2px 0 10px">${esc(indice ? 'Indice Cloro: media pesata dei punti delle 3 gare migliori della stagione (atleti del Lazio).' : `Migliori tempi della stagione ${nomeStagione(scelta.st)}${scelta.reg === 'it' ? ' in Italia' : ` degli atleti ${scelta.reg === LAZIO ? 'del Lazio' : `della regione ${dove}`}`}, vasca da ${scelta.v} m${doc?.parziale ? ` (i primi ${righeClassifica(doc).length})` : ''}.`)}${doc?.agg ? ` Aggiornata ${esc(quando(doc.agg?.toDate ? doc.agg.toDate() : new Date(doc.agg)))}.` : ''}</p>
+
+        <p class="nota" style="margin:2px 0 10px">${esc(indice ? 'Indice Cloro: media pesata dei punti delle 3 gare migliori della stagione (atleti del Lazio).' : `Migliori tempi ${scelta.st === 'tutte' ? 'di sempre (tutte le stagioni)' : `della stagione ${nomeStagione(scelta.st)}`}${scelta.cat !== 'tutte' ? ` · ${nomeCodice(scelta.cat, scelta.sx)}` : ''}${scelta.reg === 'it' ? ' in Italia' : ` degli atleti ${scelta.reg === LAZIO ? 'del Lazio' : `della regione ${dove}`}`}, vasca da ${scelta.v} m${doc?.parziale ? ` (i primi ${righeClassifica(doc).length})` : ''}.`)}${doc?.agg ? ` Aggiornata ${esc(quando(doc.agg?.toDate ? doc.agg.toDate() : new Date(doc.agg)))}.` : ''}</p>
         ${inPreparazione ? `<p class="avviso-preparazione">${doc ? 'Aggiornamento in corso: tra qualche minuto vedi i tempi nuovi.' : `Sto preparando la classifica ${scelta.reg === 'it' ? 'nazionale' : `della regione ${esc(dove)}`}: è pronta in pochi minuti, puoi restare qui.`}</p>` : ''}
 
         ${caricando ? '<p class="caricamento">Carico la classifica…</p>' : errore ? `<p class="errore">${esc(errore)}</p>` : !righe.length ? (inPreparazione && !doc ? '<p class="caricamento">In preparazione…</p>' : `
@@ -183,25 +204,30 @@ export async function vistaClassifiche() {
         });
         carica();
       };
-      el.querySelector('[data-st]').addEventListener('change', (e) => cambia({ st: e.target.value }));
+      el.querySelector('[data-st]').addEventListener('change', (e) => cambia({
+        st: e.target.value, ...(e.target.value === 'tutte' && scelta.c === 'indice' ? { c: '100SL' } : {}),
+      }));
       el.querySelector('[data-reg]').addEventListener('change', (e) => cambia({
         reg: e.target.value, ...(e.target.value !== LAZIO && scelta.c === 'indice' ? { c: '100SL' } : {}),
       }));
       el.querySelectorAll('[data-v]').forEach((b) => b.addEventListener('click', () => cambia({ v: Number(b.dataset.v) })));
-      el.querySelectorAll('[data-sx]').forEach((b) => b.addEventListener('click', () => cambia({ sx: b.dataset.sx })));
+      el.querySelectorAll('[data-sx]').forEach((b) => b.addEventListener('click', () => cambia({
+        sx: b.dataset.sx, ...(b.dataset.sx === 'F' && scelta.cat === 'R14' ? { cat: 'R' } : {}),
+      })));
       el.querySelectorAll('[data-c]').forEach((b) => b.addEventListener('click', () => cambia({ c: b.dataset.c })));
-      el.querySelectorAll('[data-cat]').forEach((b) => b.addEventListener('click', () => {
+      el.querySelector('[data-categoria]').addEventListener('change', (e) => {
+        const cat = e.target.value;
         // Per l'Italia ogni categoria è una classifica a sé (i primi 3000 di tutti non bastano per i più piccoli).
         if (scelta.reg === 'it') {
-          cambia({ cat: b.dataset.cat });
+          cambia({ cat });
           return;
         }
-        scelta.cat = b.dataset.cat;
+        scelta.cat = cat;
         memoria('classifica-scelta', {
           v: scelta.v, sx: scelta.sx, c: scelta.c, cat: scelta.cat, reg: scelta.reg,
         });
         ridisegna(true);
-      }));
+      });
       el.querySelector('[data-tutti]')?.addEventListener('click', () => {
         scelta.tutti = true;
         ridisegna(true);
@@ -215,12 +241,20 @@ export async function vistaClassifiche() {
     caricando = true;
     errore = null;
     inPreparazione = false;
+    lazioSuRichiesta = false;
     clearTimeout(attesa);
-    const id = idDoc();
+    let id = idDoc();
     ridisegna(true);
     try {
-      const letto = await leggiClassifica(id);
+      let letto = await leggiClassifica(id);
       if (!qui() || id !== idDoc()) return;
+      // Stagione del Lazio non ancora preparata di notte: si prende quella su richiesta.
+      if (!letto && notturna() && scelta.c !== 'indice') {
+        lazioSuRichiesta = true;
+        id = idDoc();
+        letto = await leggiClassifica(id);
+        if (!qui() || id !== idDoc()) return;
+      }
       doc = letto;
     } catch (err) {
       if (!qui()) return;
@@ -229,8 +263,8 @@ export async function vistaClassifiche() {
     }
     caricando = false;
     // Italia e altre regioni: se manca (o è di ieri, per la stagione in corso) la si chiede al controllore.
-    const vecchia = doc && scelta.st === corrente && Date.now() - (dataDi(doc)?.getTime() ?? 0) > ORE_VALIDITA * 3_600_000;
-    if (!errore && scelta.reg !== LAZIO && scelta.c !== 'indice' && (!doc || vecchia)) {
+    const vecchia = doc && (scelta.st === corrente || scelta.st === 'tutte') && Date.now() - (dataDi(doc)?.getTime() ?? 0) > ORE_VALIDITA * 3_600_000;
+    if (!errore && !notturna() && scelta.c !== 'indice' && (!doc || vecchia)) {
       inPreparazione = true;
       api.chiediClassifica(richiesta()).catch(() => {});
       aspetta(id, dataDi(doc)?.getTime() ?? 0, Date.now());
@@ -270,10 +304,18 @@ export function limitiSeguiti(limiti) {
   return Array.isArray(scelti) ? limiti.filter((l) => scelti.includes(l.id)) : limiti;
 }
 
-/** Il limite di un atleta in un set: per la sua categoria, altrimenti quello valido per tutti ("*"). */
+/**
+ * Il limite di un atleta in un set: prima per il suo anno (R14, J1…), poi per la categoria (R, J…),
+ * altrimenti quello valido per tutti ("*"). `cat` è un codice o l'elenco dei codici dell'atleta.
+ */
 export function limitePer(l, codice, sx, cat) {
-  return l.t?.[`${codice}|${sx}|${cat}`] ?? l.t?.[`${codice}|${sx}|*`] ?? null;
+  const elenco = [...(Array.isArray(cat) ? [...cat].reverse() : [cat]), '*'];
+  return elenco.map((c) => l.t?.[`${codice}|${sx}|${c}`]).find(Boolean) ?? null;
 }
+
+const ORDINE_CODICI = ['EB', 'EA', 'R', 'R14', 'R1', 'R2', 'J', 'J1', 'J2', 'C', 'S', '*'];
+/** Nome della categoria più precisa di un atleta (es. "Ragazzi R14"). */
+export const nomeCategoriaAtleta = (cod, sx) => (cod?.length ? nomeCodice(cod[cod.length - 1], sx) : '');
 
 /** Miglior tempo di un atleta in una stagione, gara e vasca. */
 export function migliore(risultati, codice, vasca, st) {
@@ -355,7 +397,7 @@ export async function vistaLimite(id) {
   // Colonne: le categorie (e "tutti") presenti nel set, per sesso.
   const chiavi = Object.keys(l.t ?? {}).map((k) => k.split('|'));
   const categorieDi = (sx) => [...new Set(chiavi.filter((c) => c[1] === sx).map((c) => c[2]))]
-    .sort((a, b) => ['EB', 'EA', 'R', 'J', 'C', 'S', '*'].indexOf(a) - ['EB', 'EA', 'R', 'J', 'C', 'S', '*'].indexOf(b));
+    .sort((a, b) => ORDINE_CODICI.indexOf(a) - ORDINE_CODICI.indexOf(b));
   const gare = [...new Set(chiavi.map((c) => c[0]))].sort((a, b) => GARE.indexOf(a) - GARE.indexOf(b));
   let sx = categorieDi('M').length ? 'M' : 'F';
 
@@ -365,7 +407,7 @@ export async function vistaLimite(id) {
   const ridisegna = (aggiornamento = false) => {
     const cats = categorieDi(sx);
     const righeAtleti = schede.filter((a) => a && a.sx === sx).map((a) => {
-      const cat = categoria(a.y, a.sx, l.st);
+      const cat = codici(a.y, a.sx, l.st);
       const voci = gare.map((c) => {
         const lim = limitePer(l, c, a.sx, cat);
         const sb = lim ? migliore(a.r ?? [], c, l.vasca, l.st) : null;
@@ -386,7 +428,7 @@ export async function vistaLimite(id) {
             <div class="sezione-testa"><h2 class="sezione-titolo">I tuoi atleti</h2></div>
             <ul class="elenco">${righeAtleti.map(({ a, cat, voci }) => `
               <li class="scheda limite-atleta">
-                <a href="#/atleta/${encodeURIComponent(a.k)}"><b>${esc(a.n)}</b><small>${esc([a.y, cat ? NOMI_CATEGORIE[cat] : ''].filter(Boolean).join(' · '))}</small></a>
+                <a href="#/atleta/${encodeURIComponent(a.k)}"><b>${esc(a.n)}</b><small>${esc([a.y, nomeCategoriaAtleta(cat, a.sx)].filter(Boolean).join(' · '))}</small></a>
                 <ul class="limiti-atleta">${voci.map((v) => `
                   <li class="esito-${v.esito.tipo}"><span>${esc(nomeGara(v.c, { breve: true }))}</span><b>${esc(tempo(v.sb.t))}</b><small>${v.esito.tipo === 'preso' ? 'preso ✓' : `manca ${esc(differenza(v.esito.diff).replace('+', ''))}`}</small></li>`).join('')}
                 </ul>
@@ -396,7 +438,7 @@ export async function vistaLimite(id) {
           <div class="sezione-testa"><h2 class="sezione-titolo">Tutti i tempi</h2></div>
           <div class="tabella-scorre">
             <table class="tabella-limiti">
-              <thead><tr><th>Gara</th>${cats.map((c) => `<th>${esc(c === '*' ? 'Tutti' : NOMI_CATEGORIE[c] ?? c)}</th>`).join('')}</tr></thead>
+              <thead><tr><th>Gara</th>${cats.map((c) => `<th>${esc(nomeCodice(c, sx))}</th>`).join('')}</tr></thead>
               <tbody>${gare.filter((c) => cats.some((cat) => l.t[`${c}|${sx}|${cat}`])).map((c) => `
                 <tr><th>${esc(nomeGara(c, { breve: true }))}</th>${cats.map((cat) => `<td>${l.t[`${c}|${sx}|${cat}`] ? esc(tempo(l.t[`${c}|${sx}|${cat}`])) : '–'}</td>`).join('')}</tr>`).join('')}
               </tbody>
@@ -496,7 +538,8 @@ export async function vistaQuantoVale() {
     const mio = ++giro;
     const pt = punti(ms, scelta.c, scelta.sx, scelta.v, new Date().toISOString().slice(0, 10));
     const anno = Number(scelta.y) || null;
-    const cat = anno ? categoria(anno, scelta.sx, st) : null;
+    const tutti = anno ? codici(anno, scelta.sx, st) : [];
+    const cat = tutti.length ? tutti[tutti.length - 1] : null;
     let italia = null;
     const mostra = (classifica) => {
       const righe = classifica ? righeClassifica(classifica) : [];
@@ -504,18 +547,18 @@ export async function vistaQuantoVale() {
       const davantiIt = righeIt.filter((r) => r.valore < ms).length;
       const fuoriIt = italia?.parziale && davantiIt >= righeIt.length;
       const davanti = righe.filter((r) => r.valore < ms).length;
-      const inCat = cat ? righe.filter((r) => categoria(r.y, scelta.sx, st) === cat) : [];
+      const inCat = cat ? righe.filter((r) => codici(r.y, scelta.sx, st).includes(cat)) : [];
       const davantiCat = inCat.filter((r) => r.valore < ms).length;
       const valide = limiti.filter((l) => String(l.st) === st && Number(l.vasca) === scelta.v);
       const esitiLimiti = valide.map((l) => {
-        const lim = limitePer(l, scelta.c, scelta.sx, cat);
+        const lim = limitePer(l, scelta.c, scelta.sx, tutti);
         return lim ? { l, lim, esito: rispettoAlLimite(ms, lim) } : null;
       }).filter(Boolean);
       box.innerHTML = `
         <div class="cifre" style="margin-top:14px">
           <div class="cifra"><b>${pt ?? '–'}</b><small>Punti World Aquatics</small></div>
           <div class="cifra"><b>${classifica ? `${davanti + 1}°` : '–'}</b><small>${classifica ? `su ${righe.length + 1} nel Lazio` : 'Graduatoria in arrivo'}</small></div>
-          ${cat ? `<div class="cifra"><b>${classifica ? `${davantiCat + 1}°` : '–'}</b><small>${esc(NOMI_CATEGORIE[cat])}</small></div>` : ''}
+          ${cat ? `<div class="cifra"><b>${classifica ? `${davantiCat + 1}°` : '–'}</b><small>${esc(nomeCodice(cat, scelta.sx))} Lazio</small></div>` : ''}
           <div class="cifra"><b>${italia ? (fuoriIt ? `>${righeIt.length}°` : `${davantiIt + 1}°`) : '…'}</b><small>${italia ? 'in Italia' : 'Italia in preparazione'}</small></div>
         </div>
         <p class="nota" style="margin-top:8px">Graduatoria del Lazio ${esc(nomeStagione(st))}, vasca da ${scelta.v} m${classifica && righe[0] ? ` · il primo ha ${esc(tempo(righe[0].valore))}` : ''}.</p>

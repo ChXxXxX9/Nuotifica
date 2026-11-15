@@ -1,4 +1,6 @@
-import { REGOLE_BASE, categoria as categoriaNome, stagioneDi as stagioneNumero } from './categorie.js';
+import {
+  REGOLE_BASE, categoria as categoriaNome, stagioneDi as stagioneNumero, codiciAtleta, nomeCodice as nomeCodiceBase, codiciPerSesso,
+} from './categorie.js';
 // Formati: tempi, gare, date. Stesse regole del controllore (controller/src/tempi.js).
 
 /** Millisecondi -> 2'05"40 (o 58"88). */
@@ -140,3 +142,8 @@ export const stagioneDi = (data = '') => String(stagioneNumero(data));
 /** Stagione in corso. */
 export const stagioneCorrente = () => stagioneDi(new Date().toISOString().slice(0, 10));
 export const nomeStagione = (st) => `${st}/${String(Number(st) + 1).slice(2)}`;
+
+/** Codici di un atleta in una stagione: categoria e anno, es. ['R', 'R14'] (regole dell'admin). */
+export const codici = (anno, sesso, stagione) => codiciAtleta(anno, sesso, stagione, regoleAttuali);
+export const nomeCodice = nomeCodiceBase;
+export { codiciPerSesso };

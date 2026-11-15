@@ -39,6 +39,66 @@ export function categoria(anno, sesso, stagione, regole = REGOLE_BASE) {
   return elenco.find(([, da, a]) => eta >= da && eta <= a)?.[0] ?? null;
 }
 
+export const CODICI_CATEGORIA = {
+  'Esordienti B': 'EB', 'Esordienti A': 'EA', Ragazzi: 'R', Juniores: 'J', Cadetti: 'C', Seniores: 'S',
+};
+const NOME_DA_CODICE = Object.fromEntries(Object.entries(CODICI_CATEGORIA).map(([n, c]) => [c, n]));
+
+/** Età (da, a) di un codice: categoria (EB, EA, R, J, C, S) o anno dentro la categoria (R14, R1, R2, J1, J2). */
+export function etaCodice(codice, sesso, stagione, regole = REGOLE_BASE) {
+  const elenco = regoleDi(stagione, regole)[sesso === 'F' ? 'F' : 'M'] ?? [];
+  if (NOME_DA_CODICE[codice]) {
+    const r = elenco.find(([n]) => n === NOME_DA_CODICE[codice]);
+    return r ? { da: r[1], a: r[2] } : null;
+  }
+  const m = String(codice).match(/^([RJ])(14|1|2)$/);
+  if (!m) return null;
+  const r = elenco.find(([n]) => n === (m[1] === 'R' ? 'Ragazzi' : 'Juniores'));
+  if (!r) return null;
+  // Ragazzi su tre anni (maschi dal 2025/26): R14, R1, R2. Su due anni: R1, R2. Juniores: J1, J2.
+  const treAnni = m[1] === 'R' && r[2] - r[1] + 1 >= 3;
+  let i;
+  if (treAnni) i = { 14: 0, 1: 1, 2: 2 }[m[2]];
+  else if (m[2] === '14') return null;
+  else i = Number(m[2]) - 1;
+  const eta = r[1] + i;
+  return eta <= r[2] ? { da: eta, a: eta } : null;
+}
+
+/** Anni di nascita di un codice in una stagione. */
+export function anniCodice(codice, sesso, stagione, regole = REGOLE_BASE) {
+  const e = etaCodice(codice, sesso, stagione, regole);
+  return e ? { dal: Number(stagione) + 1 - e.a, al: Number(stagione) + 1 - e.da } : null;
+}
+
+/** Codici di un atleta in una stagione: categoria e (per Ragazzi e Juniores) anno, es. ['R', 'R14']. */
+export function codiciAtleta(anno, sesso, stagione, regole = REGOLE_BASE) {
+  const nome = categoria(anno, sesso, stagione, regole);
+  if (!nome) return [];
+  const codici = [CODICI_CATEGORIA[nome]];
+  for (const sub of ['R14', 'R1', 'R2', 'J1', 'J2']) {
+    if (sub[0] !== codici[0]) continue;
+    const e = etaCodice(sub, sesso, stagione, regole);
+    if (e && Number(stagione) + 1 - Number(anno) === e.da) codici.push(sub);
+  }
+  return codici;
+}
+
+/** Nome da mostrare per un codice ("Ragazze R1", "Cadetti"…). */
+export function nomeCodice(codice, sesso) {
+  const f = sesso === 'F';
+  return {
+    EB: 'Esordienti B', EA: 'Esordienti A', R: f ? 'Ragazze' : 'Ragazzi', R14: 'Ragazzi R14', R1: f ? 'Ragazze R1' : 'Ragazzi R1',
+    R2: f ? 'Ragazze R2' : 'Ragazzi R2', J: 'Juniores', J1: 'Juniores J1', J2: 'Juniores J2', C: f ? 'Cadette' : 'Cadetti', S: 'Seniores',
+    '*': 'Tutti',
+  }[codice] ?? codice;
+}
+
+/** Codici possibili per un sesso, in ordine (per menu e tabelle). */
+export const codiciPerSesso = (sesso) => (sesso === 'F'
+  ? ['EB', 'EA', 'R', 'R1', 'R2', 'J', 'J1', 'J2', 'C', 'S']
+  : ['EB', 'EA', 'R', 'R14', 'R1', 'R2', 'J', 'J1', 'J2', 'C', 'S']);
+
 export const eEsordiente = (anno, sesso, stagione, regole) => /^esordienti/i.test(categoria(anno, sesso, stagione, regole) ?? '');
 
 /** Testo delle regole per l'admin: una riga per stagione, sesso e categoria ("2025 M Ragazzi 14-16"). */

@@ -1558,3 +1558,22 @@ a.chip { text-decoration: none; display: inline-flex; align-items: center; white
   border: 1px solid var(--linea);
   color: var(--testo);
 }
+
+/* ---------- storico apribile e posizioni in classifica ---------- */
+.storico .voce-storico { width: 100%; font: inherit; text-align: left; cursor: pointer; }
+.storico .voce-storico[aria-expanded='true'] { border-color: var(--cloro-testo); }
+.storico .dettaglio { margin-top: 6px; }
+.posizioni-tempo { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--linea); }
+.posizioni-titolo { font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--tenue); margin: 0 0 6px; }
+.tabella-posizioni { border-collapse: collapse; font-size: 13px; min-width: 100%; }
+.tabella-posizioni th, .tabella-posizioni td { padding: 6px 8px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--linea); }
+.tabella-posizioni th:first-child { text-align: left; }
+.tabella-posizioni thead th { font-size: 11px; color: var(--tenue); font-weight: 800; }
+.tabella-posizioni td b { font-family: var(--titoli); font-size: 14px; color: var(--cloro-testo); }
+.tabella-posizioni td small { color: var(--tenue); font-size: 11px; font-weight: 600; }
+.grafico [data-posizioni-pb] .posizioni-tempo { margin-top: 10px; }
+.storico .dettaglio { border-radius: 14px; border: 1px solid var(--linea); padding-top: 12px; }
+.carica-file { margin: 6px 0 2px; padding: 12px 14px; border-radius: 14px; border: 1px dashed var(--linea-forte); }
+.carica-file b { display: block; margin-bottom: 4px; }
+.anni-colonna { display: block; font-size: 10px; letter-spacing: 0; text-transform: none; font-weight: 600; color: var(--tenue); }
+label.bottone { cursor: pointer; }

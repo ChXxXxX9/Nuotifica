@@ -4,9 +4,10 @@ import {
   percorso, parametriHash, memoria,
 } from './nucleo.js';
 import {
-  tempo, differenza, nomeGara, periodo, mese, metri, velocita, oggi,
+  tempo, differenza, nomeGara, periodo, mese, metri, velocita, oggi, stagioneDi,
 } from './formato.js';
 import { seguiAtleta, eSeguito } from './viste-atleti.js';
+import { riempiPosizioni } from './posizioni.js';
 
 /* ---------- stato di una gara: in diretta, in corso, in programma, svolta ---------- */
 
@@ -223,7 +224,9 @@ const nomeBatteria = (b, conTurni) => b.nb ?? `${conTurni ? `Turno ${Number(b.tu
 const siglaBatteria = (b) => b.nc ?? (b.n ? `B${b.n}` : '');
 
 /** Scheda di un risultato: tempo, posizioni, punti e parziali disegnati. */
-function schedaRisultato({ r, codice, batteria, nomeBatt, posTot }) {
+export function schedaRisultato({
+  r, codice, batteria, nomeBatt, posTot, extra = '',
+}) {
   const dist = metri(codice);
   const passaggi = r.t ? [...(r.sp ?? []).map((p) => ({ m: p.m, t: p.t, p: p.p })), { m: dist, t: r.t }] : [];
   const conParziali = passaggi.length > 1;
@@ -282,6 +285,8 @@ function schedaRisultato({ r, codice, batteria, nomeBatt, posTot }) {
         </div>
         ${andatura}`
     : (r.t && dist > 50 ? '<p class="nota">Parziali non disponibili per questa gara.</p>' : '')}
+      ${r.t ? '<div data-posizioni></div>' : ''}
+      ${extra}
       ${r.k ? `
         <div class="dettaglio-azioni">
           <a class="bottone bottone-secondario bottone-piccolo" href="#/atleta/${encodeURIComponent(r.k)}">Scheda atleta</a>
@@ -318,7 +323,9 @@ function costruisciElenco(evento, vista) {
     const html = evento.b.map((b) => `
       <h3 class="batteria-titolo ${b.fi ? 'titolo-finale' : ''}"><span>${esc(nomeBatteria(b, conTurni))}</span><span>${esc([b.sede, b.d ? periodo(b.d) : ''].filter(Boolean).join(' · '))}</span></h3>
       <ol class="risultati">${b.r.map((r) => {
-    righe.push({ r, codice: evento.c, batteria: b.n, nomeBatt: nomeBatteria(b, conTurni), posTot: posTot(r) });
+    righe.push({
+      r, codice: evento.c, batteria: b.n, nomeBatt: nomeBatteria(b, conTurni), posTot: posTot(r), d: b.d,
+    });
     return rigaRisultato(righe.length - 1, r);
   }).join('')}</ol>`).join('');
     return { righe, html };
@@ -326,7 +333,9 @@ function costruisciElenco(evento, vista) {
   const { conTempo, senza, posizioni } = classificaEvento(evento);
   const pezzi = conTempo.map((x) => {
     const pos = posizioni.get(x.r);
-    righe.push({ r: x.r, codice: evento.c, batteria: x.b.n, nomeBatt: nomeBatteria(x.b, conTurni), posTot: pos });
+    righe.push({
+      r: x.r, codice: evento.c, batteria: x.b.n, nomeBatt: nomeBatteria(x.b, conTurni), posTot: pos, d: x.b.d,
+    });
     return rigaRisultato(righe.length - 1, x.r, { posizione: pos, sotto: siglaBatteria(x.b) });
   });
   for (const x of senza) {
@@ -445,6 +454,12 @@ export async function vistaGara(id) {
       b.insertAdjacentHTML('afterend', schedaRisultato(righe[i]));
       const scheda = b.nextElementSibling;
       scheda.querySelector('[data-segui]')?.addEventListener('click', (e) => seguiAtleta(e.currentTarget.dataset.segui, e.currentTarget.dataset.nome, e.currentTarget));
+      // Dove si piazza questo tempo nelle graduatorie della stagione (Lazio e Italia).
+      const { cat } = scelta();
+      const riga = righe[i];
+      riempiPosizioni(scheda, {
+        t: riga.r.t, c: riga.codice, v: gara.vasca, sx: cat.sx, st: stagioneDi(riga.d ?? gara.dal), y: riga.r.y, k: riga.r.k,
+      });
       const sotto = scheda.getBoundingClientRect().bottom - (window.innerHeight - 90);
       if (sotto > 0) window.scrollBy({ top: Math.min(sotto, b.getBoundingClientRect().top - 70), behavior: 'smooth' });
     }));

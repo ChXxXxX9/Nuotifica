@@ -19,7 +19,7 @@ import {
 } from './tempi.js';
 import { comeData } from './firestore.js';
 import { gruppiNazionali, righeGara } from './cronometraggio.js';
-import { REGOLE_BASE, categoria } from './categorie.js';
+import { REGOLE_BASE, codiciAtleta } from './categorie.js';
 import {
   migraRicerca, scrittureRicerca, scrittureNoti, chiaveSquadra,
 } from './ricerca.js';
@@ -254,11 +254,12 @@ export function documentoGara(info, sediStato, adesso) {
  */
 export function confrontaLimiti(tempo, limiti, regole = REGOLE_BASE) {
   const st = stagione(tempo.data ?? '');
-  const cat = categoria(tempo.y, tempo.sesso, st, regole);
+  // Prima l'anno (R14, R1, J2…), poi la categoria (R, J…), poi il limite valido per tutti.
+  const codici = [...codiciAtleta(tempo.y, tempo.sesso, st, regole).reverse(), '*'];
   const esito = {};
   for (const l of limiti) {
     if (String(l.st) !== String(st) || Number(l.vasca) !== Number(tempo.vasca)) continue;
-    const limite = l.t?.[`${tempo.gara.codice}|${tempo.sesso}|${cat}`] ?? l.t?.[`${tempo.gara.codice}|${tempo.sesso}|*`];
+    const limite = codici.map((c) => l.t?.[`${tempo.gara.codice}|${tempo.sesso}|${c}`]).find(Boolean);
     if (!limite) continue;
     if (tempo.t <= limite) {
       if (!(tempo.sbPrima && tempo.sbPrima <= limite) && !esito.limite) esito.limite = l.nome;

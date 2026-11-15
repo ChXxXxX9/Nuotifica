@@ -9,7 +9,7 @@ import { leggiGraduatoria, dividiNome, CODICI, aggiungiMovimenti } from './gradu
 import { chiaveAtleta, oggiRoma } from './tempi.js';
 import { comeData } from './firestore.js';
 import { stagione } from './gare.js';
-import { REGOLE_BASE, regoleDi } from './categorie.js';
+import { REGOLE_BASE, anniCodice, etaCodice } from './categorie.js';
 
 export const COMITATI = {
   1: 'Piemonte', 3: 'Lombardia', 5: 'Veneto', 6: 'Friuli Venezia Giulia', 7: 'Liguria', 8: 'Emilia Romagna', 9: 'Toscana',
@@ -17,9 +17,7 @@ export const COMITATI = {
   18: 'Calabria', 19: 'Sicilia', 20: 'Sardegna', 21: 'Bolzano', 22: 'Trento',
 };
 const CODICE_FIN = Object.fromEntries(Object.entries(CODICI).map(([fin, c]) => [c, fin.padStart(2, '0')]));
-const NOMI_CAT = {
-  EB: 'Esordienti B', EA: 'Esordienti A', R: 'Ragazzi', J: 'Juniores', C: 'Cadetti', S: 'Seniores',
-};
+const CODICI_CAT = ['EB', 'EA', 'R', 'R14', 'R1', 'R2', 'J', 'J1', 'J2', 'C', 'S'];
 const MAX_PER_GIRO = 4;
 const LIMITE = { it: 3000, regione: 5000 };
 
@@ -29,37 +27,43 @@ export const idClassifica = ({
 
 /** Una richiesta ha senso? (l'app la scrive, ma non ci fidiamo a occhi chiusi). */
 export function richiestaValida(r) {
-  return /^\d{4}$/.test(String(r.st)) && Number(r.st) >= 2018
+  return (r.st === 'tutte' || (/^\d{4}$/.test(String(r.st)) && Number(r.st) >= 1967))
     && [25, 50].includes(Number(r.v)) && CODICE_FIN[r.c] && ['M', 'F'].includes(r.sx)
-    && (r.reg === 'it' || COMITATI[r.reg]) && (r.cat === 'tutte' || (r.reg === 'it' && NOMI_CAT[r.cat]));
+    && (r.reg === 'it' || COMITATI[r.reg]) && (r.cat === 'tutte' || (r.reg === 'it' && CODICI_CAT.includes(r.cat)));
 }
 
-/** Anni di nascita di una categoria in una stagione (per chiederla già filtrata). */
-export function anniCategoria(cat, sx, st, regole = REGOLE_BASE) {
-  const riga = (regoleDi(st, regole)[sx] ?? []).find(([nome]) => nome === NOMI_CAT[cat]);
-  if (!riga) return null;
-  const [, da, a] = riga;
-  return { dal: Number(st) + 1 - a, al: Number(st) + 1 - da };
-}
+/** Anni di nascita di una categoria (o di un suo anno, es. R14) in una stagione. */
+export const anniCategoria = (cat, sx, st, regole = REGOLE_BASE) => anniCodice(cat, sx, st, regole);
 
 /** Prepara una classifica: la scarica, la ordina e (stagione in corso) aggiunge i movimenti. */
 export async function preparaClassifica({
   db, chiedi, r, adesso, regole,
 }) {
+  const sempre = r.st === 'tutte';
   const campi = {
     'solr[sesso]': r.sx,
     'solr[id_lunghezza_vasca]': Number(r.v) === 25 ? '1' : '2',
-    'solr[kindtime]': '3',
-    'solr[stagione]': String(r.st),
+    // "Di sempre": tutte le stagioni; altrimenti la stagione agonistica scelta.
+    'solr[kindtime]': sempre ? '1' : '3',
+    ...(sempre ? {} : { 'solr[stagione]': String(r.st) }),
     'solr[codice_gara]': CODICE_FIN[r.c],
     'solr[id_comitato]': r.reg === 'it' ? '' : String(r.reg),
     'solr[limit]': String(r.reg === 'it' ? LIMITE.it : LIMITE.regione),
   };
   if (r.cat !== 'tutte') {
-    const anni = anniCategoria(r.cat, r.sx, r.st, regole);
-    if (anni) {
-      campi['solr[dalyob]'] = String(anni.dal);
-      campi['solr[alyob]'] = String(anni.al);
+    if (sempre) {
+      // Di sempre per categoria: l'età al momento della gara.
+      const eta = etaCodice(r.cat, r.sx, stagione(oggiRoma(adesso)), regole);
+      if (eta) {
+        campi['solr[daleta]'] = String(eta.da);
+        campi['solr[aleta]'] = String(eta.a);
+      }
+    } else {
+      const anni = anniCategoria(r.cat, r.sx, r.st, regole);
+      if (anni) {
+        campi['solr[dalyob]'] = String(anni.dal);
+        campi['solr[alyob]'] = String(anni.al);
+      }
     }
   }
   const lette = leggiGraduatoria(await chiedi(campi)).filter((x) => !x.turno || /individuale/i.test(x.turno));

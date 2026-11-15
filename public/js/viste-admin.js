@@ -5,9 +5,12 @@ import {
   parametriHash, conCache,
 } from './nucleo.js';
 import {
-  quando, tempo, nomeGara, nomeStagione, stagioneCorrente, NOMI_CATEGORIE, impostaRegoleCategorie, regoleCategorie,
+  quando, tempo, nomeGara, nomeStagione, stagioneCorrente, impostaRegoleCategorie, regoleCategorie,
 } from './formato.js';
-import { regoleInTesto, regoleDaTesto } from './categorie.js';
+import {
+  regoleInTesto, regoleDaTesto, nomeCodice, anniCodice,
+} from './categorie.js';
+import { leggiFileLimiti, leggiTabellaLimiti, righeDaTesto, modelloCsv } from './tabella-limiti.js';
 import { GARE, leggiTempo } from './viste-classifiche.js';
 import { cerca } from './viste-atleti.js';
 import { eAdmin } from './viste-consigli.js';
@@ -21,8 +24,10 @@ const STATI = { nuovo: 'Inviato', letto: 'Letto', fatto: 'Fatto!' };
 const LAVORI = {
   stagione: 'Rileggi una stagione delle graduatorie', testi: 'Rileggi il testo dei PDF', prova: 'Notifica di prova', gara: 'Rileggi una gara',
 };
-const COLONNE = ['*', 'EB', 'EA', 'R', 'J', 'C', 'S'];
-const nomeColonna = (c) => (c === '*' ? 'Tutti' : NOMI_CATEGORIE[c]);
+const COLONNE = ['*', 'EB', 'EA', 'R', 'R14', 'R1', 'R2', 'J', 'J1', 'J2', 'C', 'S'];
+// Le categorie dei tempi limite FIN: R14 (solo maschi), R1, R2, J1, J2, Cadetti/e.
+const COLONNE_BASE = ['R14', 'R1', 'R2', 'J1', 'J2', 'C'];
+const nomeColonna = (c, sx = 'M') => nomeCodice(c, sx);
 const qui = () => percorso() === 'admin';
 
 function pagina(sez, corpo) {
@@ -247,8 +252,9 @@ function editorLimite(l) {
   };
   const usate = new Set(Object.keys(dati.t).map((k) => k.split('|')[2]));
   let colonne = COLONNE.filter((c) => usate.has(c));
-  if (!colonne.length) colonne = ['R', 'J', 'C', 'S'];
+  if (!colonne.length) colonne = [...COLONNE_BASE];
   let sesso = 'M';
+  const colonneSesso = () => colonne.filter((c) => sesso === 'M' || c !== 'R14');
 
   const ridisegna = (aggiornamento = false) => {
     disegna(pagina('limiti', `
@@ -259,24 +265,35 @@ function editorLimite(l) {
           <label class="campo">Stagione<select name="st">${[corrente + 1, corrente, corrente - 1].map((x) => `<option value="${x}" ${String(x) === dati.st ? 'selected' : ''}>${nomeStagione(x)}</option>`).join('')}</select></label>
           <label class="campo">Vasca<select name="vasca">${[25, 50].map((v) => `<option value="${v}" ${v === dati.vasca ? 'selected' : ''}>${v} m</option>`).join('')}</select></label>
         </div>
+        <section class="carica-file">
+          <b>Carica da file</b>
+          <p class="nota">Un file Excel (.xlsx) o CSV con una riga per gara e sesso e una colonna per categoria. Scarica il modello, compilalo e ricaricalo: si riempie tutto da solo.</p>
+          <div class="riga-lavoro">
+            <label class="bottone bottone-piccolo">Scegli il file<input type="file" data-file accept=".csv,.txt,.xlsx,.xls" hidden></label>
+            <button type="button" class="bottone bottone-secondario bottone-piccolo" data-modello>Scarica il modello</button>
+          </div>
+        </section>
         <fieldset class="colonne-limite"><legend>Categorie (colonne)</legend>
-          ${COLONNE.map((c) => `<label class="gettone"><input type="checkbox" data-colonna="${c}" ${colonne.includes(c) ? 'checked' : ''}><span class="gettone-testo">${esc(nomeColonna(c))}</span></label>`).join('')}
+          ${COLONNE.filter((c) => sesso === 'M' || c !== 'R14').map((c) => `<label class="gettone"><input type="checkbox" data-colonna="${c}" ${colonne.includes(c) ? 'checked' : ''}><span class="gettone-testo">${esc(nomeColonna(c, sesso))}</span></label>`).join('')}
         </fieldset>
         <div class="segmenti" role="tablist" aria-label="Sesso">
           ${['M', 'F'].map((x) => `<button type="button" class="segmento" data-sesso="${x}" aria-selected="${sesso === x}">${x === 'M' ? 'Maschi' : 'Femmine'}</button>`).join('')}
         </div>
         <div class="tabella-scorre">
           <table class="tabella-limiti tabella-modifica">
-            <thead><tr><th>Gara</th>${colonne.map((c) => `<th>${esc(nomeColonna(c))}</th>`).join('')}</tr></thead>
-            <tbody>${GARE.map((g) => `<tr><th>${esc(nomeGara(g, { breve: true }))}</th>${colonne.map((c) => {
+            <thead><tr><th>Gara</th>${colonneSesso().map((c) => {
+    const anni = c === '*' ? null : anniCodice(c, sesso, dati.st, regoleCategorie());
+    return `<th>${esc(nomeColonna(c, sesso))}${anni ? `<small class="anni-colonna">${anni.dal === anni.al ? `nat${sesso === 'F' ? 'e' : 'i'} nel ${anni.dal}` : `${anni.dal}–${anni.al}`}</small>` : ''}</th>`;
+  }).join('')}</tr></thead>
+            <tbody>${GARE.map((g) => `<tr><th>${esc(nomeGara(g, { breve: true }))}</th>${colonneSesso().map((c) => {
     const v = dati.t[`${g}|${sesso}|${c}`];
-    return `<td><input data-cella="${g}|${sesso}|${c}" inputmode="decimal" value="${v ? esc(tempo(v)) : ''}" aria-label="${esc(`${nomeGara(g, { breve: true })} ${nomeColonna(c)}`)}"></td>`;
+    return `<td><input data-cella="${g}|${sesso}|${c}" inputmode="decimal" value="${v ? esc(tempo(v)) : ''}" aria-label="${esc(`${nomeGara(g, { breve: true })} ${nomeColonna(c, sesso)}`)}"></td>`;
   }).join('')}</tr>`).join('')}</tbody>
           </table>
         </div>
         <details class="incolla">
           <summary>Incolla da una tabella</summary>
-          <p class="nota">Una riga per tempo: gara, sesso, categoria e tempo. Es. <code>100SL M R 58.50</code> o <code>200MI F Tutti 2'25"10</code>. Categorie: EB, EA, R, J, C, S, Tutti.</p>
+          <p class="nota">Come nel modello (righe con <code>;</code>) oppure una riga per tempo: <code>100SL;M;R14;58.50</code>. Categorie: R14, R1, R2, J1, J2, Cadetti, Ragazzi, Juniores, Esordienti A/B, Seniores, Tutti.</p>
           <textarea data-incolla rows="5"></textarea>
           <button type="button" class="bottone bottone-secondario bottone-piccolo" data-applica>Inserisci nella tabella</button>
         </details>
@@ -300,7 +317,7 @@ function editorLimite(l) {
       };
       el.querySelectorAll('[data-colonna]').forEach((x) => x.addEventListener('change', () => {
         leggiCampi();
-        colonne = COLONNE.filter((c) => el.querySelector(`[data-colonna="${c}"]`).checked);
+        colonne = COLONNE.filter((c) => el.querySelector(`[data-colonna="${c}"]`)?.checked ?? colonne.includes(c));
         ridisegna(true);
       }));
       el.querySelectorAll('[data-sesso]').forEach((x) => x.addEventListener('click', () => {
@@ -308,24 +325,45 @@ function editorLimite(l) {
         sesso = x.dataset.sesso;
         ridisegna(true);
       }));
-      el.querySelector('[data-applica]').addEventListener('click', () => {
+      const inserisci = ({ t, errori }) => {
         leggiCampi();
-        const sbagliate = [];
-        for (const riga of el.querySelector('[data-incolla]').value.split('\n')) {
-          const t = riga.trim();
-          if (!t) continue;
-          const m = t.match(/^(\d{2,4}[A-Za-z]{2})\s+([MF])\s+(EB|EA|R|J|C|S|Tutti|\*)\s+(.+)$/i);
-          const ms = m && leggiTempo(m[4]);
-          if (!m || !ms || !GARE.includes(m[1].toUpperCase())) {
-            sbagliate.push(t);
-            continue;
-          }
-          const cat = /^(tutti|\*)$/i.test(m[3]) ? '*' : m[3].toUpperCase();
-          dati.t[`${m[1].toUpperCase()}|${m[2].toUpperCase()}|${cat}`] = ms;
-          if (!colonne.includes(cat)) colonne = COLONNE.filter((c) => colonne.includes(c) || c === cat);
-        }
+        Object.assign(dati.t, t);
+        const usateOra = new Set(Object.keys(dati.t).map((x) => x.split('|')[2]));
+        colonne = COLONNE.filter((c) => colonne.includes(c) || usateOra.has(c));
         ridisegna(true);
-        avviso(sbagliate.length ? `Non capite ${sbagliate.length} righe: ${sbagliate.slice(0, 2).join(' / ')}` : 'Inserite.', sbagliate.length ? 'errore' : undefined);
+        const n = Object.keys(t).length;
+        avviso(errori.length
+          ? `Inseriti ${n} tempi. Da controllare: ${errori.slice(0, 2).join(' · ')}${errori.length > 2 ? ` e altre ${errori.length - 2}` : ''}`
+          : `Inseriti ${n} tempi.`, errori.length && !n ? 'errore' : undefined);
+      };
+      el.querySelector('[data-applica]').addEventListener('click', () => {
+        const testo = el.querySelector('[data-incolla]').value;
+        // Una riga per tempo anche con spazi ("100SL M R14 58.50"): si trasformano in colonne.
+        const righe = righeDaTesto(testo).map((r) => (r.length === 1 ? r[0].split(/\s+/) : r));
+        const conIntestazione = righe.length && !/^\d/.test(righe[0][0]) ? righe : [['Gara', 'Sesso', 'Categoria', 'Tempo'], ...righe];
+        inserisci(leggiTabellaLimiti(conIntestazione));
+      });
+      el.querySelector('[data-file]').addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        try {
+          inserisci(await leggiFileLimiti(file));
+        } catch (err) {
+          avviso(err.message, 'errore');
+        }
+        e.target.value = '';
+      });
+      el.querySelector('[data-modello]').addEventListener('click', () => {
+        const blob = new Blob([modelloCsv()], { type: 'text/csv;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'modello-tempi-limite-cloro.csv';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          URL.revokeObjectURL(a.href);
+          a.remove();
+        }, 1000);
       });
       f.addEventListener('submit', async (e) => {
         e.preventDefault();
