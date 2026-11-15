@@ -281,6 +281,7 @@ async function principale() {
     throw new Error('Manca il secret FONTI (Settings → Secrets and variables → Actions): vedi il README.');
   }
   impostaSito(fonti.avvisi);
+  console.log(`Fonti configurate: ${Object.keys(fonti).join(', ')}.`);
   const wp = creaWp({ base: fonti.avvisi });
   if (process.argv.includes('--anteprima')) {
     await anteprima(wp);
