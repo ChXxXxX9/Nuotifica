@@ -96,8 +96,9 @@ export async function eseguiRichieste({
   db, fonti, scarica, adesso = new Date().toISOString(), log = console.log, max = MAX_PER_GIRO,
 }) {
   if (!fonti?.naz) return 0;
+  // Prima le più recenti: è la classifica che qualcuno sta guardando adesso (le altre subito dopo).
   const richieste = (await db.elenca('richieste'))
-    .sort((a, b) => String(a.creato ?? '').localeCompare(String(b.creato ?? '')))
+    .sort((a, b) => String(b.creato ?? '').localeCompare(String(a.creato ?? '')))
     .slice(0, max);
   if (!richieste.length) return 0;
   const regole = (await db.leggi('config/categorie'))?.regole ?? REGOLE_BASE;

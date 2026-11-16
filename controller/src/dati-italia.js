@@ -4,6 +4,8 @@
 //   a/{chiave}/i             "nome|anno|sesso"
 //   a/{chiave}/s{stagione}   "società|regione~gara|vasca|tempo|data|luogo~…"
 //   a/{chiave}/f             id dell'atleta nella fonte (per lo storico)
+//   sqx/{squadra}            riassunto della squadra (componenti, migliori di sempre, punti di sempre): vedi riassuntoSquadra
+//   sqr/{squadra}/{impronta} staffette dalle gare lette: "gara|sesso|vasca|tempo|data|id gara|categoria"
 //   st/{chiave}              storico gara per gara degli atleti seguiti: { agg, g: { gara: "vasca|tempo|data|luogo|evento~…" } }
 //   ann/s{stagione}          Indice annata: { "vasca|gara|sesso|anno": "media dei 10 migliori|quanti" }
 //   c/{nome}~{chiave}        "chiave|nome|anno|società|regione"
@@ -131,5 +133,74 @@ export function squadraDaStagioni(doc) {
     m: [...membri.values()].map((x) => [x.k, x.n, x.y, x.sx, x.da, x.a].join('|')),
     t,
     stagioni,
+  };
+}
+
+/**
+ * Punti fatti con la squadra, atleta per atleta: la somma dei migliori tempi di ogni gara e vasca
+ * di ogni stagione. `tabelle`: [{ "vasca|gara|sesso": ["chiave|tempo|data", …] }, …]; `punti` la funzione dei punti.
+ */
+export function puntiSquadra(tabelle, punti) {
+  const totali = new Map();
+  for (const t of tabelle) {
+    for (const [kt, righe] of Object.entries(t ?? {})) {
+      const [v, c, sx] = kt.split('|');
+      for (const riga of righe) {
+        const [k, tempo, d] = riga.split('|');
+        const p = punti(Number(tempo), c, sx, Number(v), d);
+        if (!p) continue;
+        const x = totali.get(k) ?? {
+          k, sx, pt: 0, gare: 0, top: null,
+        };
+        x.pt += p;
+        x.gare++;
+        if (!x.top || p > x.top.p) x.top = { p, c, v: Number(v) };
+        totali.set(k, x);
+      }
+    }
+  }
+  return [...totali.values()].sort((a, b) => b.pt - a.pt);
+}
+
+/** Il riassunto di una squadra da tutte le sue stagioni (lo prepara il controllore, l'app legge solo questo). */
+export function riassuntoSquadra(doc, punti) {
+  const sq = squadraDaStagioni(doc);
+  if (!sq) return null;
+  const ps = puntiSquadra(Object.values(sq.stagioni).map((x) => x.t), punti);
+  return {
+    n: pulisci(sq.n),
+    reg: sq.reg ?? '',
+    st: sq.st.join(','),
+    m: sq.m.join('~'),
+    t: Object.fromEntries(Object.entries(sq.t).map(([kt, righe]) => [kt, righe.join('~')])),
+    ps: ps.map((x) => [x.k, x.sx, x.pt, x.gare, x.top?.c ?? '', x.top?.v ?? '', x.top?.p ?? ''].join('|')).join('~'),
+  };
+}
+
+/** Dal riassunto (sqx/{squadra}) alla squadra come la usa l'app. */
+export function leggiRiassuntoSquadra(x) {
+  if (!x?.st) return null;
+  const elenco = (testo) => String(testo ?? '').split('~').filter(Boolean);
+  return {
+    n: x.n,
+    reg: x.reg,
+    st: String(x.st).split(',').filter(Boolean),
+    m: elenco(x.m),
+    t: Object.fromEntries(Object.entries(x.t ?? {}).map(([kt, righe]) => [kt, elenco(righe)])),
+    ps: elenco(x.ps).map((riga) => {
+      const [k, sx, pt, gare, c, v, p] = riga.split('|');
+      return {
+        k, sx, pt: Number(pt), gare: Number(gare), top: c ? { c, v: Number(v), p: Number(p) } : null,
+      };
+    }),
+  };
+}
+
+/** Una stagione di una squadra (sqs/{squadra}/s{stagione}) con le tabelle come elenchi. */
+export function leggiStagioneSquadra(d) {
+  if (!d) return null;
+  return {
+    m: String(d.m ?? '').split('~').filter(Boolean),
+    t: Object.fromEntries(Object.entries(d.t ?? {}).map(([kt, testo]) => [kt, String(testo).split('~').filter(Boolean)])),
   };
 }

@@ -2,6 +2,7 @@
 //   node src/giro-graduatorie.js            di notte: la stagione in corso del Lazio, poi tutta Italia finché c'è tempo
 //   node src/giro-graduatorie.js tutto      tutta Italia, una stagione dopo l'altra (alla fine il workflow si rilancia)
 //   node src/giro-graduatorie.js italia 2015   quella stagione di tutta Italia
+//   node src/giro-graduatorie.js squadre    i riassunti di tutte le squadre (quello che l'app scarica), da zero
 //   node src/giro-graduatorie.js 2024       quella stagione del Lazio con una scheda per atleta
 // Firestore ha un tetto di scritture al giorno: le schede del Lazio partono solo se c'è spazio.
 // Tutta Italia va nel Realtime Database, che quel tetto non ce l'ha.
@@ -18,7 +19,9 @@ import { giornoQuota } from './tempi.js';
 // ci si ferma prima di questa soglia, contando anche quelle del controllore.
 const STOP = 17_500;
 // Dopo quanto non si comincia un'altra stagione (il workflow ha 6 ore; una stagione ne prende al massimo una).
-const MINUTI = { tutto: 270, notte: 75, italia: 340 };
+const MINUTI = {
+  tutto: 270, notte: 75, italia: 340, squadre: 300,
+};
 
 function annota(livello, testo) {
   const t = String(testo).replace(/%/g, '%25').replace(/\r?\n/g, '%0A');
@@ -56,7 +59,7 @@ async function principale() {
     return libero;
   };
   const argomenti = process.argv.slice(2).filter(Boolean);
-  const lavoro = ['tutto', 'italia'].includes(argomenti[0]) ? argomenti[0] : 'notte';
+  const lavoro = ['tutto', 'italia', 'squadre'].includes(argomenti[0]) ? argomenti[0] : 'notte';
   const forza = Number(argomenti.find((x) => /^\d{4}$/.test(x))) || null;
   // Prima di tutto (di notte e nei giri di tutta Italia): lo storico degli atleti seguiti (aggiornato una volta a settimana), al massimo 30 minuti.
   if (['notte', 'tutto'].includes(lavoro) && !forza && rtdb && fonti.naz) {

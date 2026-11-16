@@ -200,7 +200,10 @@ service cloud.firestore {
       }
 
       function valido(d) {
-        return d.keys().hasOnly(['settori', 'gruppi', 'tipi', 'pushOn', 'tokens', 'seguiti', 'obiettivi', 'limiti', 'creato', 'aggiornato'])
+        return d.keys().hasOnly(['settori', 'gruppi', 'tipi', 'pushOn', 'tokens', 'th', 'seguiti', 'squadre', 'notSq', 'obiettivi', 'limiti', 'creato', 'aggiornato'])
+          && (!('th' in d) || (d.th is map && d.th.size() <= 20))
+          && (!('squadre' in d) || (d.squadre is list && d.squadre.size() <= 10))
+          && (!('notSq' in d) || (d.notSq is map && d.notSq.size() <= 10))
           && (!('obiettivi' in d) || (d.obiettivi is map && d.obiettivi.size() <= 60))
           && (!('limiti' in d) || (d.limiti is list && d.limiti.size() <= 10))
           && d.settori is list && d.settori.size() <= 12

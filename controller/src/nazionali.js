@@ -181,13 +181,14 @@ export async function aggiornaNazionali({
     .filter((g) => g.risultati && !stato.fatte[g.id] && g.al >= piuGiorni(oggi, -GIORNI_INDIETRO) && !doppia(g))
     .sort((a, b) => a.al.localeCompare(b.al))
     .slice(0, MAX_GARE_PER_GIRO);
-  const esito = { lette: 0, atleti: 0 };
+  const esito = { lette: 0, atleti: 0, staffette: [] };
   for (const g of daFare) {
     if (!puoScrivere()) break;
     try {
-      const n = await leggiGaraNazionale({ db, g, chiedi, adesso, log });
+      const { atleti: n, staffette } = await leggiGaraNazionale({ db, g, chiedi, adesso, log });
       esito.lette++;
       esito.atleti += n;
+      esito.staffette.push(...staffette);
       stato.fatte[g.id] = adesso;
       scritte = true;
     } catch (e) {
@@ -226,6 +227,7 @@ async function leggiGaraNazionale({
 }) {
   const evento = leggiEvento(await chiedi('risultati', { solr: { 'solr[id_evento]': g.fid } }));
   const vasca = evento.vasca ?? g.vasca ?? 25;
+  const staffette = [];
   const lazio = /lazio/i.test(evento.comitato);
   const regione = nomeProprio(evento.comitato.replace(/comitato\s+regionale\s*/i, '').trim()) || null;
 
@@ -266,6 +268,13 @@ async function leggiGaraNazionale({
     const st = stagione(g.al);
     const uscita = [];
     for (const r of righe) {
+      // Staffette: vanno nelle pagine delle squadre.
+      if (c.gara.staffetta && r.ms && (r.societa || r.nome)) {
+        staffette.push({
+          squadra: r.societa || r.nome,
+          voce: [c.gara.codice, c.sesso, vasca, r.ms, g.al, g.id, nomeCategoria(`${c.categoria} ${c.sesso === 'F' ? 'femmine' : 'maschi'}`)].join('|'),
+        });
+      }
       const k = c.gara.staffetta ? null : `${slug(r.nome).slice(0, 60)}${r.anno ? `-${r.anno}` : ''}`;
       const riga = { n: r.nome, s: r.societa, p: r.posizione };
       if (k) riga.k = k;
@@ -354,7 +363,7 @@ async function leggiGaraNazionale({
   if (avanzate.length) await db.commit(avanzate);
   g.conta = conta;
   g.regione = regione;
-  log(`Gara ${g.nome} (${g.luogo}): ${evento.classifiche.length} classifiche, ${conta} righe, ${atleti.size} schede.`);
-  return atleti.size;
+  log(`Gara ${g.nome} (${g.luogo}): ${evento.classifiche.length} classifiche, ${conta} righe, ${atleti.size} schede, ${staffette.length} staffette.`);
+  return { atleti: atleti.size, staffette };
 }
 

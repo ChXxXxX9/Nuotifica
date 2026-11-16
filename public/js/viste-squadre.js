@@ -1,13 +1,16 @@
 // Squadre: elenco, componenti attuali e passati, migliori tempi per gara (di sempre o di una stagione),
 // classifica interna di ogni gara e staffette.
 import {
-  stato, api, esc, barraTop, tabBar, disegna, caricamento, paginaErrore, conCache, giaInCache, percorso, memoria,
+  stato, api, esc, barraTop, tabBar, disegna, caricamento, paginaErrore, conCache, giaInCache, percorso, memoria, avviso,
 } from './nucleo.js';
+import { punti } from './punti.js';
 import {
   tempo, nomeGara, ordineGara, giorno, iniziali, categoria, gruppoCategoria, stagioneDi,
 } from './formato.js';
 import { menuClassifiche, REGIONI } from './viste-classifiche.js';
-import { squadraDaStagioni } from './dati-italia.js';
+import {
+  squadraDaStagioni, leggiRiassuntoSquadra, leggiStagioneSquadra as stagioneDaItalia, puntiSquadra,
+} from './dati-italia.js';
 
 const nascosto = (k) => (stato.nascosti ?? []).includes(k);
 const normalizza = (t = '') => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -19,17 +22,26 @@ const leggiElenco = () => conCache('squadre', (fresco) => api.leggiSquadre(fresc
  * (Firestore). Se tutta Italia non c'è ancora, la squadra com'era prima (Firestore).
  */
 const leggiSquadra = (id) => conCache(`squadra:${id}`, async () => {
-  const [italia, prima] = await Promise.all([
-    api.leggiSquadraItalia(id).catch(() => null),
+  const [riassunto, prima, staffette] = await Promise.all([
+    api.leggiRiassuntoSquadra?.(id).catch(() => null) ?? null,
     api.leggiSquadra(id).catch(() => null),
+    api.leggiStaffetteSquadra?.(id).catch(() => []) ?? [],
   ]);
-  const sq = squadraDaStagioni(italia);
-  if (!sq) return prima;
-  return { id, ...sq, sf: prima?.sf ?? [] };
+  // Staffette: quelle lette prima (Firestore) più quelle di tutte le gare (Realtime Database), senza doppioni.
+  const sf = [...new Set([...(prima?.sf ?? []), ...(staffette ?? [])])];
+  const sq = leggiRiassuntoSquadra(riassunto);
+  if (sq) return { id, ...sq, sf, italia: true };
+  // Riassunto non ancora pronto: la squadra intera (più pesante) o, prima ancora, quella del Lazio.
+  const tutta = squadraDaStagioni(await api.leggiSquadraItalia(id).catch(() => null));
+  if (tutta) return { id, ...tutta, sf, italia: true };
+  return prima ? { ...prima, sf } : null;
 }, { durata: 300_000 });
 const leggiStagione = async (id, st) => {
   const sq = await leggiSquadra(id);
   if (sq?.stagioni) return sq.stagioni[st] ?? null;
+  if (sq?.italia) {
+    return conCache(`squadra:${id}:${st}`, async () => stagioneDaItalia(await api.leggiStagioneSquadraItalia(id, st)), { durata: 300_000 });
+  }
   return conCache(`squadra:${id}:${st}`, () => api.leggiStagioneSquadra(id, st), { durata: 300_000 });
 };
 
@@ -89,7 +101,7 @@ export async function vistaSquadre(q = '') {
       </label>
       ${tutte.length ? '<ul class="elenco elenco-squadre" data-elenco></ul>' : `
         <div class="vuoto"><strong>Squadre in arrivo</strong>Stiamo leggendo le graduatorie stagione per stagione: le squadre compaiono qui nelle prossime ore.</div>`}
-      <p class="nota" style="margin-top:18px">Le squadre delle altre regioni arrivano man mano che carichiamo le graduatorie di tutta Italia.</p>
+      <p class="nota" style="margin-top:18px">Tutte le società d'Italia che compaiono nelle graduatorie, dal 1970 a oggi: scegli la regione qui sopra.</p>
     </main>
     ${tabBar('classifiche')}`, (el) => {
     const input = el.querySelector('input');
@@ -152,9 +164,34 @@ export async function vistaSquadra(id) {
     v: vasche.includes(pref.v) ? pref.v : (vasche.includes(25) ? 25 : vasche[0] ?? 25),
     sx: pref.sx === 'F' ? 'F' : 'M',
     gruppo: ['esordienti', 'categoria'].includes(pref.gruppo) ? pref.gruppo : 'tutti',
+    rsx: ['M', 'F'].includes(pref.rsx) ? pref.rsx : 'tutti',
+    rTutti: false,
     aperta: null,
     exAperti: false,
   };
+  const ricorda = () => memoria('squadra-vista', {
+    v: scelta.v, sx: scelta.sx, gruppo: scelta.gruppo, rsx: scelta.rsx,
+  });
+
+  // Classifica atleti: punti World Aquatics sommati (il migliore di ogni gara e vasca, per ogni stagione in squadra).
+  const cacheRoster = new Map();
+  const classificaAtleti = () => {
+    const chiave = `${scelta.st}|${scelta.rsx}`;
+    if (cacheRoster.has(chiave)) return cacheRoster.get(chiave);
+    let elenco = null;
+    if (scelta.st === 'sempre') {
+      elenco = sq.ps ?? (sq.stagioni ? puntiSquadra(Object.values(sq.stagioni).map((x) => x.t), punti) : null);
+    } else if (tabelleStagione) {
+      elenco = puntiSquadra([tabelleStagione], punti);
+    }
+    if (!elenco) return null;
+    elenco = elenco.filter((x) => !nascosto(x.k) && (scelta.rsx === 'tutti' || x.sx === scelta.rsx));
+    cacheRoster.set(chiave, elenco);
+    return elenco;
+  };
+  const MAX_SQUADRE = 5;
+  const seguita = () => (stato.profilo?.squadre ?? []).includes(id);
+  const notifiche = () => stato.profilo?.notSq?.[id] ?? ['pb', 'staffette'];
   let tabelleStagione = null;
 
   const tabella = () => {
@@ -207,6 +244,15 @@ export async function vistaSquadra(id) {
             <div class="cifra"><b>${membri.length}</b><small>Da sempre</small></div>
             <div class="cifra"><b>${stagioni.length}</b><small>Stagioni</small></div>
           </div>
+          <div class="segui-squadra">
+            <button class="bottone bottone-piccolo ${seguita() ? 'bottone-secondario' : ''}" data-segui-sq aria-pressed="${seguita()}">${seguita() ? 'Seguita ✓' : 'Segui la squadra'}</button>
+            ${seguita() ? `
+              <fieldset class="scelte-notifiche">
+                <legend>Notifiche di questa squadra</legend>
+                ${[['pb', 'Personali dei suoi atleti'], ['tempi', 'Tutti i tempi nuovi'], ['staffette', 'Staffette']].map(([v, nome]) => `
+                  <label><input type="checkbox" value="${v}" ${notifiche().includes(v) ? 'checked' : ''}> ${nome}</label>`).join('')}
+              </fieldset>` : ''}
+          </div>
         </section>
 
         <div class="filtri" role="toolbar" aria-label="Periodo" style="margin-top:14px">
@@ -247,13 +293,33 @@ export async function vistaSquadra(id) {
         </section>
 
         <section class="sezione">
+          <div class="sezione-testa"><h2 class="sezione-titolo">Classifica atleti</h2><span class="nota">${scelta.st === 'sempre' ? 'di sempre' : esc(nomeStagione(scelta.st))}</span></div>
+          <p class="nota" style="margin:-4px 0 10px">Punti World Aquatics fatti con questa squadra: la somma dei migliori tempi di ogni gara e vasca${scelta.st === 'sempre' ? ', stagione per stagione' : ' della stagione'}.</p>
+          <div class="segmenti" role="tablist" aria-label="Chi">
+            ${[['tutti', 'Tutti'], ['M', 'Maschi'], ['F', 'Femmine']].map(([v, nome]) => `<button class="segmento" role="tab" data-rsx="${v}" aria-selected="${scelta.rsx === v}">${nome}</button>`).join('')}
+          </div>
+          ${!sq.italia ? '<p class="nota">La classifica arriva appena la squadra è caricata con tutte le sue stagioni.</p>' : (() => {
+    const elenco = classificaAtleti();
+    if (!elenco) return '<p class="caricamento">Carico la stagione…</p>';
+    if (!elenco.length) return '<p class="nota">Nessun atleta qui.</p>';
+    return `<ol class="classifica" style="margin-top:10px">${elenco.slice(0, scelta.rTutti ? Infinity : 30).map((x, i) => `
+              <li><a href="#/atleta/${encodeURIComponent(x.k)}">
+                <span class="pos"><b>${i + 1}</b></span>
+                <span class="chi"><b>${esc(nomeAtleta(x.k))}</b><small>${esc([perChiave.get(x.k)?.y, scelta.rsx === 'tutti' ? x.sx : '', `${x.gare} ${x.gare === 1 ? 'gara' : 'gare'}`, x.top ? `top ${nomeGara(x.top.c, { breve: true })} ${x.top.v} m ${x.top.p}` : ''].filter(Boolean).join(' · '))}</small></span>
+                <span class="quanto"><b>${x.pt.toLocaleString('it-IT')}</b><small>punti</small></span>
+              </a></li>`).join('')}</ol>
+            ${!scelta.rTutti && elenco.length > 30 ? `<button class="bottone bottone-secondario" data-roster-tutti style="margin-top:10px">Mostra tutti (${elenco.length})</button>` : ''}`;
+  })()}
+        </section>
+
+        <section class="sezione">
           <div class="sezione-testa"><h2 class="sezione-titolo">Staffette</h2></div>
           ${miglioriStaff.size ? `<ul class="elenco classifica-squadra">${[...miglioriStaff.values()].sort((a, b) => ordineGara(a.c) - ordineGara(b.c) || a.cat.localeCompare(b.cat)).map((x) => `
             <li><a class="riga-gara" href="#/gara/${encodeURIComponent(x.g)}?e=${encodeURIComponent(x.c)}">
               <span class="gara-nome">${esc(nomeGara(x.c, { breve: true }))}</span>
               <span class="chi"><b>${esc(x.cat || 'Staffetta')}</b><small>${esc(giorno(x.d))}</small></span>
               <span class="quanto"><b>${esc(tempo(x.t))}</b></span>
-            </a></li>`).join('')}</ul>` : '<p class="nota">Le staffette compaiono qui dalle gare che leggiamo in diretta.</p>'}
+            </a></li>`).join('')}</ul>` : '<p class="nota">Le staffette compaiono qui dalle gare che leggiamo, in tutta Italia (le graduatorie federali non hanno le staffette, quindi quelle vecchie non ci sono).</p>'}
         </section>
 
         <section class="sezione">
@@ -273,6 +339,7 @@ export async function vistaSquadra(id) {
       el.querySelectorAll('[data-st]').forEach((b) => b.addEventListener('click', async () => {
         scelta.st = b.dataset.st;
         scelta.aperta = null;
+        scelta.rTutti = false;
         tabelleStagione = null;
         ridisegna(true);
         if (scelta.st === 'sempre') return;
@@ -289,14 +356,65 @@ export async function vistaSquadra(id) {
       el.querySelectorAll('[data-v]').forEach((b) => b.addEventListener('click', () => {
         scelta.v = Number(b.dataset.v);
         scelta.aperta = null;
-        memoria('squadra-vista', { v: scelta.v, sx: scelta.sx, gruppo: scelta.gruppo });
+        ricorda();
         ridisegna(true);
       }));
       el.querySelectorAll('[data-sx]').forEach((b) => b.addEventListener('click', () => {
         scelta.sx = b.dataset.sx;
         scelta.aperta = null;
-        memoria('squadra-vista', { v: scelta.v, sx: scelta.sx, gruppo: scelta.gruppo });
+        ricorda();
         ridisegna(true);
+      }));
+      el.querySelectorAll('[data-rsx]').forEach((b) => b.addEventListener('click', () => {
+        scelta.rsx = b.dataset.rsx;
+        scelta.rTutti = false;
+        ricorda();
+        ridisegna(true);
+      }));
+      el.querySelector('[data-roster-tutti]')?.addEventListener('click', () => {
+        scelta.rTutti = true;
+        ridisegna(true);
+      });
+      // Segui la squadra (con le notifiche scelte).
+      el.querySelector('[data-segui-sq]')?.addEventListener('click', async (e) => {
+        const bottone = e.currentTarget;
+        const uid = stato.utente?.uid;
+        if (!uid || !stato.profilo) return;
+        const gia = seguita();
+        if (!gia && (stato.profilo.squadre ?? []).length >= MAX_SQUADRE) {
+          avviso(`Puoi seguire al massimo ${MAX_SQUADRE} squadre: togline una dalla sua pagina.`, 'errore');
+          return;
+        }
+        bottone.disabled = true;
+        try {
+          if (gia) {
+            await api.smettiSquadra(uid, id);
+            stato.profilo.squadre = (stato.profilo.squadre ?? []).filter((x) => x !== id);
+            if (stato.profilo.notSq) delete stato.profilo.notSq[id];
+            avviso(`Non segui più ${sq.n ?? 'la squadra'}.`);
+          } else {
+            await api.seguiSquadra(uid, id, notifiche());
+            stato.profilo.squadre = [...(stato.profilo.squadre ?? []), id];
+            stato.profilo.notSq = { ...(stato.profilo.notSq ?? {}), [id]: notifiche() };
+            avviso(memoria('token') ? `Segui ${sq.n ?? 'la squadra'}: scegli qui sotto quali notifiche ricevere.` : `Segui ${sq.n ?? 'la squadra'}. Attiva le notifiche per sapere subito i tempi.`);
+          }
+          ridisegna(true);
+        } catch (err) {
+          bottone.disabled = false;
+          avviso(err.message, 'errore');
+        }
+      });
+      el.querySelectorAll('.scelte-notifiche input').forEach((c) => c.addEventListener('change', async () => {
+        const uid = stato.utente?.uid;
+        if (!uid) return;
+        const scelte = [...el.querySelectorAll('.scelte-notifiche input:checked')].map((x) => x.value);
+        try {
+          await api.seguiSquadra(uid, id, scelte);
+          stato.profilo.notSq = { ...(stato.profilo.notSq ?? {}), [id]: scelte };
+          avviso(scelte.length ? 'Notifiche della squadra salvate.' : 'Nessuna notifica da questa squadra (la segui lo stesso).');
+        } catch (err) {
+          avviso(err.message, 'errore');
+        }
       }));
       el.querySelectorAll('[data-gara]').forEach((b) => b.addEventListener('click', () => {
         scelta.aperta = scelta.aperta === b.dataset.gara ? null : b.dataset.gara;
@@ -305,7 +423,7 @@ export async function vistaSquadra(id) {
       el.querySelectorAll('[data-gruppo]').forEach((b) => b.addEventListener('click', () => {
         scelta.gruppo = b.dataset.gruppo;
         scelta.aperta = null;
-        memoria('squadra-vista', { v: scelta.v, sx: scelta.sx, gruppo: scelta.gruppo });
+        ricorda();
         ridisegna(true);
       }));
       el.querySelector('[data-ex]')?.addEventListener('click', () => {

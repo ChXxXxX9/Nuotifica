@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#07130f">
+<title>Cloro ha cambiato casa</title>
+<link rel="canonical" href="https://cloro.web.app/">
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; min-height: 100vh; background: #07130f; color: #eafbf3; font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
+    display: grid; place-items: center; padding: 24px 16px; box-sizing: border-box; }
+  main { max-width: 440px; }
+  .logo { display: inline-grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: #c8ff3d; color: #07130f; font-weight: 800; font-size: 20px; }
+  h1 { font-size: 28px; line-height: 1.15; margin: 18px 0 8px; }
+  em { color: #c8ff3d; font-style: normal; }
+  p { color: #9cb8ae; }
+  ol { padding-left: 20px; color: #eafbf3; }
+  li { margin: 8px 0; }
+  a.bottone, button { display: block; width: 100%; box-sizing: border-box; text-align: center; margin-top: 14px; padding: 14px; border: 0; border-radius: 14px;
+    background: #c8ff3d; color: #07130f; font: inherit; font-weight: 800; text-decoration: none; cursor: pointer; }
+  .nascosto { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <span class="logo" aria-hidden="true">Cl</span>
+  <h1>Cloro ha <em>cambiato casa</em>.</h1>
+  <p>Ora si apre da <strong>cloro.web.app</strong>. Questo indirizzo non funziona più e da qui non arrivano più notifiche.</p>
+  <div id="app" class="nascosto">
+    <ol>
+      <li>Copia l'indirizzo qui sotto e aprilo in Safari (iPhone) o Chrome (Android).</li>
+      <li>Aggiungi Cloro alla schermata Home da lì ed entra con lo stesso account: atleti seguiti e preferenze ci sono già.</li>
+      <li>Togli questa icona dalla Home.</li>
+    </ol>
+    <button id="copia">Copia l'indirizzo cloro.web.app</button>
+  </div>
+  <a class="bottone" href="https://cloro.web.app/">Vai a cloro.web.app</a>
+</main>
+<script>
+  // Togliamo il vecchio service worker (e con lui le notifiche doppie).
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then((rr) => rr.forEach((r) => {
+      r.pushManager?.getSubscription().then((s) => s && s.unsubscribe()).catch(() => {});
+      r.unregister();
+    })).catch(() => {});
+  }
+  const installata = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  if (!installata) {
+    location.replace('https://cloro.web.app/' + location.search + location.hash);
+  } else {
+    document.getElementById('app').classList.remove('nascosto');
+    document.getElementById('copia').addEventListener('click', async (e) => {
+      try { await navigator.clipboard.writeText('https://cloro.web.app/'); e.target.textContent = 'Copiato!'; } catch { e.target.textContent = 'cloro.web.app'; }
+    });
+  }
+</script>
+</body>
+</html>

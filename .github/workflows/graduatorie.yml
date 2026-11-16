@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       lavoro:
-        description: 'Vuoto = giro della notte; "tutto" = tutta Italia, tutte le stagioni; "italia" + stagione = quella stagione di tutta Italia'
+        description: 'Vuoto = giro della notte; "tutto" = tutta Italia, tutte le stagioni; "italia" + stagione = quella stagione; "squadre" = riassunti di tutte le squadre'
         required: false
         default: ''
       stagione:

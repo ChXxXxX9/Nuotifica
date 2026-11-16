@@ -37,7 +37,7 @@ export function risultatiPuliti(r = []) {
 
 /** I migliori di ogni stagione da tutta Italia (una sola lettura). */
 async function leggiDaItalia(k) {
-  const doc = await conCache(`italia:${k}`, () => api.leggiAtletaItalia(k), { durata: 600_000 });
+  const doc = await conCache(`italia:${k}`, (fresco) => api.leggiAtletaItalia(k, fresco), { durata: 600_000 });
   const a = datiItalia(doc);
   if (!a) return null;
   a.r = a.r.map((v) => {
@@ -49,7 +49,7 @@ async function leggiDaItalia(k) {
 
 /** Storico gara per gara (solo per gli atleti seguiti da qualcuno): { agg, nessuno, r }. */
 async function leggiStoricoAtleta(k) {
-  const doc = await conCache(`storico:${k}`, () => api.leggiStorico(k), { durata: 300_000 });
+  const doc = await conCache(`storico:${k}`, (fresco) => api.leggiStorico(k, fresco), { durata: 300_000 });
   if (!doc) return null;
   const r = Object.entries(doc.g ?? {}).flatMap(([c, testo]) => String(testo).split('~').filter(Boolean).map((riga) => {
     const [v, t, d, l] = riga.split('|');
@@ -340,7 +340,7 @@ export async function vistaAtleta(k) {
       window.removeEventListener('cloro:fresco', fresco);
       return;
     }
-    if (e.detail.chiave === `atleta:${k}`) {
+    if ([`atleta:${k}`, `italia:${k}`, `storico:${k}`].includes(e.detail.chiave)) {
       window.removeEventListener('cloro:fresco', fresco);
       vistaAtleta(k);
     }

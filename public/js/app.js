@@ -630,6 +630,19 @@ async function vistaPerTe() {
       <section class="sezione">
         <div class="sezione-testa"><h2 class="sezione-titolo">I tuoi atleti</h2><a href="#/atleti">Cerca</a></div>
         ${schede ? `<ul class="elenco">${schede.map(rigaSeguito).join('')}</ul>` : '<p class="caricamento">Carico i tuoi atleti…</p>'}
+      </section>${sezioneSquadre()}`;
+  };
+
+  // Squadre seguite: un collegamento veloce alla loro pagina.
+  const sezioneSquadre = () => {
+    const squadre = p.squadre ?? [];
+    if (!squadre.length) return '';
+    const elenco = stato.cache.get('squadre')?.valore ?? {};
+    const nome = (id) => String(elenco[id] ?? '').split('|')[0] || id.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    return `
+      <section class="sezione">
+        <div class="sezione-testa"><h2 class="sezione-titolo">Le tue squadre</h2><a href="#/squadre">Tutte</a></div>
+        <div class="filtri">${squadre.map((id) => `<a class="chip" href="#/squadra/${encodeURIComponent(id)}">${esc(nome(id))}</a>`).join('')}</div>
       </section>`;
   };
 
@@ -1014,6 +1027,7 @@ async function avvia() {
       stato.aggiornatoIl = 0;
       stato.cache.clear();
     }
+    if (utente) rinnovaToken(utente.uid);
     if (eraLaCopia) {
       salvaCopia();
       aggiornaProfiloInSilenzio();
@@ -1021,6 +1035,22 @@ async function avvia() {
     }
     mostra();
   });
+}
+
+/**
+ * Una volta al giorno, se le notifiche sono attive qui, si rinnova il token del dispositivo (con
+ * l'indirizzo da cui arriva): così le notifiche vanno solo a questa app e non a quella vecchia.
+ */
+async function rinnovaToken(uid) {
+  try {
+    const oggiQui = `${new Date().toISOString().slice(0, 10)}|${location.host}`;
+    if (!memoria('token') || memoria('token-rinnovato') === oggiQui) return;
+    if (!('Notification' in window) || Notification.permission !== 'granted' || !('serviceWorker' in navigator)) return;
+    const reg = await navigator.serviceWorker.ready;
+    const token = await api.attivaPush(uid, reg);
+    memoria('token', token);
+    memoria('token-rinnovato', oggiQui);
+  } catch { /* si riprova alla prossima apertura */ }
 }
 
 if ('serviceWorker' in navigator) {

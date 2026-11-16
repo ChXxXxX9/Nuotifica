@@ -186,9 +186,10 @@ test('classifiche su richiesta: Italia per categoria e regione intera', async ()
     db, fonti: { naz: 'N?x=1' }, scarica, adesso: '2026-11-15T12:00:00Z', log: () => {},
   });
   assert.equal(n, 2);
-  assert.equal(chiamate[0]['solr[id_comitato]'], '');
-  assert.equal(chiamate[0]['solr[dalyob]'], '2014');
-  assert.equal(chiamate[1]['solr[id_comitato]'], '9');
+  // Prima la richiesta più recente (è quella che qualcuno sta guardando).
+  assert.equal(chiamate[0]['solr[id_comitato]'], '9');
+  assert.equal(chiamate[1]['solr[id_comitato]'], '');
+  assert.equal(chiamate[1]['solr[dalyob]'], '2014');
   const it = docs.get('classifiche/2026-25-100SL-M-it-EA');
   assert.equal(it.righe.length, 2);
   assert.ok(it.b);
@@ -358,4 +359,58 @@ test('storico: specialità, tutte le gare per vasca, e giro delle richieste', as
   assert.equal(st.g['50SL'].split('~')[0], '25|26500|2025-12-05|Ostia|12');
   assert.equal(rt.get('a/rossi-anna-2010/f'), '999');
   assert.ok(!docs.has('richiesteStorico/rossi-anna-2010'));
+});
+
+test('squadre seguite: notifica con i personali e le staffette, senza chi si segue già', async () => {
+  const { avvisaSquadre, trovaSquadra } = await import('../src/avvisi-squadre.js');
+  const elenco = [['circolo-canottieri-aniene', 'Circolo Canottieri Aniene'], ['nuoto-esempio', 'Nuoto Esempio']];
+  assert.equal(trovaSquadra('CC Aniene', [['cc-aniene-asd', 'CC Aniene Asd'], ...elenco]), 'cc-aniene-asd');
+  assert.equal(trovaSquadra('Squadra Nuova', elenco), 'squadra-nuova');
+  const docs = new Map([['meta/squadre', { squadre: { 'cc-aniene-asd': 'CC Aniene Asd|30|30|2026|12' } }]]);
+  const utenti = [
+    { id: 'u1', tokens: ['t1'], squadre: ['cc-aniene-asd'], seguiti: ['bianchi-luca-2010'] },
+    { id: 'u2', tokens: ['t2'], squadre: ['cc-aniene-asd'], notSq: { 'cc-aniene-asd': ['staffette'] } },
+    { id: 'u3', tokens: ['t3'], squadre: ['cc-aniene-asd'], notSq: { 'cc-aniene-asd': ['tempi'] } },
+  ];
+  const db = {
+    async leggi(p) { return docs.get(p) ?? null; },
+    async contieneUno() { return utenti; },
+    async aggiorna() {},
+  };
+  const mandate = [];
+  const invio = { async push(token, m) { mandate.push([token, m]); return 'ok'; } };
+  const tempo = (k, n, b) => ({ k, n, b, s: 'CC Aniene', t: 61_000, gara: { breve: '100 SL' } });
+  await avvisaSquadre({
+    db,
+    invio,
+    nuoviTempi: [tempo('rossi-anna-2011', 'Anna Rossi', 'PB'), tempo('bianchi-luca-2010', 'Luca Bianchi', 'PB'), tempo('verdi-ugo-2009', 'Ugo Verdi', null)],
+    staffette: [{ squadra: 'CC Aniene Asd', nome: '4x50 SL', t: 110_000 }],
+    sito: 'S',
+    log: () => {},
+  });
+  const per = Object.fromEntries(mandate.map(([t, m]) => [t, m]));
+  assert.equal(per.t1.titolo, 'CC Aniene Asd');
+  assert.ok(per.t1.corpo.startsWith('Anna Rossi: nuovo personale, 100 SL'));
+  assert.ok(per.t1.corpo.includes('staffetta 4x50 SL'));
+  assert.ok(!per.t1.corpo.includes('Bianchi'));
+  assert.ok(per.t2.corpo.startsWith('staffetta'));
+  assert.ok(per.t3.corpo.startsWith('3 tempi nuovi (2 personali)'));
+  assert.equal(per.t3.url, 'S/#/squadra/cc-aniene-asd');
+});
+
+test('riassunto di una squadra: componenti, migliori di sempre e punti fatti con la squadra', async () => {
+  const { riassuntoSquadra, leggiRiassuntoSquadra } = await import('../src/dati-italia.js');
+  const { punti } = await import('../src/punti.js');
+  const doc = {
+    s2024: { n: 'Nuoto Prova', reg: '12', m: 'a|Anna Rossi|2010|F~b|Luca Neri|2009|M', t: { '25|100SL|F': 'a|62000|2025-01-10', '25|100SL|M': 'b|55000|2025-02-01' } },
+    s2025: { n: 'Nuoto Prova', reg: '12', m: 'a|Anna Rossi|2010|F', t: { '25|100SL|F': 'a|60000|2026-01-10', '50|50SL|F': 'a|28000|2026-06-10' } },
+  };
+  const r = leggiRiassuntoSquadra(riassuntoSquadra(doc, punti));
+  assert.deepEqual(r.st, ['2025', '2024']);
+  assert.deepEqual(r.m.sort(), ['a|Anna Rossi|2010|F|2024|2025', 'b|Luca Neri|2009|M|2024|2024']);
+  assert.deepEqual(r.t['25|100SL|F'], ['a|60000|2026-01-10|2025']);
+  const anna = r.ps.find((x) => x.k === 'a');
+  assert.equal(anna.gare, 3);
+  assert.equal(anna.pt, punti(62000, '100SL', 'F', 25, '2025-01-10') + punti(60000, '100SL', 'F', 25, '2026-01-10') + punti(28000, '50SL', 'F', 50, '2026-06-10'));
+  assert.equal(r.ps[0].k, 'a');
 });

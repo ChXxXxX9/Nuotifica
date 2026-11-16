@@ -21,6 +21,7 @@ import {
 import { testiDaFare } from './testi.js';
 import { eseguiRichieste } from './classifiche.js';
 import { giroStorico, creaChiedi } from './storico.js';
+import { salvaStaffette } from './avvisi-squadre.js';
 import { trovaUrlRtdb, creaRtdb } from './rtdb.js';
 import { appendFile } from 'node:fs/promises';
 import { oggiRoma, giornoQuota } from './tempi.js';
@@ -29,7 +30,9 @@ import {
 } from './logica.js';
 import { leggiAccountServizio, creaGestoreToken, creaClientGoogle } from './google.js';
 import { creaFirestore, comeData } from './firestore.js';
-import { creaInvio, inParallelo } from './invio.js';
+import {
+  creaInvio, inParallelo, tokensAttivi, senzaToken,
+} from './invio.js';
 import {
   PER_PAGINA, MAX_PAGINE, POST_INIZIALI, GIORNI_INDICE, NOMI_TIPI, SETTORI,
 } from './config.js';
@@ -121,7 +124,7 @@ export async function avvisa({ db, invio, cambi, sito, log = console.log }) {
   await inParallelo(daAvvisare, 8, async ({ utente, loro }) => {
     const messaggi = messaggiPush(loro, sito);
     const nonValidi = new Set();
-    for (const token of utente.tokens) {
+    for (const token of tokensAttivi(utente)) {
       for (const m of messaggi) {
         const esito = await invio.push(token, m);
         if (esito === 'ok') conteggi.push++;
@@ -130,9 +133,7 @@ export async function avvisa({ db, invio, cambi, sito, log = console.log }) {
     }
     if (nonValidi.size) {
       try {
-        await db.aggiorna(`users/${utente.id}`, {
-          tokens: utente.tokens.filter((t) => !nonValidi.has(t)),
-        });
+        await db.aggiorna(`users/${utente.id}`, senzaToken(utente, nonValidi));
       } catch (e) {
         log(`Pulizia token non riuscita per ${utente.id}: ${e.message}`);
       }
@@ -280,7 +281,11 @@ export async function anteprima(wp, quanti = 30, log = console.log) {
 // Tetto di sicurezza: il piano gratuito di Firestore permette 20.000 scritture al giorno.
 const TETTO_SCRITTURE = 15_000;
 
+// Quanto resta acceso il giro ad aspettare richieste di classifiche (il giro dopo parte dopo 5 minuti).
+const ATTESA_RICHIESTE = 3.5 * 60_000;
+
 async function principale() {
+  const inizioGiro = Date.now();
   const fonti = leggiFonti();
   if (!fonti.avvisi) {
     throw new Error('Manca il secret FONTI (Settings → Secrets and variables → Actions): vedi il README.');
@@ -299,6 +304,8 @@ async function principale() {
   const chiamaGoogle = creaClientGoogle(creaGestoreToken(account));
   const db = creaFirestore(chiamaGoogle, progetto);
   const invio = creaInvio({ chiamaGoogle, progetto });
+  // Realtime Database (tutta Italia, storico, staffette): se non c'è, il resto del giro va avanti lo stesso.
+  const rtdb = await trovaUrlRtdb(chiamaGoogle, progetto).then((url) => creaRtdb(chiamaGoogle, url)).catch(() => null);
 
   const adesso = new Date().toISOString();
   const giorno = giornoQuota(adesso);
@@ -329,6 +336,8 @@ async function principale() {
       db, fonti, scarica, invio, sito, adesso,
       puoScrivere: () => giaScritte + db.conta.scritture < TETTO_SCRITTURE,
     });
+    if (esito.staffette?.length) await salvaStaffette({ db, rtdb, staffette: esito.staffette });
+    delete esito.staffette;
     if (!esito.saltato) console.log(`Gare: ${JSON.stringify(esito)}`);
     // Quando succede qualcosa, un riassunto compare anche tra le annotazioni della corsa.
     if (process.env.GITHUB_ACTIONS && (esito.gare || esito.nuoviTempi)) {
@@ -350,8 +359,7 @@ async function principale() {
 
   // Storico gara per gara degli atleti appena seguiti (pochi per giro: gli altri al giro dopo e di notte).
   try {
-    if ((await db.elenca('richiesteStorico')).length && fonti.naz) {
-      const rtdb = creaRtdb(chiamaGoogle, await trovaUrlRtdb(chiamaGoogle, progetto));
+    if (rtdb && fonti.naz && (await db.elenca('richiesteStorico')).length) {
       const esito = await giroStorico({
         db, rtdb, chiedi: creaChiedi({ fonti, scarica }), adesso, soloRichieste: true, massimo: 3,
       });
@@ -388,12 +396,31 @@ async function principale() {
       db, fonti, scarica, adesso,
       puoScrivere: () => giaScritte + db.conta.scritture < TETTO_SCRITTURE - 2_000,
     });
+    if (esito.staffette?.length) await salvaStaffette({ db, rtdb, staffette: esito.staffette });
+    delete esito.staffette;
     if (!esito.saltato) console.log(`Italia: ${JSON.stringify(esito)}`);
     if (process.env.GITHUB_ACTIONS && esito.lette) {
       console.log(`::notice title=Italia::gare lette ${esito.lette}, schede aggiornate ${esito.atleti}`);
     }
   } catch (e) {
     console.log(`::warning title=Italia::${String(e.message).slice(0, 500)}`);
+  }
+
+  // Fino a fine giro (il prossimo parte dopo 5 minuti): le classifiche chieste dall'app, appena arrivano.
+  // Così chi apre una classifica nazionale la vede in pochi secondi invece di aspettare il giro dopo.
+  try {
+    const fine = inizioGiro + ATTESA_RICHIESTE;
+    let fatte = 0;
+    while (Date.now() < fine) {
+      const n = await eseguiRichieste({
+        db, fonti, scarica, adesso: new Date().toISOString(), log: () => {}, max: 3,
+      });
+      fatte += n;
+      if (!n) await new Promise((r) => { setTimeout(r, 12_000); });
+    }
+    if (fatte) console.log(`Classifiche preparate nell'attesa: ${fatte}.`);
+  } catch (e) {
+    console.log(`::warning title=Classifiche::${String(e.message).slice(0, 300)}`);
   }
 
   await db.scrivi('meta/budget', {

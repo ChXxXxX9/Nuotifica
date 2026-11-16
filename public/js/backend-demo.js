@@ -1,5 +1,7 @@
 // Backend finto con dati di esempio (nomi inventati): serve per l'anteprima con ?demo.
 import { DEMO } from './demo-dati.js';
+import { riassuntoSquadra } from './dati-italia.js';
+import { punti } from './punti.js';
 const ora = Date.now();
 const fa = (ore) => new Date(ora - ore * 3_600_000);
 const U = 'https://www.esempio.it/wp-content/uploads/2026';
@@ -249,6 +251,41 @@ export function creaBackendDemo() {
       return righe.filter((v) => chiavi(v.split('|')[1]).some((c) => c.startsWith(testo))).map((v) => `${v}|12`);
     },
     async leggiSquadraItalia() { await pausa(60); return null; },
+    async leggiStaffetteSquadra() { await pausa(40); return []; },
+    // Anteprima: il riassunto si costruisce dalle squadre di esempio, come lo fa il controllore.
+    async leggiRiassuntoSquadra(id) {
+      await pausa(40);
+      const { docs, stagioni } = squadreDemo();
+      const sq = docs.get(id);
+      if (!sq) return null;
+      const doc = {};
+      for (const st of sq.st) {
+        const tab = stagioni.get(`${id}/${st}`)?.t ?? {};
+        doc[`s${st}`] = {
+          n: sq.n, reg: '12', m: sq.m.map((x) => x.split('|').slice(0, 4).join('|')).join('~'),
+          t: Object.fromEntries(Object.entries(tab).map(([kt, righe]) => [kt, righe.join('~')])),
+        };
+      }
+      return riassuntoSquadra(doc, punti);
+    },
+    async leggiStagioneSquadraItalia(id, st) {
+      await pausa(40);
+      const { docs, stagioni } = squadreDemo();
+      const sq = docs.get(id);
+      const tab = stagioni.get(`${id}/${st}`)?.t;
+      if (!sq || !tab) return null;
+      return { m: sq.m.map((x) => x.split('|').slice(0, 4).join('|')).join('~'), t: Object.fromEntries(Object.entries(tab).map(([kt, righe]) => [kt, righe.join('~')])) };
+    },
+    async seguiSquadra(uid, id, notifiche) {
+      await pausa(120);
+      profilo.squadre = [...new Set([...(profilo.squadre ?? []), id])];
+      profilo.notSq = { ...(profilo.notSq ?? {}), [id]: notifiche };
+    },
+    async smettiSquadra(uid, id) {
+      await pausa(120);
+      profilo.squadre = (profilo.squadre ?? []).filter((x) => x !== id);
+      if (profilo.notSq) delete profilo.notSq[id];
+    },
     // Anteprima: medie inventate (circa 1'00" ogni 100 m, un po' di più per le femmine e i più giovani).
     async leggiAnnate(st) {
       await pausa(60);

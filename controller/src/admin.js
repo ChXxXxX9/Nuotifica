@@ -2,7 +2,7 @@
 // e gli annunci a tutti gli iscritti scritti dall'app.
 import { createHash } from 'node:crypto';
 import { comeData } from './firestore.js';
-import { inParallelo } from './invio.js';
+import { inParallelo, tokensAttivi } from './invio.js';
 
 /** Crea admin/{uid} per l'account con l'email indicata. Si rifà solo se l'email cambia. */
 export async function impostaAdmin({ db, chiamaGoogle, progetto, email, log = console.log }) {
@@ -35,7 +35,7 @@ export async function inviaAnnunci({ db, invio, sito, log = console.log }) {
     await db.aggiorna(`annunci/${a.id}`, { stato: 'inviato', inviato: comeData(new Date().toISOString()) });
     let n = 0;
     await inParallelo(utenti, 8, async (u) => {
-      for (const token of u.tokens) {
+      for (const token of tokensAttivi(u)) {
         const esito = await invio.push(token, {
           titolo: String(a.titolo ?? 'Cloro').slice(0, 60),
           corpo: String(a.corpo ?? '').slice(0, 180),
@@ -62,7 +62,7 @@ export async function inviaLimiti({ db, invio, sito, log = console.log }) {
     await db.aggiorna(`limiti/${l.id}`, { stato: 'pubblicato', notificato: comeData(new Date().toISOString()) });
     let n = 0;
     await inParallelo(utenti, 8, async (u) => {
-      for (const token of u.tokens) {
+      for (const token of tokensAttivi(u)) {
         const esito = await invio.push(token, {
           titolo: `Nuovi tempi limite: ${String(l.nome ?? '').slice(0, 40)}`,
           corpo: 'Ecco quanto manca ai tuoi atleti: aprili in Cloro.',
@@ -111,7 +111,7 @@ export async function eseguiLavori({
         const uid = (await db.leggi('meta/admin'))?.uid;
         const u = uid ? await db.leggi(`users/${uid}`) : null;
         let n = 0;
-        for (const token of u?.tokens ?? []) {
+        for (const token of tokensAttivi(u)) {
           if (await invio.push(token, {
             titolo: 'Notifica di prova', corpo: 'Se la leggi, le notifiche di Cloro funzionano.', url: `${sito}/#/admin`, tag: 'prova',
           }) === 'ok') n++;

@@ -1,5 +1,5 @@
 // Service worker di Cloro: mostra le notifiche e tiene in cache l'app per aprirla subito.
-const VERSIONE = 'cloro-v10';
+const VERSIONE = 'cloro-v11';
 // Librerie di Firebase: l'indirizzo contiene la versione, quindi non cambiano mai e si tengono in memoria.
 const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/';
 const CACHE_SDK = 'nuotifica-sdk';
@@ -45,7 +45,7 @@ self.addEventListener('install', (evento) => {
 self.addEventListener('activate', (evento) => {
   evento.waitUntil((async () => {
     const chiavi = await caches.keys();
-    await Promise.all(chiavi.filter((k) => k !== VERSIONE && k !== CACHE_SDK).map((k) => caches.delete(k)));
+    await Promise.all(chiavi.filter((k) => k !== VERSIONE && k !== CACHE_SDK && k !== 'cloro-rtdb').map((k) => caches.delete(k)));
     await self.clients.claim();
   })());
 });

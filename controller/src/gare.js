@@ -10,6 +10,8 @@
 //   stato-live/{sede}                   righe già viste di una sede (per capire cosa è nuovo)
 //   meta/live                           stato delle sedi e delle gare
 //   meta/gare                           elenco delle gare per l'app (una sola lettura)
+import { tokensAttivi, senzaToken } from './invio.js';
+import { avvisaSquadre } from './avvisi-squadre.js';
 import {
   leggiElenco, raggruppa, leggiRisultati, nomeCat,
 } from './live.js';
@@ -362,6 +364,7 @@ export async function aggiornaGare({
   const primati = new Map();
   const primatiToccati = new Set();
   const staffette = [];
+  const staffetteNuove = [];
   let scritture = [];
 
   for (const { g, s } of daLeggere) {
@@ -437,12 +440,13 @@ export async function aggiornaGare({
       if (!tuttiAtleti.has(k)) tuttiAtleti.set(k, { ...a, risultati: [] });
       tuttiAtleti.get(k).risultati.push(...a.risultati);
     }
-    // Staffette: vanno nelle pagine delle squadre.
+    // Staffette: vanno nelle pagine delle squadre (e, se la sede era già stata letta, nelle notifiche di chi le segue).
     for (const { riga: r } of righeNuove) {
       if (r.gara.staffetta && r.ms && r.societa) {
         staffette.push({
           squadra: r.societa, voce: [r.gara.codice, r.sesso, g.vasca, r.ms, r.data ?? g.dal, g.id, nomeCat(r.categoria)].join('|'),
         });
+        if (prima) staffetteNuove.push({ squadra: r.societa, nome: r.gara.breve ?? r.gara.codice, t: r.ms });
       }
     }
     // Avvisi solo per le sedi già lette in passato (niente notifiche per i risultati vecchi).
@@ -515,18 +519,6 @@ export async function aggiornaGare({
   }
   // Ricerca (due lettere per pezzo) e chiavi conosciute: servono alle gare di tutta Italia e alle graduatorie.
   avanzate.push(...scrittureRicerca(tuttiAtleti), ...scrittureNoti(tuttiAtleti.keys()));
-  // Staffette nelle squadre (si riconosce la squadra dal nome, anche se scritto un po' diverso).
-  if (staffette.length) {
-    const elenco = Object.entries((await db.leggi('meta/squadre'))?.squadre ?? {}).map(([id, riga]) => [id, riga.split('|')[0]]);
-    const perSquadra = new Map();
-    for (const x of staffette) {
-      const migliore = elenco.map(([id, nome]) => [id, stessaSquadra(nome, x.squadra)]).sort((a, b) => b[1] - a[1])[0];
-      const id = migliore && migliore[1] >= 0.5 ? migliore[0] : chiaveSquadra(x.squadra);
-      if (!perSquadra.has(id)) perSquadra.set(id, []);
-      perSquadra.get(id).push(x.voce);
-    }
-    for (const [id, voci] of perSquadra) avanzate.push({ percorso: `squadre/${id}`, dati: {}, maschera: [], aggiungi: { sf: voci } });
-  }
   if (avanzate.length) await db.commit(avanzate);
 
   // Stato per il prossimo giro.
@@ -547,7 +539,20 @@ export async function aggiornaGare({
     }
     conteggi = await avvisaTempi({ db, invio, nuoviTempi, atleti: tuttiAtleti, sito, log });
   }
-  return { sedi: daLeggere.length, gare: garaToccata.size, atleti: tuttiAtleti.size, nuoviTempi: nuoviTempi.length, ...conteggi };
+  // Notifiche a chi segue le squadre.
+  if ((nuoviTempi.length || staffetteNuove.length) && invio) {
+    try {
+      const sq = await avvisaSquadre({
+        db, invio, nuoviTempi, staffette: staffetteNuove, sito, log,
+      });
+      conteggi.push += sq.push;
+    } catch (e) {
+      log(`Notifiche squadre non mandate: ${e.message}`);
+    }
+  }
+  return {
+    sedi: daLeggere.length, gare: garaToccata.size, atleti: tuttiAtleti.size, nuoviTempi: nuoviTempi.length, ...conteggi, staffette,
+  };
 }
 
 /** Manda "è uscito il tuo tempo" a chi segue gli atleti. Al massimo 3 notifiche per persona per giro. */
@@ -571,7 +576,7 @@ export async function avvisaTempi({ db, invio, nuoviTempi, atleti, sito, log = c
       }];
     }
     const nonValidi = new Set();
-    for (const token of u.tokens) {
+    for (const token of tokensAttivi(u)) {
       for (const m of messaggi) {
         const esito = await invio.push(token, m);
         if (esito === 'ok') conteggi.push++;
@@ -579,7 +584,7 @@ export async function avvisaTempi({ db, invio, nuoviTempi, atleti, sito, log = c
       }
     }
     if (nonValidi.size) {
-      await db.aggiorna(`users/${u.id}`, { tokens: u.tokens.filter((t) => !nonValidi.has(t)) }).catch(() => {});
+      await db.aggiorna(`users/${u.id}`, senzaToken(u, nonValidi)).catch(() => {});
     }
   }
   log(`Tempi nuovi: ${nuoviTempi.length}, avvisate ${conteggi.utenti} persone (${conteggi.push} notifiche).`);

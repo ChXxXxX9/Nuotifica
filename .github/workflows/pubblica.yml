@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'public/**'
+      - 'vecchio/**'
       - 'firebase.json'
       - 'firestore.rules'
       - 'firestore.indexes.json'
@@ -68,6 +69,13 @@ jobs:
           {"projects":{"default":"$PROGETTO"},"targets":{"$PROGETTO":{"hosting":{"app":["${{ steps.sito.outputs.sito }}"],"vecchio":["$PROGETTO"]}}}}
           EOF2
           cat .firebaserc
+
+      - name: Codice più leggero (solo nella copia pubblicata)
+        run: |
+          # Stessi file e stessi nomi, senza spazi e commenti: circa la metà dei byte da scaricare.
+          npx --yes esbuild@0.24.2 public/js/*.js --minify --outdir=public/js --allow-overwrite --log-level=warning
+          npx --yes esbuild@0.24.2 public/css/*.css --minify --outdir=public/css --allow-overwrite --log-level=warning
+          du -sh public/js public/css
 
       - name: Pubblica sito, regole e indici
         run: |

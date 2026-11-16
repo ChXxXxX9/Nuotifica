@@ -46,27 +46,18 @@
       "target": "app"
     },
     {
-      "public": "public",
+      "public": "vecchio",
       "ignore": [
         "firebase.json",
         "**/.*"
       ],
       "headers": [
         {
-          "source": "**/*.@(js|css|html|webmanifest)",
+          "source": "**/*.@(js|html)",
           "headers": [
             {
               "key": "Cache-Control",
               "value": "no-cache"
-            }
-          ]
-        },
-        {
-          "source": "/icons/**",
-          "headers": [
-            {
-              "key": "Cache-Control",
-              "value": "public, max-age=604800"
             }
           ]
         },
@@ -78,12 +69,8 @@
               "value": "nosniff"
             },
             {
-              "key": "Referrer-Policy",
-              "value": "strict-origin-when-cross-origin"
-            },
-            {
-              "key": "Permissions-Policy",
-              "value": "camera=(), microphone=(), geolocation=()"
+              "key": "X-Robots-Tag",
+              "value": "noindex"
             }
           ]
         }

@@ -56,3 +56,33 @@ export async function inParallelo(elementi, n, funzione) {
   await Promise.all(Array.from({ length: Math.min(n, elementi.length) }, lavoratore));
   return risultati;
 }
+
+// Indirizzo dell'app: le notifiche vanno solo ai dispositivi che si sono registrati da qui.
+const HOST_APP = (() => {
+  try {
+    return new URL(process.env.SITO_URL || 'https://cloro.web.app').host;
+  } catch {
+    return 'cloro.web.app';
+  }
+})();
+
+/**
+ * I token a cui mandare le notifiche di un utente. Ogni token salvato dall'app nuova ha accanto
+ * l'indirizzo (th): se ce n'è almeno uno, si usano solo quelli dell'app nuova (niente doppioni dalla
+ * vecchia); altrimenti tutti, come prima.
+ */
+export function tokensAttivi(u, host = HOST_APP) {
+  const tutti = u?.tokens ?? [];
+  const th = u?.th ?? {};
+  const nuovi = tutti.filter((t) => th[t] === host);
+  return nuovi.length ? nuovi : tutti;
+}
+
+
+/** Campi da aggiornare per togliere i token non più validi (anche dalla mappa degli indirizzi). */
+export function senzaToken(u, nonValidi) {
+  return {
+    tokens: (u.tokens ?? []).filter((t) => !nonValidi.has(t)),
+    th: Object.fromEntries(Object.entries(u.th ?? {}).filter(([t]) => !nonValidi.has(t) && (u.tokens ?? []).includes(t))),
+  };
+}

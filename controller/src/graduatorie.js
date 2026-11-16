@@ -18,7 +18,9 @@ import { stagione, leggiPrimato } from './gare.js';
 import {
   scrittureRicerca, scrittureNoti, leggiNotiTutti, chiaveSquadra,
 } from './ricerca.js';
-import { aggiungiRiga, scaricaItalia, scriviStagione } from './italia.js';
+import {
+  aggiungiRiga, scaricaItalia, scriviStagione, aggiornaRiassunti,
+} from './italia.js';
 
 export const CODICI = {
   '00': '50SL', '01': '100SL', '02': '200SL', '04': '400SL', '08': '800SL', 15: '1500SL',
@@ -188,13 +190,18 @@ export async function leggiStagione({
   });
 
   // 3. Atleti e squadre nel Realtime Database (le squadre si leggono da lì); senza, come prima in Firestore.
-  const squadre = rtdb
-    ? (await scriviStagione({
+  let squadre;
+  if (rtdb) {
+    const scritto = await scriviStagione({
       db, rtdb, atleti, st, adesso, indice: 'tutti',
-    })).squadre
-    : await aggiornaSquadre({
+    });
+    squadre = scritto.squadre;
+    await aggiornaRiassunti({ rtdb, ids: scritto.ids, log });
+  } else {
+    squadre = await aggiornaSquadre({
       db, atleti, st, adesso,
     });
+  }
   // 4. Classifiche del Lazio per l'app (gara per gara e Indice Cloro), con i movimenti per la stagione in corso.
   const classifiche = lazio.size ? await scriviClassifiche({
     db, atleti: lazio, st, adesso,
@@ -476,6 +483,8 @@ export async function giroGraduatorie({
       db, rtdb, atleti, st, adesso, indice: recente ? 'tutti' : presenti, annate: true,
     });
     if (presenti) for (const k of atleti.keys()) presenti.add(k);
+    // Riassunti delle squadre (quello che l'app scarica): solo per le stagioni recenti, le altre li hanno già.
+    if (recente || stato.riassunti) await aggiornaRiassunti({ rtdb, ids: scritto.ids, log });
     // Per le stagioni dal 2018/19 mai lette prima, anche primati e classifiche del Lazio (se c'è spazio).
     let primati = 0;
     let classifiche = 0;
@@ -517,6 +526,14 @@ export async function giroGraduatorie({
     return { esiti, ancora: scegliItalia(stato, adesso) !== null };
   };
 
+  if (lavoro === 'squadre' && rtdb) {
+    // Tutti i riassunti delle squadre, da zero.
+    const ids = [...await rtdb.chiavi('sqs')];
+    const n = await aggiornaRiassunti({ rtdb, ids, log });
+    stato.riassunti = adesso;
+    await salva();
+    return { saltato: `riassunti di ${n} squadre su ${ids.length}` };
+  }
   if (forza && lavoro === 'italia') return italia(forza);
   if (forza) return schede(forza);
   if (lavoro === 'tutto') return rtdb ? tutte() : { saltato: 'manca il Realtime Database' };

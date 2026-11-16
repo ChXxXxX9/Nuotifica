@@ -29,6 +29,9 @@ function messaggioErrore(e) {
   return err;
 }
 
+// Copie sul telefono delle letture dal Realtime Database (il service worker non le cancella).
+const COPIE_RTDB = 'cloro-rtdb';
+
 export async function creaBackendFirebase(config) {
   const [{ initializeApp }, A, F] = await Promise.all([
     import(`${CDN}/firebase-app.js`),
@@ -98,16 +101,40 @@ export async function creaBackendFirebase(config) {
     }
   }
 
-  /** Realtime Database (tutta Italia: atleti, ricerca, squadre), con il token di chi ha fatto l'accesso. */
-  async function leggiRtdb(percorso, parametri = {}) {
+  /**
+   * Realtime Database (tutta Italia: atleti, ricerca, squadre), con il token di chi ha fatto l'accesso.
+   * Con `veloce` la risposta resta anche sul telefono: la volta dopo si mostra subito quella e intanto
+   * si chiede la versione nuova (se è diversa arriva a `fresco`).
+   */
+  async function leggiRtdb(percorso, parametri = {}, { veloce = false, fresco } = {}) {
     if (!config.rtdb) return null;
-    const utente = auth.currentUser;
-    if (!utente) throw Object.assign(new Error('Accedi per vedere i dati.'), { code: 'permission-denied' });
-    const q = new URLSearchParams({ ...parametri, auth: await utente.getIdToken() });
-    const r = await fetch(`${config.rtdb}/${percorso.split('/').map(encodeURIComponent).join('/')}.json?${q}`);
-    if (r.status === 401 || r.status === 403) throw Object.assign(new Error('permission-denied'), { code: 'permission-denied' });
-    if (!r.ok) throw Object.assign(new Error(`rete ${r.status}`), { code: 'unavailable' });
-    return r.json();
+    const indirizzo = `${config.rtdb}/${percorso.split('/').map(encodeURIComponent).join('/')}.json`;
+    const chiaveCopia = `${indirizzo}?${new URLSearchParams(parametri)}`;
+    const dallaRete = async () => {
+      const utente = auth.currentUser;
+      if (!utente) throw Object.assign(new Error('Accedi per vedere i dati.'), { code: 'permission-denied' });
+      const q = new URLSearchParams({ ...parametri, auth: await utente.getIdToken() });
+      const r = await fetch(`${indirizzo}?${q}`);
+      if (r.status === 401 || r.status === 403) throw Object.assign(new Error('permission-denied'), { code: 'permission-denied' });
+      if (!r.ok) throw Object.assign(new Error(`rete ${r.status}`), { code: 'unavailable' });
+      const dati = await r.json();
+      if (veloce && 'caches' in window) {
+        caches.open(COPIE_RTDB).then((c) => c.put(chiaveCopia, new Response(JSON.stringify(dati)))).catch(() => {});
+      }
+      return dati;
+    };
+    if (veloce && 'caches' in window) {
+      try {
+        const copia = await (await (await caches.open(COPIE_RTDB)).match(chiaveCopia))?.json();
+        if (copia !== undefined) {
+          dallaRete().then((nuovo) => {
+            if (fresco && JSON.stringify(nuovo) !== JSON.stringify(copia)) fresco(nuovo);
+          }).catch(() => {});
+          return copia;
+        }
+      } catch { /* niente copia */ }
+    }
+    return dallaRete();
   }
 
   return {
@@ -160,7 +187,11 @@ export async function creaBackendFirebase(config) {
       return auth.currentUser?.emailVerified ?? false;
     }),
 
-    esci: () => A.signOut(auth),
+    esci: async () => {
+      // I dati si vedono solo con l'accesso: uscendo si tolgono anche le copie sul telefono.
+      if ('caches' in window) await caches.delete(COPIE_RTDB).catch(() => {});
+      return A.signOut(auth);
+    },
 
     leggiProfilo: (uid) => avvolgi(async () => {
       const snap = await F.getDoc(F.doc(db, 'users', uid));
@@ -242,21 +273,45 @@ export async function creaBackendFirebase(config) {
     leggiIndice: (lettera) => avvolgi(async () => (await leggiVeloce(F.doc(db, 'indici', lettera), (s) => s.data().l ?? [])) ?? []),
 
     /** Un atleta di tutta Italia: i migliori di ogni stagione (Realtime Database). */
-    leggiAtletaItalia: (k) => avvolgi(() => leggiRtdb(`a/${k}`)),
+    leggiAtletaItalia: (k, fresco) => avvolgi(() => leggiRtdb(`a/${k}`, {}, { veloce: true, fresco })),
 
     /** Ricerca in tutta Italia: voci "chiave|nome|anno|società|regione" il cui nome inizia con `testo`. */
     cercaItalia: (testo, quanti = 80) => avvolgi(async () => Object.values(await leggiRtdb('c', {
       orderBy: '"$key"', startAt: JSON.stringify(testo), endAt: JSON.stringify(`${testo}\uf8ff`), limitToFirst: String(quanti),
     }) ?? {})),
 
-    /** Una squadra, stagione per stagione (Realtime Database). */
+    /** Una squadra, stagione per stagione (Realtime Database): tutto, pesante. */
     leggiSquadraItalia: (id) => avvolgi(() => leggiRtdb(`sqs/${id}`)),
+
+    /** Riassunto di una squadra (leggero): componenti, migliori di sempre, punti di sempre. */
+    leggiRiassuntoSquadra: (id) => avvolgi(() => leggiRtdb(`sqx/${id}`, {}, { veloce: true })),
+
+    /** Una sola stagione di una squadra. */
+    leggiStagioneSquadraItalia: (id, st) => avvolgi(() => leggiRtdb(`sqs/${id}/s${st}`, {}, { veloce: true })),
+
+    /** Staffette di una squadra da tutte le gare lette (Realtime Database): voci "gara|sesso|vasca|tempo|data|gara|categoria". */
+    leggiStaffetteSquadra: (id) => avvolgi(async () => Object.values(await leggiRtdb(`sqr/${id}`, {}, { veloce: true }) ?? {})),
+
+    /** Segui una squadra scegliendo le notifiche ("tempi", "pb", "staffette"); o cambia le notifiche. */
+    seguiSquadra: (uid, id, notifiche) => avvolgi(() => F.updateDoc(
+      F.doc(db, 'users', uid),
+      'squadre', F.arrayUnion(id),
+      new F.FieldPath('notSq', id), notifiche,
+      'aggiornato', F.serverTimestamp(),
+    )),
+
+    smettiSquadra: (uid, id) => avvolgi(() => F.updateDoc(
+      F.doc(db, 'users', uid),
+      'squadre', F.arrayRemove(id),
+      new F.FieldPath('notSq', id), F.deleteField(),
+      'aggiornato', F.serverTimestamp(),
+    )),
 
     /** Indice annata: medie dei 10 migliori d'Italia per anno di nascita in una stagione. */
     leggiAnnate: (st) => avvolgi(() => leggiRtdb(`ann/s${st}`)),
 
     /** Tutte le gare di un atleta seguito (Realtime Database), o null. */
-    leggiStorico: (k) => avvolgi(() => leggiRtdb(`st/${k}`)),
+    leggiStorico: (k, fresco) => avvolgi(() => leggiRtdb(`st/${k}`, {}, { veloce: true, fresco })),
 
     /** Chiede al controllore lo storico di un atleta (se c'è già una richiesta, va bene così). */
     chiediStorico: (k) => F.setDoc(F.doc(db, 'richiesteStorico', k), { creato: F.serverTimestamp() }).catch(() => null),
@@ -442,19 +497,25 @@ export async function creaBackendFirebase(config) {
       if (config.vapidKey) opzioni.vapidKey = config.vapidKey;
       const token = await M.getToken(M.getMessaging(app), opzioni);
       if (!token) throw new Error('Non sono riuscito a registrare questo dispositivo.');
-      await F.updateDoc(F.doc(db, 'users', uid), {
-        tokens: F.arrayUnion(token),
-        pushOn: true,
-        aggiornato: F.serverTimestamp(),
-      });
+      // Con il token si salva anche l'indirizzo da cui arriva: il controllore manda le notifiche
+      // solo ai dispositivi del nuovo indirizzo (niente doppioni dal vecchio).
+      await F.updateDoc(
+        F.doc(db, 'users', uid),
+        'tokens', F.arrayUnion(token),
+        new F.FieldPath('th', token), location.host,
+        'pushOn', true,
+        'aggiornato', F.serverTimestamp(),
+      );
       return token;
     }),
 
     disattivaPushQui: (uid, token) => avvolgi(async () => {
-      await F.updateDoc(F.doc(db, 'users', uid), {
-        tokens: F.arrayRemove(token),
-        aggiornato: F.serverTimestamp(),
-      });
+      await F.updateDoc(
+        F.doc(db, 'users', uid),
+        'tokens', F.arrayRemove(token),
+        new F.FieldPath('th', token), F.deleteField(),
+        'aggiornato', F.serverTimestamp(),
+      );
     }),
   };
 }

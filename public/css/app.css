@@ -1582,3 +1582,10 @@ a.chip { text-decoration: none; display: inline-flex; align-items: center; white
 .carica-file b { display: block; margin-bottom: 4px; }
 .anni-colonna { display: block; font-size: 10px; letter-spacing: 0; text-transform: none; font-weight: 600; color: var(--tenue); }
 label.bottone { cursor: pointer; }
+
+/* Segui la squadra */
+.segui-squadra { margin-top: 14px; display: grid; gap: 10px; justify-items: start; }
+.scelte-notifiche { border: 1px solid var(--linea); border-radius: var(--r); padding: 10px 14px 12px; margin: 0; width: 100%; box-sizing: border-box; display: grid; gap: 8px; }
+.scelte-notifiche legend { padding: 0 6px; font-size: 13px; color: var(--tenue); font-weight: 700; }
+.scelte-notifiche label { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+.scelte-notifiche input { width: 20px; height: 20px; accent-color: var(--cloro); }

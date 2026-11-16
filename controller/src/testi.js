@@ -2,6 +2,7 @@
 // (nell'app installata il "Trova nella pagina" del browser non c'è).
 //   testi/{id}      { p: [testo di ogni pagina], n: pagine, agg }
 //   meta/testi      documenti già letti
+import { tokensAttivi } from './invio.js';
 import { execFile } from 'node:child_process';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -160,7 +161,7 @@ export async function avvisaElenchi({
         tag: 'elenchi-nuovi',
       }];
     }
-    for (const token of u.tokens) for (const m of messaggi) if (await invio.push(token, m) === 'ok') inviate++;
+    for (const token of tokensAttivi(u)) for (const m of messaggi) if (await invio.push(token, m) === 'ok') inviate++;
   }
   log(`Elenchi: ${elenchi.length} documenti, ${trovati.size} atleti seguiti trovati, ${inviate} notifiche.`);
   return inviate;

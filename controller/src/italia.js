@@ -10,7 +10,7 @@ import {
   CODICI, TUTTE_LE_REGIONI, leggiGraduatoria, dividiNome,
 } from './graduatorie.js';
 import {
-  rigaInfo, rigaStagione, chiaviRicerca, rigaRicerca, rigaSquadra,
+  rigaInfo, rigaStagione, chiaviRicerca, rigaRicerca, rigaSquadra, riassuntoSquadra,
 } from './dati-italia.js';
 
 const LIMITE = 5000;
@@ -245,5 +245,38 @@ export async function scriviStagione({
   await rtdb.aggiorna(voci);
   const elenco = (await db.leggi('meta/squadre'))?.squadre ?? {};
   await db.scrivi('meta/squadre', { squadre: aggiornaElenco(elenco, squadre, st), aggiornato: comeData(adesso) });
-  return { voci: Object.keys(voci).length, squadre: squadre.size };
+  return { voci: Object.keys(voci).length, squadre: squadre.size, ids: [...squadre.keys()] };
+}
+
+/**
+ * Riassunto di ogni squadra (sqx/{squadra}): si rilegge tutta la squadra (tutte le stagioni) e si
+ * riscrive il riassunto che l'app scarica. Qualche lettura in parallelo.
+ */
+export async function aggiornaRiassunti({ rtdb, ids, log = console.log }) {
+  const coda = [...ids];
+  let voci = {};
+  let fatti = 0;
+  const svuota = async () => {
+    const pezzo = voci;
+    voci = {};
+    if (Object.keys(pezzo).length) await rtdb.aggiorna(pezzo);
+  };
+  const lavora = async () => {
+    while (coda.length) {
+      const id = coda.shift();
+      try {
+        const r = riassuntoSquadra(await rtdb.leggi(`sqs/${id}`), punti);
+        if (r) {
+          voci[`sqx/${id}`] = r;
+          fatti++;
+        }
+      } catch (e) {
+        log(`Riassunto ${id} non preparato: ${e.message}`);
+      }
+      if (Object.keys(voci).length >= 150) await svuota();
+    }
+  };
+  await Promise.all(Array.from({ length: 6 }, lavora));
+  await svuota();
+  return fatti;
 }
