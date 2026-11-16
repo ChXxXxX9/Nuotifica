@@ -45,7 +45,7 @@ jobs:
           if [ "${{ inputs.lavoro }}" = "prova-rtdb" ]; then node src/prova-rtdb.js; exit; fi
           node src/giro-graduatorie.js ${{ inputs.lavoro }} ${{ inputs.stagione }}
       - name: Continua con un altro giro
-        if: steps.giro.outputs.ancora == 'si'
+        if: ${{ !cancelled() && steps.giro.outputs.ancora == 'si' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh api -X POST "repos/${{ github.repository }}/actions/workflows/graduatorie.yml/dispatches" -f ref=main -f 'inputs[lavoro]=tutto'

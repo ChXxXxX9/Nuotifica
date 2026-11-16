@@ -108,6 +108,14 @@ async function principale() {
       annota('notice', 'Restano stagioni da leggere: riparto subito con un altro giro.');
       if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, 'ancora=si\n');
     }
+  } catch (e) {
+    // Un errore dopo un bel po' di lavoro (una connessione caduta) non deve fermare il ricaricamento:
+    // si riparte con un altro giro. Se invece si ferma subito, è un problema vero e si lascia fermo.
+    if (lavoro === 'tutto' && !forza && Date.now() - inizio > 20 * 60_000 && process.env.GITHUB_OUTPUT) {
+      annota('warning', `Interrotto (${e.message}): riparto con un altro giro.`);
+      appendFileSync(process.env.GITHUB_OUTPUT, 'ancora=si\n');
+    }
+    throw e;
   } finally {
     await db.scrivi('meta/budget-grad', { giorno, scritture: giaGrad + db.conta.scritture + 1 });
   }

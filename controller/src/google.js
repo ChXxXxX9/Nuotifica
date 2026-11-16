@@ -44,7 +44,7 @@ export function creaGestoreToken(account, { fetchFn = fetch } = {}) {
     };
     const daFirmare = `${b64url(intestazione)}.${b64url(richiesta)}`;
     const firma = createSign('RSA-SHA256').update(daFirmare).sign(account.private_key, 'base64url');
-    const risposta = await fetchFn(richiesta.aud, {
+    const chiedi = () => fetchFn(richiesta.aud, {
       method: 'POST',
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -52,6 +52,16 @@ export function creaGestoreToken(account, { fetchFn = fetch } = {}) {
         assertion: `${daFirmare}.${firma}`,
       }),
     });
+    let risposta;
+    for (let i = 0; ; i++) {
+      try {
+        risposta = await chiedi();
+        break;
+      } catch (e) {
+        if (i >= 3) throw e;
+        await new Promise((r) => { setTimeout(r, 2000 * 2 ** i); });
+      }
+    }
     if (!risposta.ok) {
       throw new Error(`Accesso Google non riuscito (${risposta.status}): ${await risposta.text()}`);
     }
@@ -62,17 +72,37 @@ export function creaGestoreToken(account, { fetchFn = fetch } = {}) {
   };
 }
 
-/** fetch con token Google e messaggi d'errore leggibili. */
-export function creaClientGoogle(ottieniToken, { fetchFn = fetch } = {}) {
+const pausa = (ms) => new Promise((r) => { setTimeout(r, ms); });
+
+/**
+ * fetch con token Google e messaggi d'errore leggibili. Una connessione caduta o una risposta 429/5xx
+ * si riprova (fino a 5 volte, aspettando sempre di più): nei giri lunghi capita, e non deve fermare tutto.
+ */
+export function creaClientGoogle(ottieniToken, { fetchFn = fetch, tentativi = 5, attesa = 2000 } = {}) {
   return async function chiamaGoogle(url, { method = 'GET', body, consenti404 = false } = {}) {
-    const risposta = await fetchFn(url, {
-      method,
-      headers: {
-        authorization: `Bearer ${await ottieniToken()}`,
-        ...(body ? { 'content-type': 'application/json' } : {}),
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    });
+    let risposta;
+    for (let i = 0; ; i++) {
+      try {
+        risposta = await fetchFn(url, {
+          method,
+          headers: {
+            authorization: `Bearer ${await ottieniToken()}`,
+            ...(body ? { 'content-type': 'application/json' } : {}),
+          },
+          body: body ? JSON.stringify(body) : undefined,
+        });
+      } catch (e) {
+        if (i + 1 >= tentativi) throw new Error(`Connessione a Google non riuscita dopo ${tentativi} tentativi: ${e.cause?.code ?? e.message}`);
+        await pausa(attesa * 2 ** i);
+        continue;
+      }
+      if ((risposta.status === 429 || risposta.status >= 500) && i + 1 < tentativi) {
+        await risposta.text().catch(() => '');
+        await pausa(attesa * 2 ** i);
+        continue;
+      }
+      break;
+    }
     if (consenti404 && risposta.status === 404) return null;
     const testo = await risposta.text();
     const dati = testo ? JSON.parse(testo) : {};
