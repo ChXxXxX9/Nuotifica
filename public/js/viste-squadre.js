@@ -9,7 +9,7 @@ import {
 } from './formato.js';
 import { menuClassifiche, REGIONI } from './viste-classifiche.js';
 import {
-  squadraDaStagioni, leggiRiassuntoSquadra, leggiStagioneSquadra as stagioneDaItalia, votiSquadra,
+  squadraDaStagioni, leggiRiassuntoSquadra, leggiStagioneSquadra as stagioneDaItalia, indiciStagione, unisciTabelle,
 } from './dati-italia.js';
 import { tastoInfo } from './spiegazioni.js';
 
@@ -167,7 +167,6 @@ export async function vistaSquadra(id) {
     gruppo: ['esordienti', 'categoria'].includes(pref.gruppo) ? pref.gruppo : 'tutti',
     rsx: ['M', 'F'].includes(pref.rsx) ? pref.rsx : 'tutti',
     rTutti: false,
-    pochiAperti: false,
     aperta: null,
     exAperti: false,
   };
@@ -175,42 +174,22 @@ export async function vistaSquadra(id) {
     v: scelta.v, sx: scelta.sx, gruppo: scelta.gruppo, rsx: scelta.rsx,
   });
 
-  // Media squadra: i "voti" di ogni atleta (un voto = i punti del migliore tempo di una gara, in una vasca,
-  // in una stagione), sommati e divisi per quanti sono. Con il filtro Categoria/Esordienti contano solo
-  // le stagioni in cui l'atleta era di quel gruppo. Sotto MINIMO_VOTI voti si sta in un elenco a parte.
-  const MINIMO_VOTI = 6;
+  // Classifica atleti per Indice Cloro: di una stagione, o di sempre (migliori tempi di tutti gli anni in squadra).
   const cacheRoster = new Map();
   const classificaAtleti = () => {
-    const chiave = `${scelta.st}|${scelta.rsx}|${scelta.gruppo}`;
+    const chiave = `${scelta.st}|${scelta.rsx}`;
     if (cacheRoster.has(chiave)) return cacheRoster.get(chiave);
-    let voti = null;
-    if (scelta.st === 'sempre') voti = sq.ms ?? (sq.stagioni ? votiSquadra(sq.stagioni, punti) : null);
-    else if (tabelleStagione) voti = votiSquadra({ [scelta.st]: { t: tabelleStagione } }, punti);
-    if (!voti) return null;
-    const elenco = [];
-    for (const x of voti) {
-      if (nascosto(x.k) || (scelta.rsx !== 'tutti' && x.sx !== scelta.rsx)) continue;
-      const y = perChiave.get(x.k)?.y;
-      let somma = 0;
-      let n = 0;
-      for (const [st, [s1, n1]] of Object.entries(x.st)) {
-        if (scelta.gruppo !== 'tutti' && gruppoCategoria(categoria(y, x.sx, st)) !== scelta.gruppo) continue;
-        somma += s1;
-        n += n1;
-      }
-      if (n) {
-        elenco.push({
-          k: x.k, sx: x.sx, n, media: Math.round(somma / n),
-        });
-      }
+    let elenco = null;
+    if (scelta.st === 'sempre') {
+      if (sq.ic) elenco = sq.ic;
+      else if (sq.stagioni) elenco = indiciStagione(unisciTabelle(Object.values(sq.stagioni).map((x) => x.t)), punti);
+    } else if (tabelleStagione) {
+      elenco = indiciStagione(tabelleStagione, punti);
     }
-    const ordina = (a, b2) => b2.media - a.media || b2.n - a.n;
-    const risultato = {
-      classifica: elenco.filter((x) => x.n >= MINIMO_VOTI).sort(ordina),
-      pochi: elenco.filter((x) => x.n < MINIMO_VOTI).sort(ordina),
-    };
-    cacheRoster.set(chiave, risultato);
-    return risultato;
+    if (!elenco) return null;
+    elenco = elenco.filter((x) => !nascosto(x.k) && (scelta.rsx === 'tutti' || x.sx === scelta.rsx));
+    cacheRoster.set(chiave, elenco);
+    return elenco;
   };
   // Anni passati in squadra: "2018/19 – 2024/25" (o una stagione sola).
   const periodoInSquadra = (m) => (!m?.da ? '' : m.da === m.a ? nomeStagione(m.da) : `${nomeStagione(m.da)} – ${nomeStagione(m.a)}`);
@@ -318,26 +297,22 @@ export async function vistaSquadra(id) {
         </section>
 
         <section class="sezione">
-          <div class="sezione-testa"><h2 class="sezione-titolo titolo-con-info">Media squadra ${tastoInfo('media-squadra', 'Come funziona la Media squadra')}</h2><span class="nota">${scelta.st === 'sempre' ? 'di sempre' : esc(nomeStagione(scelta.st))}</span></div>
-          <p class="nota" style="margin:-4px 0 10px">La media dei punti di tutte le gare fatte con questa squadra${scelta.st === 'sempre' ? '' : ' nella stagione'}${scelta.gruppo === 'tutti' ? '' : scelta.st === 'sempre' ? `, solo negli anni da ${scelta.gruppo === 'categoria' ? 'Categoria' : 'Esordiente'}` : `, solo chi era ${scelta.gruppo === 'categoria' ? 'di Categoria' : 'Esordiente'}`}: un voto per ogni gara e vasca${scelta.st === 'sempre' ? ' di ogni stagione' : ''}. In classifica chi ha almeno ${MINIMO_VOTI} voti.</p>
+          <div class="sezione-testa"><h2 class="sezione-titolo titolo-con-info">Classifica atleti ${tastoInfo('indice-cloro', 'Come funziona l\'Indice Cloro')}</h2><span class="nota">${scelta.st === 'sempre' ? 'di sempre' : esc(nomeStagione(scelta.st))}</span></div>
+          <p class="nota" style="margin:-4px 0 10px">Per Indice Cloro${scelta.st === 'sempre' ? ' di sempre: i migliori tempi di ogni specialità di tutti gli anni passati in questa squadra' : ' della stagione, con i tempi nuotati per questa squadra'}.</p>
           <div class="segmenti" role="tablist" aria-label="Chi">
             ${[['tutti', 'Tutti'], ['M', 'Maschi'], ['F', 'Femmine']].map(([v, nome]) => `<button class="segmento" role="tab" data-rsx="${v}" aria-selected="${scelta.rsx === v}">${nome}</button>`).join('')}
           </div>
           ${!sq.italia ? '<p class="nota">La classifica arriva appena la squadra è caricata con tutte le sue stagioni.</p>' : (() => {
-    const r = classificaAtleti();
-    if (!r) return '<p class="caricamento">Carico la stagione…</p>';
-    if (!r.classifica.length && !r.pochi.length) return '<p class="nota">Nessun atleta qui.</p>';
-    const riga = (x, pos) => `
+    const elenco = classificaAtleti();
+    if (!elenco) return '<p class="caricamento">Carico la stagione…</p>';
+    if (!elenco.length) return '<p class="nota">Nessun atleta qui.</p>';
+    return `<ol class="classifica" style="margin-top:10px">${elenco.slice(0, scelta.rTutti ? Infinity : 30).map((x, i) => `
               <li><a href="#/atleta/${encodeURIComponent(x.k)}">
-                <span class="pos"><b>${pos}</b></span>
-                <span class="chi"><b>${esc(nomeAtleta(x.k))}</b><small>${esc([perChiave.get(x.k)?.y, scelta.rsx === 'tutti' ? x.sx : '', `${x.n} ${x.n === 1 ? 'voto' : 'voti'}`, scelta.st === 'sempre' ? periodoInSquadra(perChiave.get(x.k)) : ''].filter(Boolean).join(' · '))}</small></span>
-                <span class="quanto"><b>${x.media}</b><small>media</small></span>
-              </a></li>`;
-    return `${r.classifica.length ? `<ol class="classifica" style="margin-top:10px">${r.classifica.slice(0, scelta.rTutti ? Infinity : 30).map((x, i) => riga(x, i + 1)).join('')}</ol>
-            ${!scelta.rTutti && r.classifica.length > 30 ? `<button class="bottone bottone-secondario" data-roster-tutti style="margin-top:10px">Mostra tutti (${r.classifica.length})</button>` : ''}` : `<p class="nota" style="margin-top:10px">Nessuno ha ancora ${MINIMO_VOTI} voti.</p>`}
-            ${r.pochi.length ? `
-              <button class="bottone bottone-secondario" data-pochi style="margin-top:12px">${scelta.pochiAperti ? 'Nascondi' : 'Mostra'} chi ha pochi tempi per la media (${r.pochi.length})</button>
-              ${scelta.pochiAperti ? `<ol class="classifica" style="margin-top:10px">${r.pochi.map((x) => riga(x, '–')).join('')}</ol>` : ''}` : ''}`;
+                <span class="pos"><b>${i + 1}</b></span>
+                <span class="chi"><b>${esc(nomeAtleta(x.k))}</b><small>${esc([perChiave.get(x.k)?.y, scelta.rsx === 'tutti' ? x.sx : '', (x.gare ?? []).map((c) => nomeGara(c, { breve: true })).join(', '), scelta.st === 'sempre' ? periodoInSquadra(perChiave.get(x.k)) : ''].filter(Boolean).join(' · '))}</small></span>
+                <span class="quanto"><b>${x.valore}</b><small>indice</small></span>
+              </a></li>`).join('')}</ol>
+            ${!scelta.rTutti && elenco.length > 30 ? `<button class="bottone bottone-secondario" data-roster-tutti style="margin-top:10px">Mostra tutti (${elenco.length})</button>` : ''}`;
   })()}
         </section>
 
@@ -402,10 +377,6 @@ export async function vistaSquadra(id) {
       }));
       el.querySelector('[data-roster-tutti]')?.addEventListener('click', () => {
         scelta.rTutti = true;
-        ridisegna(true);
-      });
-      el.querySelector('[data-pochi]')?.addEventListener('click', () => {
-        scelta.pochiAperti = !scelta.pochiAperti;
         ridisegna(true);
       });
       // Segui la squadra (con le notifiche scelte).

@@ -166,15 +166,15 @@ export function puntiSquadra(tabelle, punti) {
 export function riassuntoSquadra(doc, punti) {
   const sq = squadraDaStagioni(doc);
   if (!sq) return null;
-  // Media squadra: per ogni atleta e stagione, somma e numero dei voti (punti di ogni gara e vasca).
-  const voti = votiSquadra(sq.stagioni, punti);
+  // Indice Cloro di sempre: con i migliori punti di ogni specialità di tutti gli anni passati in squadra.
+  const ic = indiciStagione(unisciTabelle(Object.values(sq.stagioni).map((x) => x.t)), punti);
   return {
     n: pulisci(sq.n),
     reg: sq.reg ?? '',
     st: sq.st.join(','),
     m: sq.m.join('~'),
     t: Object.fromEntries(Object.entries(sq.t).map(([kt, righe]) => [kt, righe.join('~')])),
-    ms: voti.map((x) => [x.k, x.sx, Object.entries(x.st).map(([st, [somma, n]]) => `${st}:${somma}:${n}`).join(',')].join('|')).join('~'),
+    ic: ic.map((x) => [x.k, x.sx, x.valore, '', x.gare.join(',')].join('|')).join('~'),
   };
 }
 
@@ -188,15 +188,10 @@ export function leggiRiassuntoSquadra(x) {
     st: String(x.st).split(',').filter(Boolean),
     m: elenco(x.m),
     t: Object.fromEntries(Object.entries(x.t ?? {}).map(([kt, righe]) => [kt, elenco(righe)])),
-    ms: x.ms === undefined ? null : elenco(x.ms).map((riga) => {
-      const [k, sx, stagioni] = riga.split('|');
+    ic: x.ic === undefined ? null : elenco(x.ic).map((riga) => {
+      const [k, sx, valore, st, gare] = riga.split('|');
       return {
-        k,
-        sx,
-        st: Object.fromEntries(String(stagioni ?? '').split(',').filter(Boolean).map((v) => {
-          const [st, somma, n] = v.split(':');
-          return [st, [Number(somma), Number(n)]];
-        })),
+        k, sx, valore: Number(valore), st, gare: String(gare ?? '').split(',').filter(Boolean),
       };
     }),
   };
@@ -249,27 +244,4 @@ export function indiciStagione(tabelle, punti) {
   }
   return [...perAtleta].map(([k, x]) => ({ k, sx: x.sx, ...indiceDaPunti(x.punteggi) }))
     .filter((x) => x.valore).sort((a, b) => b.valore - a.valore);
-}
-
-/**
- * Media squadra: i "voti" di ogni atleta, stagione per stagione. Un voto = i punti del migliore tempo
- * di una gara in una vasca in una stagione. `stagioni`: { stagione: { t: tabelle } }.
- * Restituisce [{ k, sx, st: { stagione: [somma, quanti] } }].
- */
-export function votiSquadra(stagioni, punti) {
-  const perAtleta = new Map();
-  for (const [st, x] of Object.entries(stagioni ?? {})) {
-    for (const [kt, righe] of Object.entries(x?.t ?? {})) {
-      const [v, c, sx] = kt.split('|');
-      for (const riga of righe) {
-        const [k, tempo, d] = riga.split('|');
-        const pt = punti(Number(tempo), c, sx, Number(v), d);
-        if (!pt) continue;
-        if (!perAtleta.has(k)) perAtleta.set(k, { k, sx, st: {} });
-        const voti = perAtleta.get(k).st;
-        voti[st] = [(voti[st]?.[0] ?? 0) + pt, (voti[st]?.[1] ?? 0) + 1];
-      }
-    }
-  }
-  return [...perAtleta.values()];
 }
