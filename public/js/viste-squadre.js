@@ -286,12 +286,12 @@ export async function vistaSquadra(id) {
                   <span class="chi"><b>${esc(nomeAtleta(primo.k))}</b><small>${esc(scelta.st === 'sempre' ? `${nomeStagione(primo.s)} · ${giorno(primo.d)}` : giorno(primo.d))}</small></span>
                   <span class="quanto"><b>${esc(tempo(primo.t))}</b><small>${righe.length} ${righe.length === 1 ? 'atleta' : 'atleti'}</small></span>
                 </button>
-                ${aperta ? `<ol class="classifica-interna">${righe.map((r, i) => `
+                ${aperta ? `<ol class="classifica-interna">${righe.slice(0, scelta.garaTutti ? Infinity : 50).map((r, i) => `
                   <li><a href="#/atleta/${encodeURIComponent(r.k)}">
                     <span class="pos"><b>${i + 1}</b></span>
                     <span class="chi"><b>${esc(nomeAtleta(r.k))}</b><small>${esc([perChiave.get(r.k)?.y, scelta.st === 'sempre' ? nomeStagione(r.s) : giorno(r.d)].filter(Boolean).join(' · '))}</small></span>
                     <span class="quanto"><b>${esc(tempo(r.t))}</b></span>
-                  </a></li>`).join('')}</ol>` : ''}
+                  </a></li>`).join('')}</ol>${!scelta.garaTutti && righe.length > 50 ? `<button class="bottone bottone-secondario bottone-piccolo" data-gara-tutti style="margin:8px 0 4px">Mostra tutti (${righe.length})</button>` : ''}` : ''}
               </li>`;
   }).join('')}</ul>` : `<div class="vuoto"><strong>Nessun tempo qui</strong>Prova con l'altra vasca o con ${scelta.sx === 'M' ? 'le femmine' : 'i maschi'}.</div>`}
         </section>
@@ -420,7 +420,12 @@ export async function vistaSquadra(id) {
           avviso(err.message, 'errore');
         }
       }));
+      el.querySelector('[data-gara-tutti]')?.addEventListener('click', () => {
+        scelta.garaTutti = true;
+        ridisegna(true);
+      });
       el.querySelectorAll('[data-gara]').forEach((b) => b.addEventListener('click', () => {
+        scelta.garaTutti = false;
         scelta.aperta = scelta.aperta === b.dataset.gara ? null : b.dataset.gara;
         ridisegna(true);
       }));

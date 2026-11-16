@@ -85,11 +85,12 @@ export function rigaSquadra(sq) {
   };
 }
 
-const TOP_SEMPRE = 30;
+// Migliori di sempre: tutti (prima solo i primi 30, e chi era più indietro non compariva).
+const TOP_SEMPRE = Infinity;
 
 /**
  * Da sqs/{squadra} alla squadra come la usa l'app: componenti con prima e ultima stagione,
- * migliori di sempre per gara (i primi 30) e le tabelle di ogni stagione.
+ * migliori di sempre per gara (tutti) e le tabelle di ogni stagione.
  */
 export function squadraDaStagioni(doc) {
   const chiavi = Object.keys(doc ?? {}).filter((x) => /^s\d{4}$/.test(x)).sort().reverse();

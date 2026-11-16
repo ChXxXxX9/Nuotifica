@@ -1,29 +1,44 @@
-name: Indagine (temporanea)
+name: Verifica dei tempi
 
-# Prova temporanea: i risultati escono solo cifrati (si aprono con una chiave che non sta nel repository).
+# I nostri tempi contro quelli della federazione: graduatorie prese a caso, ogni tempo controllato nella
+# scheda dell'atleta, nella squadra della stagione e nei migliori di sempre della squadra.
+# Nel riassunto solo i numeri; gli esempi (con nomi e tempi) escono solo cifrati.
 on:
+  schedule:
+    - cron: '23 6 * * 1'
   workflow_dispatch:
+    inputs:
+      quante:
+        description: 'Quante graduatorie controllare'
+        required: false
+        default: '80'
 
 permissions:
   contents: write
 
+concurrency:
+  group: verifica
+  cancel-in-progress: false
+
 jobs:
-  indagine:
+  verifica:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - name: Prova
+      - name: Verifica
         working-directory: controller
         env:
-          FONTI: ${{ secrets.FONTI }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           RTDB_URL: https://nuotifica-default-rtdb.europe-west1.firebasedatabase.app
-        run: node src/indagine-atleta.js "$RUNNER_TEMP/esiti"
-      - name: Cifra
+          FONTI: ${{ secrets.FONTI }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/esiti"
+          node src/verifica.js "${{ inputs.quante || '80' }}" 40 "$RUNNER_TEMP/esiti/esempi.json"
+      - name: Esempi (solo cifrati)
         run: |
           cat > "$RUNNER_TEMP/pub.pem" <<'CHIAVE'
           -----BEGIN PUBLIC KEY-----
@@ -45,12 +60,10 @@ jobs:
           openssl pkeyutl -encrypt -pubin -inkey pub.pem -pkeyopt rsa_padding_mode:oaep -in k.bin -out k.bin.enc
           mkdir cifrati && mv esiti.tgz.enc k.bin.enc cifrati/
           rm -rf esiti esiti.tgz k.bin
-      - name: Salva (solo cifrati) in un ramo temporaneo
-        run: |
-          cd "$RUNNER_TEMP/cifrati"
-          git init -q -b indagine-esiti
+          cd cifrati
+          git init -q -b verifica-esiti
           git config user.name "Cloro"
           git config user.email "noreply@cloro.web.app"
           git add -A
-          git commit -qm "Esiti cifrati"
-          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" indagine-esiti
+          git commit -qm "Esempi cifrati"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" verifica-esiti

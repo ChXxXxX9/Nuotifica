@@ -7,7 +7,7 @@ import { punti } from './punti.js';
 import { comeData } from './firestore.js';
 import { chiaveSquadra } from './ricerca.js';
 import {
-  CODICI, TUTTE_LE_REGIONI, leggiGraduatoria, dividiNome,
+  CODICI, TUTTE_LE_REGIONI, leggiGraduatoria, dividiNome, tempoValido,
 } from './graduatorie.js';
 import {
   rigaInfo, rigaStagione, chiaviRicerca, rigaRicerca, rigaSquadra, riassuntoSquadra,
@@ -22,7 +22,7 @@ export const VASCHE = [[25, '1'], [50, '2']];
 export function aggiungiRiga(atleti, r, {
   sesso, vasca, codice, st, reg = null,
 }) {
-  if (!/individuale/i.test(r.turno) && r.turno) return;
+  if (!tempoValido(r.turno)) return;
   const { cognome, nome } = dividiNome(r.nome);
   const k = chiaveAtleta(cognome, nome, r.anno);
   if (!k) return;

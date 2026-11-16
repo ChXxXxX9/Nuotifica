@@ -5,7 +5,9 @@
 // id = {stagione}-{vasca}-{gara}-{sesso}-{regione}-{categoria}
 //   regione: "it" (tutta Italia) o il numero del comitato regionale; categoria: "tutte" o EB, EA, R, J, C, S
 // (la categoria serve solo per l'Italia: le regioni si scaricano intere e si filtrano nell'app).
-import { leggiGraduatoria, dividiNome, CODICI, aggiungiMovimenti } from './graduatorie.js';
+import {
+  leggiGraduatoria, dividiNome, CODICI, aggiungiMovimenti, tempoValido,
+} from './graduatorie.js';
 import { chiaveAtleta, oggiRoma } from './tempi.js';
 import { comeData } from './firestore.js';
 import { stagione } from './gare.js';
@@ -66,7 +68,7 @@ export async function preparaClassifica({
       }
     }
   }
-  const lette = leggiGraduatoria(await chiedi(campi)).filter((x) => !x.turno || /individuale/i.test(x.turno));
+  const lette = leggiGraduatoria(await chiedi(campi)).filter((x) => tempoValido(x.turno));
   const visti = new Set();
   const righe = [];
   for (const x of lette.sort((a, b) => a.ms - b.ms)) {

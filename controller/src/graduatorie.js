@@ -37,7 +37,8 @@ const PAUSA = 400;
 const PAUSA_ITALIA = 600;
 // Versione della lettura di tutta Italia: le stagioni lette con una versione più vecchia si rileggono.
 // 2 = regioni grandi divise per anno di nascita, Indice annata.
-export const VERSIONE_ITALIA = 2;
+// 3 = anche i passaggi e le prime frazioni di staffetta (prima mancavano).
+export const VERSIONE_ITALIA = 3;
 const MESI = {
   gennaio: 1, febbraio: 2, marzo: 3, aprile: 4, maggio: 5, giugno: 6,
   luglio: 7, agosto: 8, settembre: 9, ottobre: 10, novembre: 11, dicembre: 12,
@@ -63,6 +64,15 @@ export function dividiNome(completo = '') {
   while (n < parole.length - 1 && PARTICELLE.has(parole[n - 1].toLowerCase().replace(/['’]/g, ''))) n++;
   return { cognome: nomeProprio(parole.slice(0, n).join(' ')), nome: nomeProprio(parole.slice(n).join(' ')) };
 }
+
+/**
+ * Una riga di graduatoria vale come tempo dell'atleta? Sì per tutto quello che la federazione mette in
+ * graduatoria: gara individuale, passaggio dentro una gara più lunga ("Passaggio gara") e prima frazione
+ * di una staffetta. Sono tempi ufficiali: contano nelle graduatorie e nei personali. (Fino al 16/11/2026
+ * si tenevano solo le gare individuali, e chi aveva il migliore tempo in un passaggio o in una prima
+ * frazione spariva da quella gara.) Si scarta solo un'eventuale riga di staffetta intera.
+ */
+export const tempoValido = (turno = '') => !/staffetta/i.test(turno) || /prima frazione/i.test(turno);
 
 /** Una graduatoria (HTML dentro il JSON) -> righe. */
 export function leggiGraduatoria(json) {
@@ -111,7 +121,8 @@ export function scegliItalia(stato, adesso, saltate = new Set()) {
   const fatte = Object.fromEntries(Object.entries(stato.rtdb ?? {}).filter(([s]) => (stato.rtdbV?.[s] ?? 1) >= VERSIONE_ITALIA));
   const giorni = (s) => (fatte[s] ? (Date.parse(adesso) - Date.parse(fatte[s])) / 86_400_000 : Infinity);
   const libera = (s) => !saltate.has(s);
-  if (giorni(corrente) > 7 && libera(corrente)) return corrente;
+  // La stagione in corso ogni giorno (i tempi nuovi arrivano nelle graduatorie uno o due giorni dopo la gara).
+  if (giorni(corrente) > 0.8 && libera(corrente)) return corrente;
   if (giorni(corrente - 1) > 30 && libera(corrente - 1)) return corrente - 1;
   const fine = Number(stato.rtdbFine) || STAGIONE_PIU_VECCHIA - 1;
   for (let s = corrente - 2; s > fine; s--) if (!fatte[s] && libera(s)) return s;
@@ -484,11 +495,13 @@ export async function giroGraduatorie({
     });
     if (presenti) for (const k of atleti.keys()) presenti.add(k);
     // Riassunti delle squadre (quello che l'app scarica): solo per le stagioni recenti, le altre li hanno già.
-    if (recente || stato.riassunti) await aggiornaRiassunti({ rtdb, ids: scritto.ids, log });
+    if (recente) await aggiornaRiassunti({ rtdb, ids: scritto.ids, log });
+    else stato.riassuntiDaRifare = true;
     // Per le stagioni dal 2018/19 mai lette prima, anche primati e classifiche del Lazio (se c'è spazio).
     let primati = 0;
     let classifiche = 0;
-    if (Number(st) >= PRIMA_STAGIONE && !stato.fatte[st] && !stato.pacchiLazio?.[st] && await firestoreLibero(300)) {
+    const giaPrimati = (stato.primatiV?.[st] ?? 1) >= VERSIONE_ITALIA;
+    if (Number(st) >= PRIMA_STAGIONE && !giaPrimati && await firestoreLibero(300)) {
       const lazio = new Map([...atleti].filter(([, a]) => a.reg === COMITATO));
       primati = await aggiornaPrimati({
         db, lazio, st, adesso,
@@ -498,6 +511,8 @@ export async function giroGraduatorie({
       });
       stato.pacchiLazio ??= {};
       stato.pacchiLazio[st] = adesso;
+      stato.primatiV ??= {};
+      stato.primatiV[st] = VERSIONE_ITALIA;
     }
     stato.rtdb[st] = adesso;
     stato.rtdbV ??= {};
@@ -523,7 +538,16 @@ export async function giroGraduatorie({
       if (!esito.atleti) return { esiti, ancora: false }; // la fonte non risponde: si riprova al prossimo giro
       st = scegliItalia(stato, adesso, saltate);
     }
-    return { esiti, ancora: scegliItalia(stato, adesso) !== null };
+    const ancora = scegliItalia(stato, adesso) !== null;
+    // Finite le stagioni vecchie: i riassunti di tutte le squadre, una volta sola.
+    if (!ancora && stato.riassuntiDaRifare) {
+      const ids = [...await rtdb.chiavi('sqs')];
+      const n = await aggiornaRiassunti({ rtdb, ids, log });
+      log(`Riassunti di ${n} squadre rifatti.`);
+      delete stato.riassuntiDaRifare;
+      await salva();
+    }
+    return { esiti, ancora };
   };
 
   if (lavoro === 'squadre' && rtdb) {

@@ -13,7 +13,8 @@ import { creaFirestore } from './firestore.js';
 import { trovaUrlRtdb, creaRtdb } from './rtdb.js';
 import { giroGraduatorie } from './graduatorie.js';
 import { giroStorico, creaChiedi } from './storico.js';
-import { giornoQuota } from './tempi.js';
+import { giornoQuota, oggiRoma } from './tempi.js';
+import { stagione } from './gare.js';
 
 // Il piano gratuito di Firestore permette 20.000 scritture al giorno (il giorno finisce alle 9 italiane):
 // ci si ferma prima di questa soglia, contando anche quelle del controllore.
@@ -59,7 +60,22 @@ async function principale() {
     return libero;
   };
   const argomenti = process.argv.slice(2).filter(Boolean);
-  const lavoro = ['tutto', 'italia', 'squadre'].includes(argomenti[0]) ? argomenti[0] : 'notte';
+  const lavoro = ['tutto', 'italia', 'squadre', 'pulisci-classifiche'].includes(argomenti[0]) ? argomenti[0] : 'notte';
+  if (lavoro === 'pulisci-classifiche') {
+    // Classifiche già preparate da rifare (dopo una correzione dei dati): si tengono solo quelle del Lazio
+    // della stagione in corso (hanno lo storico di ▲▼ e picco, e si riscrivono stanotte).
+    const corrente = stagione(oggiRoma(adesso));
+    const tenere = new RegExp(`^${corrente}-(\\d+-[^-]+-[MF]|indice-[MF])$`);
+    const docs = await db.elenca('classifiche');
+    let tolte = 0;
+    for (const d of docs) {
+      if (tenere.test(d.id)) continue;
+      await db.elimina(`classifiche/${d.id}`);
+      tolte++;
+    }
+    annota('notice', `Classifiche da rifare: tolte ${tolte} su ${docs.length}.`);
+    return;
+  }
   const forza = Number(argomenti.find((x) => /^\d{4}$/.test(x))) || null;
   // Prima di tutto (di notte e nei giri di tutta Italia): lo storico degli atleti seguiti (aggiornato una volta a settimana), al massimo 30 minuti.
   if (['notte', 'tutto'].includes(lavoro) && !forza && rtdb && fonti.naz) {
