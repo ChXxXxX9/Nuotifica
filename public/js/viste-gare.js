@@ -229,7 +229,7 @@ const siglaBatteria = (b) => b.nc ?? (b.n ? `B${b.n}` : '');
 
 /** Scheda di un risultato: tempo, posizioni, punti e parziali disegnati. */
 export function schedaRisultato({
-  r, codice, batteria, nomeBatt, posTot, extra = '',
+  r, codice, batteria, nomeBatt, posTot, extra = '', nota = '',
 }) {
   const dist = metri(codice);
   const passaggi = r.t ? [...(r.sp ?? []).map((p) => ({ m: p.m, t: p.t, p: p.p })), { m: dist, t: r.t }] : [];
@@ -274,6 +274,7 @@ export function schedaRisultato({
         <span class="dettaglio-dove">${esc([nomeBatt ?? (batteria ? `Batteria ${batteria}` : ''), r.c ? `corsia ${r.c}` : ''].filter(Boolean).join(' · '))}</span>
       </div>
       ${r.b === 'PB' && r.dp ? `<p class="dettaglio-pb">${esc(differenza(r.dp))} sul personale di prima</p>` : ''}
+      ${nota}
       ${cifre.length ? `<div class="cifre-piccole" style="grid-template-columns:repeat(${cifre.length},minmax(0,1fr))">${cifre.join('')}</div>` : ''}
       ${conParziali ? `
         <div class="parziali-grafico" aria-label="Parziali">

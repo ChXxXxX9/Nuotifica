@@ -6,7 +6,7 @@
 //   regione: "it" (tutta Italia) o il numero del comitato regionale; categoria: "tutte" o EB, EA, R, J, C, S
 // (la categoria serve solo per l'Italia: le regioni si scaricano intere e si filtrano nell'app).
 import {
-  leggiGraduatoria, dividiNome, CODICI, aggiungiMovimenti, tempoValido,
+  leggiGraduatoria, dividiNome, CODICI, aggiungiMovimenti, tempoValido, tipoTempo,
 } from './graduatorie.js';
 import { chiaveAtleta, oggiRoma } from './tempi.js';
 import { comeData } from './firestore.js';
@@ -77,12 +77,12 @@ export async function preparaClassifica({
     if (!k || visti.has(k)) continue;
     visti.add(k);
     righe.push({
-      k, n: `${nome} ${cognome}`.trim(), y: x.anno, s: x.societa.join(' / '), valore: x.ms, d: x.data,
+      k, n: `${nome} ${cognome}`.trim(), y: x.anno, s: x.societa.join(' / '), valore: x.ms, d: x.data, tp: tipoTempo(x.turno),
     });
   }
   const id = idClassifica(r);
   const dati = {
-    righe: righe.map((x) => [x.k, x.n, x.y ?? '', x.s, x.valore, x.d ?? ''].join('|')),
+    righe: righe.map((x) => [x.k, x.n, x.y ?? '', x.s, x.valore, x.d ?? '', ...(x.tp ? [x.tp] : [])].join('|')),
     agg: comeData(adesso),
     parziale: lette.length >= Number(campi['solr[limit]']),
   };

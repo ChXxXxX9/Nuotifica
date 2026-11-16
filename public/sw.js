@@ -1,5 +1,5 @@
 // Service worker di Cloro: mostra le notifiche e tiene in cache l'app per aprirla subito.
-const VERSIONE = 'cloro-v17';
+const VERSIONE = 'cloro-v18';
 // Librerie di Firebase: l'indirizzo contiene la versione, quindi non cambiano mai e si tengono in memoria.
 const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/';
 const CACHE_SDK = 'nuotifica-sdk';
@@ -20,7 +20,6 @@ const GUSCIO = [
   '/js/tema.js',
   '/js/viste-consigli.js',
   '/js/viste-squadre.js',
-  '/js/viste-documento.js',
   '/js/viste-classifiche.js',
   '/js/viste-admin.js',
   '/js/categorie.js',

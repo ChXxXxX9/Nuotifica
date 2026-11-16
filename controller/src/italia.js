@@ -7,7 +7,7 @@ import { punti } from './punti.js';
 import { comeData } from './firestore.js';
 import { chiaveSquadra } from './ricerca.js';
 import {
-  CODICI, TUTTE_LE_REGIONI, leggiGraduatoria, dividiNome, tempoValido,
+  CODICI, TUTTE_LE_REGIONI, leggiGraduatoria, dividiNome, tempoValido, tipoTempo,
 } from './graduatorie.js';
 import {
   rigaInfo, rigaStagione, chiaviRicerca, rigaRicerca, rigaSquadra, riassuntoSquadra,
@@ -18,11 +18,39 @@ const LIMITE = 5000;
 const QUASI_PIENA = 4_900;
 export const VASCHE = [[25, '1'], [50, '2']];
 
+// Gare della federazione: numero interno -> nostro codice, imparato dalle righe individuali
+// (ogni gara ha il suo numero: serve a dire da quale gara viene un passaggio).
+export const ID_GARE = new Map();
+
+/** Da quale gara viene un tempo preso a metà: per la prima frazione la staffetta, per il passaggio la gara lunga (se nota). */
+export function origine(voce) {
+  if (voce.tp === 'f') {
+    const m = String(voce.c).match(/^(\d+)([A-Z]{2})$/);
+    // La prima frazione di una mista è a dorso.
+    return m ? `4x${m[1]}${m[2] === 'DO' ? 'MI' : m[2]}` : '';
+  }
+  return ID_GARE.get(voce.idg) ?? '';
+}
+
+/** Alla fine della lettura di una stagione: per ogni passaggio e frazione la gara di origine. */
+export function risolviOrigini(atleti) {
+  for (const a of atleti.values()) {
+    for (const v of a.risultati) {
+      if (!v.tp) continue;
+      v.og = origine(v);
+      if (!v.og) delete v.og;
+      delete v.idg;
+    }
+  }
+}
+
 /** Aggiunge una riga di graduatoria agli atleti della stagione (stessa forma per Lazio e Italia). */
 export function aggiungiRiga(atleti, r, {
   sesso, vasca, codice, st, reg = null,
 }) {
   if (!tempoValido(r.turno)) return;
+  const tp = tipoTempo(r.turno);
+  if (!tp && r.idGara) ID_GARE.set(r.idGara, codice);
   const { cognome, nome } = dividiNome(r.nome);
   const k = chiaveAtleta(cognome, nome, r.anno);
   if (!k) return;
@@ -45,6 +73,10 @@ export function aggiungiRiga(atleti, r, {
     f: 1,
   };
   if (r.idEvento) voce.g = `n${r.idEvento}`;
+  if (tp) {
+    voce.tp = tp;
+    if (r.idGara) voce.idg = r.idGara;
+  }
   const pt = punti(r.ms, codice, sesso, vasca, voce.d);
   if (pt) voce.pt = pt;
   a.risultati.push(voce);
@@ -122,6 +154,7 @@ export async function scaricaItalia({
     }
   }
   completaRegioni(atleti, regioniSquadre);
+  risolviOrigini(atleti);
   return { atleti, richieste, errori };
 }
 

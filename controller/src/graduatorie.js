@@ -19,7 +19,7 @@ import {
   scrittureRicerca, scrittureNoti, leggiNotiTutti, chiaveSquadra,
 } from './ricerca.js';
 import {
-  aggiungiRiga, scaricaItalia, scriviStagione, aggiornaRiassunti,
+  aggiungiRiga, risolviOrigini, scaricaItalia, scriviStagione, aggiornaRiassunti,
 } from './italia.js';
 
 export const CODICI = {
@@ -38,7 +38,7 @@ const PAUSA_ITALIA = 600;
 // Versione della lettura di tutta Italia: le stagioni lette con una versione più vecchia si rileggono.
 // 2 = regioni grandi divise per anno di nascita, Indice annata.
 // 3 = anche i passaggi e le prime frazioni di staffetta (prima mancavano).
-export const VERSIONE_ITALIA = 3;
+export const VERSIONE_ITALIA = 4;
 const MESI = {
   gennaio: 1, febbraio: 2, marzo: 3, aprile: 4, maggio: 5, giugno: 6,
   luglio: 7, agosto: 8, settembre: 9, ottobre: 10, novembre: 11, dicembre: 12,
@@ -73,6 +73,8 @@ export function dividiNome(completo = '') {
  * frazione spariva da quella gara.) Si scarta solo un'eventuale riga di staffetta intera.
  */
 export const tempoValido = (turno = '') => !/staffetta/i.test(turno) || /prima frazione/i.test(turno);
+/** Che tempo è: '' gara individuale, 'p' passaggio di una gara più lunga, 'f' prima frazione di una staffetta. */
+export const tipoTempo = (turno = '') => (/prima frazione/i.test(turno) ? 'f' : /passaggio/i.test(turno) ? 'p' : '');
 
 /** Una graduatoria (HTML dentro il JSON) -> righe. */
 export function leggiGraduatoria(json) {
@@ -95,6 +97,7 @@ export function leggiGraduatoria(json) {
       data: dataIso(testo(blocco.match(/class="data"><span>([^<]*)/)?.[1] ?? '')),
       luogo: nomeProprio(testo(blocco.match(/data-view="grevento"[^>]*>([\s\S]*?)<\/span>/)?.[1] ?? '')),
       idEvento: dati?.[1] || null,
+      idGara: dati?.[2] || null,
       idAtleta: dati?.[3] || null,
       idTurno: dati?.[4] || null,
       turno,
@@ -168,6 +171,7 @@ export async function leggiStagione({
       }
     }
   }
+  risolviOrigini(atleti);
   if (!atleti.size) {
     log(`Graduatorie ${st}: nessun tempo letto (${richieste} richieste).`);
     return { atleti: 0, richieste };
@@ -309,7 +313,7 @@ export async function scriviClassifiche({
     const s = [...a.societa][0] ?? '';
     for (const v of a.risultati) {
       aggiungi(`${v.v}-${v.c}-${a.sx}`, {
-        k, n: a.n, y: a.y, s, valore: v.t, d: v.d,
+        k, n: a.n, y: a.y, s, valore: v.t, d: v.d, tp: v.tp,
       });
     }
     const indice = indiceCloro(a.risultati);
@@ -328,7 +332,7 @@ export async function scriviClassifiche({
     const indice = chiave.startsWith('indice');
     righe.sort((x, y) => (indice ? y.valore - x.valore : x.valore - y.valore) || x.n.localeCompare(y.n));
     const dati = {
-      righe: righe.map((r) => [r.k, r.n, r.y ?? '', r.s, r.valore, r.d ?? ''].join('|')),
+      righe: righe.map((r) => [r.k, r.n, r.y ?? '', r.s, r.valore, r.d ?? '', ...(r.tp ? [r.tp] : [])].join('|')),
       agg: comeData(adesso),
     };
     if (corrente) aggiungiMovimenti(dati, righe, prima.get(percorso), adesso);

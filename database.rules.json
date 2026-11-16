@@ -25,6 +25,11 @@
         ".read": "auth != null"
       }
     },
+    "sqx": {
+      "$squadra": {
+        ".read": "auth != null"
+      }
+    },
     "sqr": {
       "$squadra": {
         ".read": "auth != null"

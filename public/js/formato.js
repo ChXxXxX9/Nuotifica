@@ -30,6 +30,16 @@ export function nomeGara(codice = '', { breve = false } = {}) {
   return breve ? `${d} ${stile}` : `${d} ${STILI[stile] ?? stile}`;
 }
 
+/** Tempi presi a metà gara: p = passaggio di una gara più lunga, f = prima frazione di una staffetta. */
+export const etichettaTipo = (tp) => (tp === 'f' ? 'da staffetta' : tp === 'p' ? 'da frazione' : '');
+
+/** La frase lunga: "Tempo preso da staffetta: prima frazione della 4x100 SL". `og`: la gara di origine, se nota. */
+export function fraseTipo(tp, og) {
+  if (tp === 'f') return `Tempo preso da staffetta: prima frazione ${og ? `della ${nomeGara(og, { breve: true })}` : 'di una staffetta'}`;
+  if (tp === 'p') return `Tempo preso da frazione: passaggio ${og ? `dei ${nomeGara(og, { breve: true })}` : 'di una gara più lunga'}`;
+  return '';
+}
+
 /** Ordine naturale delle gare: per stile, poi per distanza. */
 export function ordineGara(codice = '') {
   const stili = ['SL', 'DO', 'RA', 'FA', 'MI'];

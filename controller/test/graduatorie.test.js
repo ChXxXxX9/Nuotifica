@@ -468,3 +468,79 @@ test('verifica: confronto di una riga con scheda, squadra e migliori di sempre',
   });
   assert.equal(nuovo.scheda, 'dopo');
 });
+
+test('tempi presi a metà gara: tipo e gara di origine si salvano e si rileggono', async () => {
+  const { tipoTempo } = await import('../src/graduatorie.js');
+  assert.equal(tipoTempo('Serie - Individuale'), '');
+  assert.equal(tipoTempo('Serie - Passaggio gara'), 'p');
+  assert.equal(tipoTempo('Finale - Prima frazione staffetta'), 'f');
+  const {
+    aggiungiRiga, risolviOrigini, ID_GARE,
+  } = await import('../src/italia.js');
+  const { rigaStagione, leggiAtletaItalia, rigaInfo } = await import('../src/dati-italia.js');
+  ID_GARE.clear();
+  const atleti = new Map();
+  const riga = (nome, ms, turno, idGara, data = '2026-01-04') => ({
+    ms, nome, anno: 2009, societa: ['Vita ssd'], data, luogo: 'Roma', turno, idEvento: '148147', idGara, idTurno: '1',
+  });
+  // 100 SL: passaggio dei 200 SL (gara numero 3) e prima frazione di una staffetta.
+  aggiungiRiga(atleti, riga('PULCINI ETTORE', 57_680, 'Serie - Passaggio gara', '3'), {
+    sesso: 'M', vasca: 25, codice: '100SL', st: 2025,
+  });
+  aggiungiRiga(atleti, riga('ROSSI MARCO', 58_000, 'Finale - Prima frazione staffetta', '25'), {
+    sesso: 'M', vasca: 25, codice: '100SL', st: 2025,
+  });
+  aggiungiRiga(atleti, riga('BIANCHI LUCA', 61_000, 'Finale - Prima frazione staffetta', '27'), {
+    sesso: 'M', vasca: 25, codice: '100DO', st: 2025,
+  });
+  // La graduatoria dei 200 SL fa sapere che la gara numero 3 è il 200 SL.
+  aggiungiRiga(atleti, riga('VERDI ANDREA', 119_550, 'Serie - Individuale', '3'), {
+    sesso: 'M', vasca: 25, codice: '200SL', st: 2025,
+  });
+  risolviOrigini(atleti);
+  const pulcini = atleti.get('pulcini-ettore-2009').risultati[0];
+  assert.deepEqual([pulcini.tp, pulcini.og, pulcini.g, pulcini.idg], ['p', '200SL', 'n148147', undefined]);
+  assert.equal(atleti.get('rossi-marco-2009').risultati[0].og, '4x100SL');
+  assert.equal(atleti.get('bianchi-luca-2009').risultati[0].og, '4x100MI');
+  assert.equal(atleti.get('verdi-andrea-2009').risultati[0].tp, undefined);
+  // Nel Realtime Database e ritorno.
+  const a = atleti.get('pulcini-ettore-2009');
+  const doc = { i: rigaInfo(a), s2025: rigaStagione({ ...a, s: 'Vita ssd' }) };
+  const [letto] = leggiAtletaItalia(doc).r;
+  assert.deepEqual([letto.t, letto.tp, letto.og, letto.g], [57_680, 'p', '200SL', 'n148147']);
+  const v = atleti.get('verdi-andrea-2009');
+  const [normale] = leggiAtletaItalia({ i: rigaInfo(v), s2025: rigaStagione({ ...v, s: 'Vita ssd' }) }).r;
+  assert.deepEqual([normale.t, normale.tp, normale.og], [119_550, undefined, undefined]);
+  // Nelle tabelle della squadra il tipo resta (anche nei migliori di sempre).
+  const { squadreDellaStagione } = await import('../src/italia.js');
+  const { rigaSquadra, squadraDaStagioni } = await import('../src/dati-italia.js');
+  const sq = rigaSquadra(squadreDellaStagione(atleti).get('vita-ssd'));
+  assert.ok(sq.t['25|100SL|M'].includes('pulcini-ettore-2009|57680|2026-01-04|p'));
+  const tutto = squadraDaStagioni({ s2025: sq });
+  assert.ok(tutto.t['25|100SL|M'].includes('pulcini-ettore-2009|57680|2026-01-04|2025|p'));
+});
+
+test('classifica atleti di squadra: solo i tempi fatti da Categoria', async () => {
+  const { riassuntoSquadra, leggiRiassuntoSquadra, eCategoria } = await import('../src/dati-italia.js');
+  const { punti } = await import('../src/punti.js');
+  // Maschi 2025/26: Esordienti A a 12-13 anni, Ragazzi da 14.
+  assert.ok(!eCategoria(2013, 'M', 2025));
+  assert.ok(eCategoria(2011, 'M', 2025));
+  assert.ok(!eCategoria('', 'M', 2025));
+  const doc = {
+    // Marco (2013): nel 2024/25 Esordiente A (12 anni), nel 2025/26 ancora Esordiente A (13, regole nuove): mai Categoria.
+    s2024: {
+      n: 'Nuoto Prova', reg: '12', m: 'm|Marco Blu|2013|M~l|Luca Neri|2010|M', t: { '25|400SL|M': 'm|250000|2025-03-01~l|260000|2025-03-01', '25|100SL|M': 'l|58000|2025-03-02' },
+    },
+    s2025: {
+      n: 'Nuoto Prova', reg: '12', m: 'm|Marco Blu|2013|M~l|Luca Neri|2010|M', t: { '25|100SL|M': 'l|57000|2026-01-10~m|65000|2026-01-10' },
+    },
+  };
+  const r = leggiRiassuntoSquadra(riassuntoSquadra(doc, punti));
+  assert.equal(r.ic.find((x) => x.k === 'm'), undefined);
+  const luca = r.ic.find((x) => x.k === 'l');
+  // Luca (2010): 2024/25 a 15 anni Juniores (regole fino al 2024/25), 2025/26 a 16 anni Ragazzi: tutto conta.
+  assert.deepEqual(luca.gare.sort(), ['100SL', '400SL']);
+  // I migliori per gara restano di tutti (lì c'è il filtro Categoria / Esordienti).
+  assert.ok(r.t['25|400SL|M'].some((x) => x.startsWith('m|')));
+});

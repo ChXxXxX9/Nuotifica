@@ -8,7 +8,7 @@ import {
   paginaErrore, conCache, radice, deveInstallare,
 } from './nucleo.js';
 import {
-  tempo, nomeGara, periodo, quando, inCorso, iniziali, giorno, oggi,
+  tempo, nomeGara, periodo, quando, inCorso, iniziali, giorno, oggi, stagioneCorrente, nomeStagione,
 } from './formato.js';
 import { vistaGare, vistaGara, delLazio, cartaGara, statoGara } from './viste-gare.js';
 import { vistaConsigli, vistaAdmin, eAdmin } from './viste-consigli.js';
@@ -24,7 +24,6 @@ import {
   vistaClassifiche, vistaLimiti, vistaLimite, vistaQuantoVale,
 } from './viste-classifiche.js';
 import { impostaRegoleCategorie } from './formato.js';
-import { vistaDocumento, ePdf } from './viste-documento.js';
 import { vistaSquadre, vistaSquadra } from './viste-squadre.js';
 
 const DATA_TRASLOCO = Date.parse('2026-11-16T00:00:00+01:00');
@@ -49,6 +48,7 @@ export function salvaCopia() {
       k: a.k, n: a.n, s: a.s, ultimo: a.ultimo ? {
         t: a.ultimo.t, c: a.ultimo.c, d: a.ultimo.d, b: a.ultimo.b, pt: a.ultimo.pt,
       } : null,
+      ic: a.ic ?? null,
     })) ?? null,
   });
 }
@@ -605,19 +605,21 @@ function vistaInstalla() {
 
 /* ---------- Per te ---------- */
 
+// Atleta seguito: ultima gara a sinistra, a destra l'Indice Cloro di adesso (lo stesso del profilo).
 function rigaSeguito(a) {
   const ultimo = a.ultimo;
+  const ic = a.ic;
+  const scorsa = ic && ic.st !== stagioneCorrente();
   return `
     <li>
       <a class="atleta-seguito" href="#/atleta/${encodeURIComponent(a.k)}">
         <span class="iniziali" aria-hidden="true">${esc(iniziali(a.n))}</span>
         <span style="min-width:0">
           <span class="nome" style="display:block">${esc(a.n)}</span>
-          <span class="info" style="display:block">${ultimo ? `${esc(nomeGara(ultimo.c, { breve: true }))} · ${esc(giorno(ultimo.d))}` : esc(a.s ?? '')}</span>
+          <span class="info" style="display:block">${ultimo ? `Ultima gara: ${esc(nomeGara(ultimo.c, { breve: true }))} · ${esc(giorno(ultimo.d))}` : esc(a.s ?? '')}</span>
         </span>
         <span class="destra">
-          ${ultimo?.t ? `<span class="tempo">${esc(tempo(ultimo.t))}</span>` : ''}
-          ${ultimo?.b ? `<span class="badge ${ultimo.b === 'PB' ? 'badge-pb' : 'badge-sb'}">${ultimo.b}</span>` : (ultimo?.pt ? `<span class="punti">${ultimo.pt} pt</span>` : '')}
+          ${ic ? `<span class="tempo">${ic.valore}</span><small class="etichetta-indice">Indice Cloro${scorsa ? ` ${esc(nomeStagione(ic.st))}` : ''}</small>` : ''}
         </span>
       </a>
     </li>`;
@@ -812,8 +814,8 @@ function disegnaPost(post, { aggiornamento = false } = {}) {
   const vistoPrima = aggiornamento ? stato.vistoPrimaPost : (visti()[post.id] ? new Date(visti()[post.id]) : null);
   stato.vistoPrimaPost = vistoPrima;
   segnaVisto(post);
-  const { inApp } = dispositivo();
-  const destinazione = inApp ? '' : ' target="_blank" rel="noopener"';
+  // I documenti si aprono sempre nel browser, fuori dall'app: lì il lettore di PDF ha il suo "Trova nella pagina".
+  const destinazione = ' target="_blank" rel="noopener"';
   const novi = (f) => eRecente(f.aggiuntoIl) && (!vistoPrima || f.aggiuntoIl > vistoPrima);
   const file = [...post.file].sort((a, b) => (b.aggiuntoIl?.getTime() ?? 0) - (a.aggiuntoIl?.getTime() ?? 0));
   const recenti = post.novita?.quando && eRecente(post.novita.quando) ? fileNovita(post) : [];
@@ -845,7 +847,6 @@ function disegnaPost(post, { aggiornamento = false } = {}) {
                   </span>
                   ${ICONE.freccia}
                 </a>
-                ${ePdf(f.url) ? `<a class="documento-cerca" href="#/documento/${encodeURIComponent(post.id)}/${post.file.indexOf(f)}">${ICONE.cerca}<span>Cerca nel documento</span></a>` : ''}
               </li>`).join('')}
           </ul>` : '<p class="nota" style="margin:14px 0">Questo avviso non ha documenti allegati: il testo completo è nella pagina originale.</p>'}
         <a class="bottone bottone-secondario" href="${esc(post.link)}"${destinazione}>Apri la pagina originale</a>
@@ -957,7 +958,6 @@ async function mostra() {
   if ((m = p.match(/^limiti\/(.+)$/))) return vistaLimite(decodeURIComponent(m[1]));
   if (p === 'quanto-vale') return vistaQuantoVale();
   if ((m = p.match(/^squadra\/(.+)$/))) return vistaSquadra(decodeURIComponent(m[1]));
-  if ((m = p.match(/^documento\/([^/]+)\/(\d+)$/))) return vistaDocumento(decodeURIComponent(m[1]), m[2]);
   return vistaPerTe();
 }
 export { mostra };

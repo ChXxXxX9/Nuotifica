@@ -5,6 +5,7 @@ import {
 } from './nucleo.js';
 import {
   tempo, nomeGara, ordineGara, giorno, iniziali, differenza, codici, stagioneCorrente, stagioneDi, nomeStagione,
+  etichettaTipo, fraseTipo,
 } from './formato.js';
 import {
   leggiLimiti, limitiSeguiti, limitePer, migliore, rispettoAlLimite, leggiTempo, nomeCategoriaAtleta, REGIONI,
@@ -28,10 +29,16 @@ export function risultatiPuliti(r = []) {
   // Lo stesso tempo arrivato da più fonti (gara letta in diretta e graduatorie): si tiene il più completo.
   const ricchezza = (v) => (v.sp ? 4 : 0) + (v.ci ? 2 : 0) + (v.f ? 0 : 1);
   const perTempo = new Map();
+  // Se una delle copie sa che il tempo è un passaggio o una prima frazione, lo sa anche quella che resta.
+  const tipo = (x) => (x?.tp ? { tp: x.tp, ...(x.og ? { og: x.og } : {}) } : {});
   for (const v of perId.values()) {
     const chiave = v.t ? `${v.d}|${v.c}|${v.v}|${v.t}` : `${v.i}`;
     const prima = perTempo.get(chiave);
-    if (!prima || ricchezza(v) > ricchezza(prima)) perTempo.set(chiave, v);
+    if (!prima || ricchezza(v) > ricchezza(prima)) {
+      perTempo.set(chiave, !v.tp && prima?.tp ? { ...v, ...tipo(prima), g: v.g ?? prima.g } : v);
+    } else if (v.tp && !prima.tp) {
+      perTempo.set(chiave, { ...prima, ...tipo(v), g: prima.g ?? v.g });
+    }
   }
   return [...perTempo.values()].sort((a, b) => (b.d ?? '').localeCompare(a.d ?? ''));
 }
@@ -79,17 +86,33 @@ export async function leggiAtleta(k, { fresco = false, italia = true } = {}) {
     ...insieme,
     reg: insieme.reg ?? daItalia?.reg,
     storico: storico ? { agg: storico.agg, nessuno: storico.nessuno, n: storico.r.length } : null,
-    r: risultatiPuliti([...insieme.r, ...(scheda && daItalia ? daItalia.r : []), ...conPunti(sx, storico?.r ?? [])]),
+    // Punti su tutti i tempi (anche quelli delle gare lette), così l'Indice Cloro è uguale ovunque.
+    r: conPunti(sx, risultatiPuliti([...insieme.r, ...(scheda && daItalia ? daItalia.r : []), ...(storico?.r ?? [])])),
   };
 }
 
-/** Dati brevi degli atleti seguiti, per "Per te". */
+/**
+ * Indice Cloro di adesso: quello della stagione in corso, altrimenti quello della scorsa.
+ * È lo stesso numero del profilo e cambia a ogni gara nuova (si ricalcola dai tempi).
+ */
+export function indiceAttuale(risultati = []) {
+  const st = stagioneCorrente();
+  const ora = indiceCloro(risultati.filter((x) => stagioneDi(x.d) === st));
+  if (ora) return { valore: ora.valore, st };
+  const prima = String(Number(st) - 1);
+  const ieri = indiceCloro(risultati.filter((x) => stagioneDi(x.d) === prima));
+  return ieri ? { valore: ieri.valore, st: prima } : null;
+}
+
+/** Dati brevi degli atleti seguiti, per "Per te": ultima gara e Indice Cloro di adesso. */
 export async function leggiSeguiti(chiavi) {
-  const schede = await Promise.all(chiavi.map((k) => leggiAtleta(k, { italia: false }).catch(() => null)));
+  const schede = await Promise.all(chiavi.map((k) => leggiAtleta(k).catch(() => null)));
   return chiavi.map((k, i) => {
     const a = schede[i];
     if (!a) return { k, n: k.replace(/-\d{4}$/, '').replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) };
-    return { k, n: a.n, s: a.s, ultimo: a.r?.find((v) => v.t) ?? null };
+    return {
+      k, n: a.n, s: a.s, ultimo: a.r?.find((v) => v.t) ?? null, ic: indiceAttuale(a.r ?? []),
+    };
   });
 }
 
@@ -270,7 +293,7 @@ export async function vistaAtleti() {
       leggiSeguiti(seguiti).then((schede) => {
         if (percorso() !== 'atleti') return;
         elencoSeguiti.innerHTML = schede.map((a) => `
-          <li><a href="#/atleta/${encodeURIComponent(a.k)}"><b>${esc(a.n)}</b><small>${esc(a.ultimo ? `${tempo(a.ultimo.t)} · ${nomeGara(a.ultimo.c, { breve: true })}` : (a.s ?? ''))}</small></a></li>`).join('');
+          <li><a href="#/atleta/${encodeURIComponent(a.k)}"><b>${esc(a.n)}</b><small>${esc([a.ic ? `Indice Cloro ${a.ic.valore}` : '', a.ultimo ? `ultima gara ${nomeGara(a.ultimo.c, { breve: true })} ${tempo(a.ultimo.t)}` : (a.s ?? '')].filter(Boolean).join(' · '))}</small></a></li>`).join('');
       }).catch(() => { elencoSeguiti.innerHTML = ''; });
     }
   });
@@ -367,12 +390,92 @@ export async function vistaAtleta(k) {
         : '<p class="nota" style="margin:-4px 0 10px">Qui c\'è il migliore di ogni stagione: segui l\'atleta per vedere tutte le sue gare.</p>';
   const best = personali(risultati);
   const vasche = [...new Set([...best.values()].map((v) => v.v))].sort();
-  let mostraTutte = false;
   let limiti = null;
   let ultimaScelta = {};
+  // Gruppi di "Tutte le gare" aperti (restano aperti quando la pagina si ridisegna).
+  const aperti = new Set();
   const st = stagioneCorrente();
-  const indice = indiceCloro(risultati.filter((x) => stagioneDi(x.d) === st));
-  const indicePrima = indice ? null : indiceCloro(risultati.filter((x) => stagioneDi(x.d) === String(Number(st) - 1)));
+  const indice = indiceAttuale(risultati);
+
+  /* Scheda di una prestazione: la stessa delle gare (parziali, punti, posizioni, indice annata). */
+  const dettaglio = (x, { pb = false } = {}) => schedaRisultato({
+    r: {
+      t: x.t, sp: x.sp, b: pb ? 'PB' : x.b, dp: pb ? null : x.dp, pt: x.pt, x: x.x, n: a.n,
+    },
+    codice: x.c,
+    nomeBatt: [x.cat, `vasca ${x.v} m`].filter(Boolean).join(' · '),
+    nota: x.tp ? `<p class="nota-tipo">${esc(fraseTipo(x.tp, x.og))}</p>` : '',
+    extra: `<p class="nota" style="margin:8px 0 0">${esc([giorno(x.d), x.gn, x.f === 1 ? 'migliore della stagione dalle graduatorie' : ''].filter(Boolean).join(' · '))}</p>
+      ${x.ci ? `<a class="bottone bottone-secondario bottone-piccolo" style="margin-top:10px" href="#/gara/${encodeURIComponent(x.g)}?c=${encodeURIComponent(x.ci)}&e=${encodeURIComponent(x.c)}">Apri la gara</a>`
+    : /^n\d+$/.test(x.g ?? '') ? '<span data-apri-gara></span>' : ''}`,
+  });
+  const riempiDettaglio = (box, x) => {
+    const dati = {
+      t: x.t, c: x.c, v: x.v, sx: a.sx, st: stagioneDi(x.d), y: a.y,
+    };
+    riempiPosizioni(box, { ...dati, k });
+    riempiAnnata(box, dati);
+    // Gara da cui è preso il tempo: il collegamento c'è solo se quella gara la abbiamo anche noi.
+    const posto = box.querySelector('[data-apri-gara]');
+    if (!posto) return;
+    conCache(`gara:${x.g}`, (fresco) => api.leggiGara(x.g, fresco), { durata: 600_000 }).then((g) => {
+      if (!g || !posto.isConnected) return;
+      const e = x.tp && x.og ? x.og : x.c;
+      posto.outerHTML = `<a class="bottone bottone-secondario bottone-piccolo" style="margin-top:10px" href="#/gara/${encodeURIComponent(x.g)}?e=${encodeURIComponent(e)}">${x.tp === 'f' ? 'Apri la staffetta' : x.tp === 'p' ? 'Apri la gara intera' : 'Apri la gara'}</a>`;
+    }).catch(() => {});
+  };
+
+  /* "Tutte le gare": una riga per gara e vasca; si apre con le prestazioni dalla più recente. */
+  const gruppi = new Map();
+  risultati.forEach((x, i) => {
+    const chiave = `${x.c}|${x.v}`;
+    if (!gruppi.has(chiave)) gruppi.set(chiave, []);
+    gruppi.get(chiave).push(i);
+  });
+  const ordineGruppi = [...gruppi.keys()].sort((x, y) => {
+    const [cx, vx] = x.split('|');
+    const [cy, vy] = y.split('|');
+    return Number(vx) - Number(vy) || ordineGara(cx) - ordineGara(cy);
+  });
+  const vascheGruppi = [...new Set(ordineGruppi.map((x) => x.split('|')[1]))];
+  const voceGara = (i) => {
+    const x = risultati[i];
+    return `
+      <li>
+        <button type="button" class="voce-storico" data-voce="${i}" aria-expanded="false">
+          <span style="min-width:0">
+            <span class="cosa" style="display:block">${esc(giorno(x.d))}</span>
+            <span class="dove" style="display:block">${esc(x.gn ?? '')}${x.f === 1 ? ' · migliore della stagione' : ''}</span>
+          </span>
+          <span class="quanto">
+            ${x.t ? `<b>${esc(tempo(x.t))}</b>` : `<b class="nota">${esc(x.x ?? '–')}</b>`}
+            <span class="etichette" style="display:flex;gap:6px">
+              ${x.tp ? `<span class="badge badge-tipo">${esc(etichettaTipo(x.tp))}</span>` : ''}
+              ${x.b ? `<span class="badge ${x.b === 'PB' ? 'badge-pb' : 'badge-sb'}">${x.b}</span>` : ''}
+              ${x.b === 'PB' && x.dp ? `<span class="punti">${esc(differenza(x.dp))}</span>` : (x.pt ? `<span class="punti">${x.pt} pt</span>` : '')}
+            </span>
+          </span>
+        </button>
+      </li>`;
+  };
+  const elencoGruppo = (chiave) => `<ul class="storico">${gruppi.get(chiave).map(voceGara).join('')}</ul>`;
+  const testaGruppo = (chiave) => {
+    const [c] = chiave.split('|');
+    const voci = gruppi.get(chiave).map((i) => risultati[i]);
+    const conTempo = voci.filter((x) => x.t);
+    const migliore = conTempo.length ? conTempo.reduce((m, x) => (x.t < m.t ? x : m)) : null;
+    const aperto = aperti.has(chiave);
+    return `
+      <li class="${aperto ? 'aperta' : ''}" data-gruppo-box="${esc(chiave)}">
+        <button type="button" class="riga-gara" data-gruppo="${esc(chiave)}" aria-expanded="${aperto}">
+          <span class="gara-nome">${esc(nomeGara(c, { breve: true }))}</span>
+          <span class="chi"><b>${voci.length} ${voci.length === 1 ? 'gara' : 'gare'}</b><small>ultima ${esc(giorno(voci[0].d))}</small></span>
+          <span class="quanto">${migliore ? `<b>${esc(tempo(migliore.t))}</b><small>migliore</small>` : '<b class="nota">–</b>'}</span>
+        </button>
+        ${aperto ? elencoGruppo(chiave) : ''}
+      </li>`;
+  };
+
   const disegnaScheda = ({ vasca, gara, aggiornamento = false } = {}) => {
     ultimaScelta = { vasca, gara };
     const v = vasca ?? (vasche.includes(25) ? 25 : vasche[0]);
@@ -382,6 +485,7 @@ export async function vistaAtleta(k) {
     for (const x of risultati) if (x.t && x.v === v) conteggi.set(x.c, (conteggi.get(x.c) ?? 0) + 1);
     const g = gara && conteggi.has(gara) ? gara : [...conteggi].sort((x, y) => y[1] - x[1])[0]?.[0];
     const puntiGrafico = risultati.filter((x) => x.t && x.v === v && x.c === g).sort((x, y) => x.d.localeCompare(y.d));
+    const pbScelto = pb.find((x) => x.c === g);
     const seguito = eSeguito(k);
     const gare = new Set(risultati.map((x) => x.g)).size;
     const maxPunti = Math.max(0, ...risultati.map((x) => x.pt ?? 0));
@@ -397,7 +501,7 @@ export async function vistaAtleta(k) {
           <div class="cifre">
             <div class="cifra"><b>${risultati.filter((x) => x.t).length}</b><small>Tempi in ${gare} ${gare === 1 ? 'gara' : 'gare'}</small></div>
             <div class="cifra"><b>${maxPunti || '–'}</b><small>Punti max</small></div>
-            <div class="cifra cifra-indice"><b>${indice?.valore ?? indicePrima?.valore ?? '–'}</b><small class="titolo-con-info">Indice Cloro${!indice && indicePrima ? ` ${esc(nomeStagione(String(Number(st) - 1)))}` : ''}${tastoInfo('indice-cloro', 'Come funziona l\'Indice Cloro')}</small></div>
+            <div class="cifra cifra-indice"><b>${indice?.valore ?? '–'}</b><small class="titolo-con-info">Indice Cloro${indice && indice.st !== st ? ` ${esc(nomeStagione(indice.st))}` : ''}${tastoInfo('indice-cloro', 'Come funziona l\'Indice Cloro')}</small></div>
           </div>
         </section>
 
@@ -417,39 +521,25 @@ export async function vistaAtleta(k) {
                   <small>${esc(nomeGara(x.c, { breve: true }))}</small>
                   <b>${esc(tempo(x.t))}</b>
                   <span>${esc(giorno(x.d))}${x.pt ? ` · ${x.pt} pt` : ''}</span>
+                  ${x.tp ? `<span class="badge badge-tipo">${esc(etichettaTipo(x.tp))}</span>` : ''}
                 </button>`).join('')}
             </div>
             ${g ? `
               <div class="scheda grafico">
                 <div class="grafico-testa"><b>${esc(nomeGara(g))}</b><small>${puntiGrafico.length} ${puntiGrafico.length === 1 ? 'tempo' : 'tempi'}</small></div>
                 ${grafico(puntiGrafico)}
-                <div data-posizioni-pb><div data-posizioni></div></div>
-              </div>` : ''}
+              </div>
+              ${pbScelto ? `<div class="pb-dettaglio" data-pb>${dettaglio(pbScelto, { pb: true })}</div>` : ''}` : ''}
           </section>` : ''}
 
         <section class="sezione">
-          <div class="sezione-testa"><h2 class="sezione-titolo">Tutte le gare</h2></div>
+          <div class="sezione-testa"><h2 class="sezione-titolo">Tutte le gare</h2>${risultati.length ? `<span class="nota">${risultati.length} ${risultati.length === 1 ? 'tempo' : 'tempi'}</span>` : ''}</div>
           ${notaStorico}
-          ${risultati.length ? `
-            <ul class="storico">
-              ${risultati.slice(0, mostraTutte ? Infinity : 60).map((x, i) => `
-                <li>
-                  <button type="button" class="voce-storico" data-voce="${i}" aria-expanded="false">
-                    <span style="min-width:0">
-                      <span class="cosa" style="display:block">${esc(nomeGara(x.c, { breve: true }))} <span class="nota" style="font-weight:600">· vasca ${x.v}</span></span>
-                      <span class="dove" style="display:block">${esc(giorno(x.d))} · ${esc(x.gn ?? '')}${x.f === 1 ? ' <span class="nota">· migliore della stagione</span>' : ''}</span>
-                    </span>
-                    <span class="quanto">
-                      ${x.t ? `<b>${esc(tempo(x.t))}</b>` : `<b class="nota">${esc(x.x ?? '–')}</b>`}
-                      <span class="etichette" style="display:flex;gap:6px">
-                        ${x.b ? `<span class="badge ${x.b === 'PB' ? 'badge-pb' : 'badge-sb'}">${x.b}</span>` : ''}
-                        ${x.b === 'PB' && x.dp ? `<span class="punti">${esc(differenza(x.dp))}</span>` : (x.pt ? `<span class="punti">${x.pt} pt</span>` : '')}
-                      </span>
-                    </span>
-                  </button>
-                </li>`).join('')}
-            </ul>
-            ${!mostraTutte && risultati.length > 60 ? `<button class="bottone bottone-secondario" data-tutte style="margin-top:10px">Mostra tutti i ${risultati.length} tempi</button>` : ''}` : '<div class="vuoto"><strong>Ancora nessun tempo</strong>Appena nuota una gara la trovi qui.</div>'}
+          ${risultati.length ? vascheGruppi.map((vg) => `
+            ${vascheGruppi.length > 1 ? `<h3 class="sottotitolo-vasca">Vasca ${esc(vg)} m</h3>` : ''}
+            <ul class="elenco classifica-squadra gruppi-gare">
+              ${ordineGruppi.filter((x) => x.endsWith(`|${vg}`)).map(testaGruppo).join('')}
+            </ul>`).join('') : '<div class="vuoto"><strong>Ancora nessun tempo</strong>Appena nuota una gara la trovi qui.</div>'}
         </section>
         <p class="nota" style="margin-top:20px">Ci sono i tempi delle gare che leggiamo, il migliore di ogni stagione per gara e vasca e, per gli atleti seguiti, tutte le gare (prima del 2018/19 anche tempi presi a mano). Vuoi che questa scheda non compaia? Scrivici dalla pagina <a href="#/privacy">Privacy</a>.</p>
       </main>
@@ -458,46 +548,39 @@ export async function vistaAtleta(k) {
       el.querySelectorAll('[data-vasca]').forEach((b) => b.addEventListener('click', () => disegnaScheda({ vasca: Number(b.dataset.vasca), aggiornamento: true })));
       el.querySelectorAll('[data-gara]').forEach((b) => b.addEventListener('click', () => disegnaScheda({ vasca: v, gara: b.dataset.gara, aggiornamento: true })));
       collegaObiettivi(el);
-      // Personale della gara scelta: dove si piazza nelle graduatorie della sua stagione.
-      const pbScelto = pb.find((x) => x.c === g);
-      const boxPb = el.querySelector('[data-posizioni-pb]');
-      if (pbScelto && boxPb) {
-        riempiPosizioni(boxPb, {
-          t: pbScelto.t, c: pbScelto.c, v: pbScelto.v, sx: a.sx, st: stagioneDi(pbScelto.d), y: a.y, k,
-        });
-      }
-      // Ogni gara dello storico si apre (una alla volta) con parziali, punti e posizione in classifica.
-      const mostrati = risultati.slice(0, mostraTutte ? Infinity : 60);
-      el.querySelectorAll('[data-voce]').forEach((b) => b.addEventListener('click', () => {
+      // Personale della gara scelta: la sua scheda completa sotto il grafico.
+      const boxPb = el.querySelector('[data-pb]');
+      if (pbScelto && boxPb) riempiDettaglio(boxPb, pbScelto);
+      // Ogni prestazione si apre (una alla volta) con parziali, punti e posizione in classifica.
+      const collegaVoci = (contenitore) => contenitore.querySelectorAll('[data-voce]').forEach((b) => b.addEventListener('click', () => {
         const prima = el.querySelector('.voce-storico[aria-expanded="true"]');
         if (prima) {
           prima.setAttribute('aria-expanded', 'false');
           prima.parentElement.querySelector('.dettaglio')?.remove();
           if (prima === b) return;
         }
-        const x = mostrati[Number(b.dataset.voce)];
+        const x = risultati[Number(b.dataset.voce)];
         b.setAttribute('aria-expanded', 'true');
-        b.insertAdjacentHTML('afterend', schedaRisultato({
-          r: {
-            t: x.t, sp: x.sp, b: x.b, dp: x.dp, pt: x.pt, x: x.x, n: a.n,
-          },
-          codice: x.c,
-          nomeBatt: [x.cat, `vasca ${x.v} m`].filter(Boolean).join(' · '),
-          extra: `<p class="nota" style="margin:8px 0 0">${esc([giorno(x.d), x.gn, x.f === 1 ? 'migliore della stagione dalle graduatorie' : ''].filter(Boolean).join(' · '))}</p>${x.ci ? `
-            <a class="bottone bottone-secondario bottone-piccolo" style="margin-top:10px" href="#/gara/${encodeURIComponent(x.g)}?c=${encodeURIComponent(x.ci)}&e=${encodeURIComponent(x.c)}">Apri la gara</a>` : ''}`,
-        }));
-        const scheda = b.nextElementSibling;
-        riempiPosizioni(scheda, {
-          t: x.t, c: x.c, v: x.v, sx: a.sx, st: stagioneDi(x.d), y: a.y, k,
-        });
-        riempiAnnata(scheda, {
-          t: x.t, c: x.c, v: x.v, sx: a.sx, st: stagioneDi(x.d), y: a.y,
-        });
+        b.insertAdjacentHTML('afterend', dettaglio(x));
+        riempiDettaglio(b.nextElementSibling, x);
       }));
-      el.querySelector('[data-tutte]')?.addEventListener('click', () => {
-        mostraTutte = true;
-        disegnaScheda({ vasca: v, gara: g, aggiornamento: true });
-      });
+      el.querySelectorAll('[data-gruppo]').forEach((b) => b.addEventListener('click', () => {
+        const chiave = b.dataset.gruppo;
+        const box = b.parentElement;
+        if (aperti.has(chiave)) {
+          aperti.delete(chiave);
+          box.classList.remove('aperta');
+          b.setAttribute('aria-expanded', 'false');
+          box.querySelector('.storico')?.remove();
+          return;
+        }
+        aperti.add(chiave);
+        box.classList.add('aperta');
+        b.setAttribute('aria-expanded', 'true');
+        b.insertAdjacentHTML('afterend', elencoGruppo(chiave));
+        collegaVoci(box);
+      }));
+      el.querySelectorAll('[data-gruppo-box].aperta').forEach(collegaVoci);
     }, { aggiornamento });
   };
   /* Tempi limite seguiti: per ogni gara nuotata quest'anno, preso / quasi / quanto manca. */

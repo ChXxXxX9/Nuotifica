@@ -5,11 +5,12 @@ import {
 } from './nucleo.js';
 import { punti } from './punti.js';
 import {
-  tempo, nomeGara, ordineGara, giorno, iniziali, categoria, gruppoCategoria, stagioneDi,
+  tempo, nomeGara, ordineGara, giorno, iniziali, categoria, gruppoCategoria, stagioneDi, etichettaTipo,
 } from './formato.js';
 import { menuClassifiche, REGIONI } from './viste-classifiche.js';
 import {
-  squadraDaStagioni, leggiRiassuntoSquadra, leggiStagioneSquadra as stagioneDaItalia, indiciStagione, unisciTabelle,
+  squadraDaStagioni, leggiRiassuntoSquadra, leggiStagioneSquadra as stagioneDaItalia, indiciStagione, unisciTabelle, soloCategoria,
+  VERSIONE_RIASSUNTO,
 } from './dati-italia.js';
 import { tastoInfo } from './spiegazioni.js';
 
@@ -30,8 +31,9 @@ const leggiSquadra = (id) => conCache(`squadra:${id}`, async () => {
   ]);
   // Staffette: quelle lette prima (Firestore) più quelle di tutte le gare (Realtime Database), senza doppioni.
   const sf = [...new Set([...(prima?.sf ?? []), ...(staffette ?? [])])];
+  // (un riassunto di prima, con l'indice che conta anche le gare da Esordienti, non si usa più).
   const sq = leggiRiassuntoSquadra(riassunto);
-  if (sq) return { id, ...sq, sf, italia: true };
+  if (sq && sq.v >= VERSIONE_RIASSUNTO) return { id, ...sq, sf, italia: true };
   // Riassunto non ancora pronto: la squadra intera (più pesante) o, prima ancora, quella del Lazio.
   const tutta = squadraDaStagioni(await api.leggiSquadraItalia(id).catch(() => null));
   if (tutta) return { id, ...tutta, sf, italia: true };
@@ -175,6 +177,8 @@ export async function vistaSquadra(id) {
   });
 
   // Classifica atleti per Indice Cloro: di una stagione, o di sempre (migliori tempi di tutti gli anni in squadra).
+  // Solo tempi fatti da Categoria: le gare da Esordienti (più lunghe, più punti da piccoli) non contano.
+  const anni = new Map(membri.map((x) => [x.k, x.y]));
   const cacheRoster = new Map();
   const classificaAtleti = () => {
     const chiave = `${scelta.st}|${scelta.rsx}`;
@@ -182,9 +186,9 @@ export async function vistaSquadra(id) {
     let elenco = null;
     if (scelta.st === 'sempre') {
       if (sq.ic) elenco = sq.ic;
-      else if (sq.stagioni) elenco = indiciStagione(unisciTabelle(Object.values(sq.stagioni).map((x) => x.t)), punti);
+      else if (sq.stagioni) elenco = indiciStagione(unisciTabelle(Object.entries(sq.stagioni).map(([st, x]) => soloCategoria(x.t, st, anni))), punti);
     } else if (tabelleStagione) {
-      elenco = indiciStagione(tabelleStagione, punti);
+      elenco = indiciStagione(soloCategoria(tabelleStagione, scelta.st, anni), punti);
     }
     if (!elenco) return null;
     elenco = elenco.filter((x) => !nascosto(x.k) && (scelta.rsx === 'tutti' || x.sx === scelta.rsx));
@@ -199,19 +203,21 @@ export async function vistaSquadra(id) {
   let tabelleStagione = null;
 
   const tabella = () => {
-    // Righe "chiave|tempo|data|stagione" (di sempre) o "chiave|tempo|data" (di una stagione).
-    const sorgente = scelta.st === 'sempre' ? (sq.t ?? {}) : (tabelleStagione ?? {});
+    // Righe "chiave|tempo|data|stagione[|tipo]" (di sempre) o "chiave|tempo|data[|tipo]" (di una stagione);
+    // tipo: p passaggio, f prima frazione di staffetta.
+    const sempre = scelta.st === 'sempre';
+    const sorgente = sempre ? (sq.t ?? {}) : (tabelleStagione ?? {});
     const gare = new Map();
     for (const [kt, righe] of Object.entries(sorgente)) {
       const [v, c, sx] = kt.split('|');
       if (Number(v) !== scelta.v || sx !== scelta.sx) continue;
       const filtrate = righe.map((riga) => {
-        const [k, t, d, s] = riga.split('|');
+        const p = riga.split('|');
         return {
-          k, t: Number(t), d, s: s ?? scelta.st,
+          k: p[0], t: Number(p[1]), d: p[2], s: sempre ? (p[3] ?? '') : scelta.st, tp: sempre ? p[4] : p[3],
         };
       }).filter((r) => !nascosto(r.k)).filter((r) => scelta.gruppo === 'tutti'
-        || gruppoCategoria(categoria(perChiave.get(r.k)?.y, scelta.sx, r.s === 'sempre' ? stagioneDi(r.d) : r.s)) === scelta.gruppo);
+        || gruppoCategoria(categoria(perChiave.get(r.k)?.y, scelta.sx, r.s || stagioneDi(r.d))) === scelta.gruppo);
       if (filtrate.length) gare.set(c, filtrate);
     }
     return [...gare].sort((a, b) => ordineGara(a[0]) - ordineGara(b[0]));
@@ -284,13 +290,13 @@ export async function vistaSquadra(id) {
                 <button type="button" class="riga-gara" data-gara="${esc(c)}" aria-expanded="${aperta}">
                   <span class="gara-nome">${esc(nomeGara(c, { breve: true }))}</span>
                   <span class="chi"><b>${esc(nomeAtleta(primo.k))}</b><small>${esc(scelta.st === 'sempre' ? `${nomeStagione(primo.s)} · ${giorno(primo.d)}` : giorno(primo.d))}</small></span>
-                  <span class="quanto"><b>${esc(tempo(primo.t))}</b><small>${righe.length} ${righe.length === 1 ? 'atleta' : 'atleti'}</small></span>
+                  <span class="quanto"><b>${esc(tempo(primo.t))}</b><small>${primo.tp ? `${esc(etichettaTipo(primo.tp))} · ` : ''}${righe.length} ${righe.length === 1 ? 'atleta' : 'atleti'}</small></span>
                 </button>
                 ${aperta ? `<ol class="classifica-interna">${righe.slice(0, scelta.garaTutti ? Infinity : 50).map((r, i) => `
                   <li><a href="#/atleta/${encodeURIComponent(r.k)}">
                     <span class="pos"><b>${i + 1}</b></span>
                     <span class="chi"><b>${esc(nomeAtleta(r.k))}</b><small>${esc([perChiave.get(r.k)?.y, scelta.st === 'sempre' ? nomeStagione(r.s) : giorno(r.d)].filter(Boolean).join(' · '))}</small></span>
-                    <span class="quanto"><b>${esc(tempo(r.t))}</b></span>
+                    <span class="quanto"><b>${esc(tempo(r.t))}</b>${r.tp ? `<small>${esc(etichettaTipo(r.tp))}</small>` : ''}</span>
                   </a></li>`).join('')}</ol>${!scelta.garaTutti && righe.length > 50 ? `<button class="bottone bottone-secondario bottone-piccolo" data-gara-tutti style="margin:8px 0 4px">Mostra tutti (${righe.length})</button>` : ''}` : ''}
               </li>`;
   }).join('')}</ul>` : `<div class="vuoto"><strong>Nessun tempo qui</strong>Prova con l'altra vasca o con ${scelta.sx === 'M' ? 'le femmine' : 'i maschi'}.</div>`}
@@ -298,7 +304,7 @@ export async function vistaSquadra(id) {
 
         <section class="sezione">
           <div class="sezione-testa"><h2 class="sezione-titolo titolo-con-info">Classifica atleti ${tastoInfo('indice-cloro', 'Come funziona l\'Indice Cloro')}</h2><span class="nota">${scelta.st === 'sempre' ? 'di sempre' : esc(nomeStagione(scelta.st))}</span></div>
-          <p class="nota" style="margin:-4px 0 10px">Per Indice Cloro${scelta.st === 'sempre' ? ' di sempre: i migliori tempi di ogni specialità di tutti gli anni passati in questa squadra' : ' della stagione, con i tempi nuotati per questa squadra'}.</p>
+          <p class="nota" style="margin:-4px 0 10px">Per Indice Cloro${scelta.st === 'sempre' ? ' di sempre: i migliori tempi di ogni specialità di tutti gli anni passati in questa squadra' : ' della stagione, con i tempi nuotati per questa squadra'}. Contano solo i tempi fatti da Categoria (da Ragazzi in su): le gare da Esordienti non entrano.</p>
           <div class="segmenti" role="tablist" aria-label="Chi">
             ${[['tutti', 'Tutti'], ['M', 'Maschi'], ['F', 'Femmine']].map(([v, nome]) => `<button class="segmento" role="tab" data-rsx="${v}" aria-selected="${scelta.rsx === v}">${nome}</button>`).join('')}
           </div>

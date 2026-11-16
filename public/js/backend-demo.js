@@ -244,7 +244,25 @@ export function creaBackendDemo() {
       return tutte.filter((v) => v.split('|')[1].normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
         .split(/[\s'’-]+/).some((p) => p.replace(/[^a-z]/g, '').startsWith(prefisso)));
     },
-    async leggiAtletaItalia() { await pausa(60); return null; },
+    // Anteprima: due stagioni passate inventate (dai tempi di adesso, un po' più lenti), con un passaggio
+    // e una prima frazione di staffetta, per vedere "Tutte le gare" e le etichette.
+    async leggiAtletaItalia(k) {
+      await pausa(60);
+      const a = DEMO.atleti[k];
+      if (!a) return null;
+      const doc = { i: `${a.n}|${a.y}|${a.sx}` };
+      const gare = [...new Set(a.r.filter((x) => x.t && !x.c.includes('x')).map((x) => x.c))];
+      [[2025, 1.02, '2026-03-14', 'Riccione'], [2024, 1.05, '2025-02-09', 'Roma']].forEach(([st, f, d, l], n) => {
+        const righe = gare.map((c) => {
+          const t = Math.round(a.r.find((x) => x.c === c).t * f);
+          return `${c}|25|${t}|${d}|${l}`;
+        });
+        if (n === 0) righe.push(`100SL|50|${a.sx === 'F' ? 61800 : 55900}|2026-07-02|Roma|f|149618|4x100SL`);
+        if (n === 1) righe.push(`100SL|25|${a.sx === 'F' ? 63400 : 57680}|2025-01-04|Roma|p|148147|200SL`);
+        doc[`s${st}`] = [`${a.s}|12`, ...righe].join('~');
+      });
+      return doc;
+    },
     async cercaItalia(testo) {
       const righe = await this.leggiRicerca(testo.slice(0, 2));
       const chiavi = (n) => { const p = n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/['’`-]+/g, ' ').split(/\s+/); return p.map((_, i) => [...p.slice(i), ...p.slice(0, i)].join(' ')); };

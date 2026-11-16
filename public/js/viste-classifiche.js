@@ -5,7 +5,7 @@ import {
 } from './nucleo.js';
 import {
   tempo, nomeGara, giorno, quando, stagioneCorrente, nomeStagione, stagioneDi, differenza,
-  codici, nomeCodice,
+  codici, nomeCodice, etichettaTipo,
 } from './formato.js';
 import { punti } from './punti.js';
 import { tastoInfo } from './spiegazioni.js';
@@ -48,12 +48,12 @@ export function leggiClassifica(id) {
   return conCache(`classifica:${id}`, (fresco) => api.leggiClassifica(id, fresco), { durata: 600_000 });
 }
 
-/** Righe di una classifica: { k, n, y, s, valore, d }. */
+/** Righe di una classifica: { k, n, y, s, valore, d, tp } (tp: p passaggio, f prima frazione di staffetta). */
 export function righeClassifica(doc) {
   return (doc?.righe ?? []).map((riga) => {
-    const [k, n, y, s, valore, d] = riga.split('|');
+    const [k, n, y, s, valore, d, tp] = riga.split('|');
     return {
-      k, n, y: Number(y) || null, s, valore: Number(valore), d,
+      k, n, y: Number(y) || null, s, valore: Number(valore), d, tp,
     };
   }).filter((r) => !nascosto(r.k));
 }
@@ -191,7 +191,7 @@ export async function vistaClassifiche() {
                 <span class="pos"><b>${r.pos}</b>${badgeMovimento(r.mov)}</span>
                 <span class="chi"><b>${esc(r.n)}</b><small>${esc([r.y, r.s].filter(Boolean).join(' · '))}${r.picco && r.picco < r.pos ? ` · picco ${r.picco}°` : ''}</small></span>
                 <span class="quanto">${indice ? `<b>${r.valore}</b><small>${esc((r.d ?? '').split(',').filter(Boolean).map((c) => nomeGara(c, { breve: true })).join(' · '))}</small>`
-    : `<b>${esc(tempo(r.valore))}</b><small>${esc([punti(r.valore, scelta.c, scelta.sx, scelta.v, r.d) ? `${punti(r.valore, scelta.c, scelta.sx, scelta.v, r.d)} pt` : '', r.d ? giorno(r.d) : ''].filter(Boolean).join(' · '))}</small>`}</span>
+    : `<b>${esc(tempo(r.valore))}</b><small>${esc([punti(r.valore, scelta.c, scelta.sx, scelta.v, r.d) ? `${punti(r.valore, scelta.c, scelta.sx, scelta.v, r.d)} pt` : '', r.d ? giorno(r.d) : '', etichettaTipo(r.tp)].filter(Boolean).join(' · '))}</small>`}</span>
               </a>
             </li>`).join('')}</ol>
           ${!scelta.tutti && righe.length > 100 ? `<button class="bottone bottone-secondario" data-tutti style="margin-top:12px">Mostra tutti (${righe.length})</button>` : ''}`}
