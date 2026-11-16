@@ -20,7 +20,9 @@ const SPIEGAZIONI = {
       un po' chi è forte anche in altre: è il modo più giusto che abbiamo trovato per mettere in fila atleti diversi.</p>
       <p>Chi ha nuotato una sola specialità ha come indice i punti di quella gara.
       Nelle classifiche di una stagione si usano i tempi di quella stagione; nella classifica "di sempre" di una squadra
-      si usano i migliori tempi di ogni specialità di tutti gli anni passati in quella squadra.</p>`,
+      si usano i migliori tempi di ogni specialità di tutti gli anni passati in quella squadra.</p>
+      <p><strong>Un limite da sapere.</strong> Come i punti su cui si basa, nei più giovani l'indice favorisce un po' le gare lunghe
+      (400, 800, 1500): da ragazzi si è più vicini al record del mondo nella resistenza che nella velocità pura.</p>`,
   },
   annata: {
     titolo: 'Indice annata',
