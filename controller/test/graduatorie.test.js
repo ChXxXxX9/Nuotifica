@@ -409,14 +409,17 @@ test('riassunto di una squadra: componenti, migliori di sempre e punti fatti con
   assert.deepEqual(r.st, ['2025', '2024']);
   assert.deepEqual(r.m.sort(), ['a|Anna Rossi|2010|F|2024|2025', 'b|Luca Neri|2009|M|2024|2024']);
   assert.deepEqual(r.t['25|100SL|F'], ['a|60000|2026-01-10|2025']);
-  // Indice Cloro di sempre: il migliore di una stagione, con la stagione e le specialità.
-  const { indiciStagione, indiceDaPunti } = await import('../src/dati-italia.js');
+  // Indice Cloro di sempre: i migliori punti di ogni specialità di tutti gli anni in squadra.
+  const { indiceDaPunti } = await import('../src/dati-italia.js');
   const anna = r.ic.find((x) => x.k === 'a');
-  const st2025 = indiciStagione({ '25|100SL|F': ['a|60000|2026-01-10'], '50|50SL|F': ['a|28000|2026-06-10'] }, punti)[0];
-  assert.equal(anna.valore, st2025.valore);
-  assert.equal(anna.st, '2025');
+  const attesa = indiceDaPunti([
+    { c: '100SL', pt: punti(62000, '100SL', 'F', 25, '2025-01-10') },
+    { c: '100SL', pt: punti(60000, '100SL', 'F', 25, '2026-01-10') },
+    { c: '50SL', pt: punti(28000, '50SL', 'F', 50, '2026-06-10') },
+  ]);
+  assert.equal(anna.valore, attesa.valore);
   assert.deepEqual(anna.gare.sort(), ['100SL', '50SL']);
-  assert.equal(r.ic.find((x) => x.k === 'b').st, '2024');
+  assert.ok(r.ic.find((x) => x.k === 'b'));
   // Stessa formula dell'Indice Cloro delle classifiche.
   const { indiceCloro } = await import('../src/graduatorie.js');
   const prova = [{ c: '100SL', pt: 600 }, { c: '100SL', pt: 640 }, { c: '200SL', pt: 500 }, { c: '50DO', pt: 550 }];

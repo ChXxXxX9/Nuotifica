@@ -9,7 +9,7 @@ import {
 } from './formato.js';
 import { menuClassifiche, REGIONI } from './viste-classifiche.js';
 import {
-  squadraDaStagioni, leggiRiassuntoSquadra, leggiStagioneSquadra as stagioneDaItalia, indiciStagione,
+  squadraDaStagioni, leggiRiassuntoSquadra, leggiStagioneSquadra as stagioneDaItalia, indiciStagione, unisciTabelle,
 } from './dati-italia.js';
 import { tastoInfo } from './spiegazioni.js';
 
@@ -174,7 +174,7 @@ export async function vistaSquadra(id) {
     v: scelta.v, sx: scelta.sx, gruppo: scelta.gruppo, rsx: scelta.rsx,
   });
 
-  // Classifica atleti per Indice Cloro: di una stagione, o il migliore raggiunto con la squadra (di sempre).
+  // Classifica atleti per Indice Cloro: di una stagione, o di sempre (migliori tempi di tutti gli anni in squadra).
   const cacheRoster = new Map();
   const classificaAtleti = () => {
     const chiave = `${scelta.st}|${scelta.rsx}`;
@@ -182,13 +182,7 @@ export async function vistaSquadra(id) {
     let elenco = null;
     if (scelta.st === 'sempre') {
       if (sq.ic) elenco = sq.ic;
-      else if (sq.stagioni) {
-        const migliori = new Map();
-        for (const [st, x] of Object.entries(sq.stagioni)) {
-          for (const a of indiciStagione(x.t, punti)) if (!migliori.has(a.k) || a.valore > migliori.get(a.k).valore) migliori.set(a.k, { ...a, st });
-        }
-        elenco = [...migliori.values()].sort((a, b) => b.valore - a.valore);
-      }
+      else if (sq.stagioni) elenco = indiciStagione(unisciTabelle(Object.values(sq.stagioni).map((x) => x.t)), punti);
     } else if (tabelleStagione) {
       elenco = indiciStagione(tabelleStagione, punti);
     }
@@ -197,6 +191,8 @@ export async function vistaSquadra(id) {
     cacheRoster.set(chiave, elenco);
     return elenco;
   };
+  // Anni passati in squadra: "2018/19 – 2024/25" (o una stagione sola).
+  const periodoInSquadra = (m) => (!m?.da ? '' : m.da === m.a ? nomeStagione(m.da) : `${nomeStagione(m.da)} – ${nomeStagione(m.a)}`);
   const MAX_SQUADRE = 5;
   const seguita = () => (stato.profilo?.squadre ?? []).includes(id);
   const notifiche = () => stato.profilo?.notSq?.[id] ?? ['pb', 'staffette'];
@@ -302,7 +298,7 @@ export async function vistaSquadra(id) {
 
         <section class="sezione">
           <div class="sezione-testa"><h2 class="sezione-titolo titolo-con-info">Classifica atleti ${tastoInfo('indice-cloro', 'Come funziona l\'Indice Cloro')}</h2><span class="nota">${scelta.st === 'sempre' ? 'di sempre' : esc(nomeStagione(scelta.st))}</span></div>
-          <p class="nota" style="margin:-4px 0 10px">Per Indice Cloro${scelta.st === 'sempre' ? ': il migliore che ognuno ha raggiunto in una stagione con questa squadra' : ' della stagione, con i tempi nuotati per questa squadra'}.</p>
+          <p class="nota" style="margin:-4px 0 10px">Per Indice Cloro${scelta.st === 'sempre' ? ' di sempre: i migliori tempi di ogni specialità di tutti gli anni passati in questa squadra' : ' della stagione, con i tempi nuotati per questa squadra'}.</p>
           <div class="segmenti" role="tablist" aria-label="Chi">
             ${[['tutti', 'Tutti'], ['M', 'Maschi'], ['F', 'Femmine']].map(([v, nome]) => `<button class="segmento" role="tab" data-rsx="${v}" aria-selected="${scelta.rsx === v}">${nome}</button>`).join('')}
           </div>
@@ -313,7 +309,7 @@ export async function vistaSquadra(id) {
     return `<ol class="classifica" style="margin-top:10px">${elenco.slice(0, scelta.rTutti ? Infinity : 30).map((x, i) => `
               <li><a href="#/atleta/${encodeURIComponent(x.k)}">
                 <span class="pos"><b>${i + 1}</b></span>
-                <span class="chi"><b>${esc(nomeAtleta(x.k))}</b><small>${esc([perChiave.get(x.k)?.y, scelta.rsx === 'tutti' ? x.sx : '', (x.gare ?? []).map((c) => nomeGara(c, { breve: true })).join(', '), scelta.st === 'sempre' && x.st ? nomeStagione(x.st) : ''].filter(Boolean).join(' · '))}</small></span>
+                <span class="chi"><b>${esc(nomeAtleta(x.k))}</b><small>${esc([perChiave.get(x.k)?.y, scelta.rsx === 'tutti' ? x.sx : '', (x.gare ?? []).map((c) => nomeGara(c, { breve: true })).join(', '), scelta.st === 'sempre' ? periodoInSquadra(perChiave.get(x.k)) : ''].filter(Boolean).join(' · '))}</small></span>
                 <span class="quanto"><b>${x.valore}</b><small>indice</small></span>
               </a></li>`).join('')}</ol>
             ${!scelta.rTutti && elenco.length > 30 ? `<button class="bottone bottone-secondario" data-roster-tutti style="margin-top:10px">Mostra tutti (${elenco.length})</button>` : ''}`;

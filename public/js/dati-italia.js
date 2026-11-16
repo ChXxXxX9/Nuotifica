@@ -165,21 +165,15 @@ export function puntiSquadra(tabelle, punti) {
 export function riassuntoSquadra(doc, punti) {
   const sq = squadraDaStagioni(doc);
   if (!sq) return null;
-  // Indice Cloro di sempre: il migliore che ognuno ha raggiunto in una stagione con questa squadra.
-  const migliori = new Map();
-  for (const [st, s] of Object.entries(sq.stagioni)) {
-    for (const x of indiciStagione(s.t, punti)) {
-      if (!migliori.has(x.k) || x.valore > migliori.get(x.k).valore) migliori.set(x.k, { ...x, st });
-    }
-  }
-  const ic = [...migliori.values()].sort((a, b) => b.valore - a.valore);
+  // Indice Cloro di sempre: con i migliori punti di ogni specialità di tutti gli anni passati in squadra.
+  const ic = indiciStagione(unisciTabelle(Object.values(sq.stagioni).map((x) => x.t)), punti);
   return {
     n: pulisci(sq.n),
     reg: sq.reg ?? '',
     st: sq.st.join(','),
     m: sq.m.join('~'),
     t: Object.fromEntries(Object.entries(sq.t).map(([kt, righe]) => [kt, righe.join('~')])),
-    ic: ic.map((x) => [x.k, x.sx, x.valore, x.st, x.gare.join(',')].join('|')).join('~'),
+    ic: ic.map((x) => [x.k, x.sx, x.valore, '', x.gare.join(',')].join('|')).join('~'),
   };
 }
 
@@ -227,7 +221,14 @@ export function indiceDaPunti(punteggi = []) {
   return { valore: Math.round(migliori.reduce((t, x, i) => t + x.pt * pesi[i], 0) / totale), gare: migliori.map((x) => x.c) };
 }
 
-/** Indice Cloro di tutti gli atleti di una stagione di una squadra. `tabelle`: { "vasca|gara|sesso": ["chiave|tempo|data", …] }. */
+/** Le tabelle di più stagioni messe insieme (le righe di tutte le stagioni, gara per gara). */
+export function unisciTabelle(elenco) {
+  const tutte = {};
+  for (const t of elenco) for (const [kt, righe] of Object.entries(t ?? {})) (tutte[kt] ??= []).push(...righe);
+  return tutte;
+}
+
+/** Indice Cloro di tutti gli atleti di una stagione di una squadra (o di più stagioni unite). `tabelle`: { "vasca|gara|sesso": ["chiave|tempo|data", …] }. */
 export function indiciStagione(tabelle, punti) {
   const perAtleta = new Map();
   for (const [kt, righe] of Object.entries(tabelle ?? {})) {

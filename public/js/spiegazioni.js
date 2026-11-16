@@ -19,7 +19,8 @@ const SPIEGAZIONI = {
       invece chi nuota di più. L'Indice Cloro guarda solo le gare migliori, dà più peso alla specialità principale e premia
       un po' chi è forte anche in altre: è il modo più giusto che abbiamo trovato per mettere in fila atleti diversi.</p>
       <p>Chi ha nuotato una sola specialità ha come indice i punti di quella gara.
-      Nelle squadre, "di sempre" è il migliore Indice Cloro raggiunto in una stagione con quella squadra.</p>`,
+      Nelle classifiche di una stagione si usano i tempi di quella stagione; nella classifica "di sempre" di una squadra
+      si usano i migliori tempi di ogni specialità di tutti gli anni passati in quella squadra.</p>`,
   },
   annata: {
     titolo: 'Indice annata',
