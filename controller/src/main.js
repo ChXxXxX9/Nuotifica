@@ -416,7 +416,7 @@ async function principale() {
         db, fonti, scarica, adesso: new Date().toISOString(), log: () => {}, max: 3,
       });
       fatte += n;
-      if (!n) await new Promise((r) => { setTimeout(r, 12_000); });
+      if (!n) await new Promise((r) => { setTimeout(r, 20_000); });
     }
     if (fatte) console.log(`Classifiche preparate nell'attesa: ${fatte}.`);
   } catch (e) {
