@@ -232,7 +232,14 @@ export async function creaBackendFirebase(config) {
     }),
 
     /** Avvisi: un solo documento riassuntivo (una lettura); se manca, la ricerca di prima. */
-    leggiAvvisi: (settori) => avvolgi(async () => {
+    leggiAvvisi: (settori, fresco) => avvolgi(async () => {
+      // Prima la copia sul telefono (subito), poi la versione fresca arriva a `fresco`.
+      const daCopia = await leggiVeloce(
+        F.doc(db, 'meta', 'avvisi'),
+        (s) => (s.data().posts ?? []).map((p) => postDaDati(p, p.id)),
+        fresco,
+      ).catch(() => null);
+      if (daCopia) return daCopia;
       const snap = await F.getDoc(F.doc(db, 'meta', 'avvisi'));
       if (!snap.exists()) {
         if (!settori?.length) return [];
@@ -473,12 +480,12 @@ export async function creaBackendFirebase(config) {
       return snap.exists() ? postDaDoc(snap) : null;
     }),
 
-    leggiStato: async () => {
+    leggiStato: async (fresco) => {
       try {
-        const snap = await F.getDoc(F.doc(db, 'meta', 'stato'));
-        if (!snap.exists()) return null;
-        const s = snap.data();
-        return { ...s, ultimoControllo: comeData(s.ultimoControllo) };
+        return await leggiVeloce(F.doc(db, 'meta', 'stato'), (snap) => {
+          const s = snap.data();
+          return { ...s, ultimoControllo: comeData(s.ultimoControllo) };
+        }, fresco);
       } catch {
         return null;
       }

@@ -231,6 +231,7 @@ export function disegna(html, collega, { classeBody = '', aggiornamento = false,
   const scrollPrima = window.scrollY;
   const fai = () => {
     document.body.className = classeBody;
+    document.documentElement.classList.remove('istantanea');
     radice.innerHTML = html;
     radice.querySelector('[data-azione="indietro"]')?.addEventListener('click', () => {
       // Arrivati da una notifica non c'è una pagina precedente nell'app.

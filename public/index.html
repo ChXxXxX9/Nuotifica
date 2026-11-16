@@ -58,6 +58,22 @@
 </head>
 <body>
   <div id="app"></div>
+  <script>
+    // Apertura istantanea: l'ultima Home disegnata torna subito al suo posto, prima che parta il codice
+    // dell'app (che poi la sostituisce con quella aggiornata). Solo nell'app installata, solo sulla Home.
+    (function () {
+      try {
+        var h = location.hash;
+        if (h && h !== '#/' && h !== '#') return;
+        if (/[?&]demo\b/.test(location.search)) return;
+        if (!(matchMedia('(display-mode: standalone)').matches || navigator.standalone === true)) return;
+        var s = JSON.parse(localStorage.getItem('nuotifica.istantanea'));
+        if (!s || !s.html || Date.now() - s.quando > 7 * 864e5) return;
+        document.getElementById('app').innerHTML = s.html;
+        document.documentElement.classList.add('istantanea');
+      } catch (e) { /* si aspetta l'app */ }
+    })();
+  </script>
   <noscript>Per usare Cloro attiva JavaScript.</noscript>
 </body>
 </html>

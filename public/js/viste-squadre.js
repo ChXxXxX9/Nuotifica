@@ -185,7 +185,10 @@ export async function vistaSquadra(id) {
       elenco = puntiSquadra([tabelleStagione], punti);
     }
     if (!elenco) return null;
-    elenco = elenco.filter((x) => !nascosto(x.k) && (scelta.rsx === 'tutti' || x.sx === scelta.rsx));
+    // In ordine di media (chi ha nuotato più gare non è avvantaggiato); a pari media, più gare prima.
+    elenco = elenco.filter((x) => !nascosto(x.k) && (scelta.rsx === 'tutti' || x.sx === scelta.rsx))
+      .map((x) => ({ ...x, media: Math.round(x.pt / x.gare) }))
+      .sort((a, b) => b.media - a.media || b.gare - a.gare);
     cacheRoster.set(chiave, elenco);
     return elenco;
   };
@@ -294,7 +297,7 @@ export async function vistaSquadra(id) {
 
         <section class="sezione">
           <div class="sezione-testa"><h2 class="sezione-titolo">Classifica atleti</h2><span class="nota">${scelta.st === 'sempre' ? 'di sempre' : esc(nomeStagione(scelta.st))}</span></div>
-          <p class="nota" style="margin:-4px 0 10px">Punti World Aquatics fatti con questa squadra: la somma dei migliori tempi di ogni gara e vasca${scelta.st === 'sempre' ? ', stagione per stagione' : ' della stagione'}.</p>
+          <p class="nota" style="margin:-4px 0 10px">Media dei punti World Aquatics fatti con questa squadra: il migliore tempo di ogni gara e vasca${scelta.st === 'sempre' ? ', stagione per stagione' : ' della stagione'}, diviso per il numero di gare.</p>
           <div class="segmenti" role="tablist" aria-label="Chi">
             ${[['tutti', 'Tutti'], ['M', 'Maschi'], ['F', 'Femmine']].map(([v, nome]) => `<button class="segmento" role="tab" data-rsx="${v}" aria-selected="${scelta.rsx === v}">${nome}</button>`).join('')}
           </div>
@@ -306,7 +309,7 @@ export async function vistaSquadra(id) {
               <li><a href="#/atleta/${encodeURIComponent(x.k)}">
                 <span class="pos"><b>${i + 1}</b></span>
                 <span class="chi"><b>${esc(nomeAtleta(x.k))}</b><small>${esc([perChiave.get(x.k)?.y, scelta.rsx === 'tutti' ? x.sx : '', `${x.gare} ${x.gare === 1 ? 'gara' : 'gare'}`, x.top ? `top ${nomeGara(x.top.c, { breve: true })} ${x.top.v} m ${x.top.p}` : ''].filter(Boolean).join(' · '))}</small></span>
-                <span class="quanto"><b>${x.pt.toLocaleString('it-IT')}</b><small>punti</small></span>
+                <span class="quanto"><b>${x.media}</b><small>media</small></span>
               </a></li>`).join('')}</ol>
             ${!scelta.rTutti && elenco.length > 30 ? `<button class="bottone bottone-secondario" data-roster-tutti style="margin-top:10px">Mostra tutti (${elenco.length})</button>` : ''}`;
   })()}

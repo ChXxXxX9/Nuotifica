@@ -13,7 +13,9 @@ import {
 import { vistaGare, vistaGara, delLazio, cartaGara, statoGara } from './viste-gare.js';
 import { vistaConsigli, vistaAdmin, eAdmin } from './viste-consigli.js';
 import { applicaTema, temaScelto } from './tema.js';
-import { vistaAtleti, vistaAtleta, leggiSeguiti } from './viste-atleti.js';
+import {
+  vistaAtleti, vistaAtleta, leggiSeguiti, leggiAtleta,
+} from './viste-atleti.js';
 import { forseBenvenuto } from './benvenuto.js';
 import {
   vistaSoloApp, gestisciTrasloco, modoPc, vistaPcSoloAdmin,
@@ -42,8 +44,34 @@ export function salvaCopia() {
     posts: stato.posts,
     statoSito: stato.statoSito,
     gare: stato.gare,
+    // Atleti seguiti (solo quello che serve alla Home): così anche "I tuoi atleti" si apre subito.
+    seguitiDati: (stato.seguitiDati ?? null)?.map((a) => ({
+      k: a.k, n: a.n, s: a.s, ultimo: a.ultimo ? {
+        t: a.ultimo.t, c: a.ultimo.c, d: a.ultimo.d, b: a.ultimo.b, pt: a.ultimo.pt,
+      } : null,
+    })) ?? null,
   });
 }
+
+/**
+ * Istantanea della Home: l'ultima schermata disegnata, che index.html rimette al suo posto appena
+ * si apre l'app (prima ancora che parta il codice). Poi l'app la sostituisce con quella vera.
+ */
+let attesaIstantanea = null;
+function salvaIstantanea() {
+  if (modoDemo || !stato.utente) return;
+  clearTimeout(attesaIstantanea);
+  attesaIstantanea = setTimeout(() => {
+    if (percorso() !== '') return;
+    const html = radice.innerHTML;
+    if (html.length < 300_000) memoria('istantanea', { html, quando: Date.now() });
+  }, 400);
+}
+
+/** Lavori che possono aspettare: dopo che la pagina è comparsa e il telefono è libero. */
+const quandoLibero = (fn, ms = 1500) => (window.requestIdleCallback
+  ? window.requestIdleCallback(() => fn(), { timeout: ms + 1500 })
+  : setTimeout(fn, ms));
 
 function leggiCopia() {
   const c = memoria('copia');
@@ -60,6 +88,7 @@ function leggiCopia() {
       file: (post.file ?? []).map((f) => ({ ...f, aggiuntoIl: data(f.aggiuntoIl) })),
     })) : null,
     statoSito: c.statoSito ? { ...c.statoSito, ultimoControllo: data(c.statoSito.ultimoControllo) } : null,
+    seguitiDati: Array.isArray(c.seguitiDati) ? c.seguitiDati : null,
     gare: Array.isArray(c.gare) ? c.gare : null,
   };
 }
@@ -706,37 +735,43 @@ async function vistaPerTe() {
   }, { aggiornamento, scrollA });
 
   ridisegna();
+  salvaIstantanea();
 
-  // Dati freschi al massimo ogni 20 secondi.
+  // Dati freschi al massimo ogni 20 secondi. Ogni parte si aggiorna appena arriva (senza aspettare le altre).
   if (stato.aggiornatoIl && Date.now() - stato.aggiornatoIl < 20_000) return;
   stato.aggiornatoIl = Date.now();
-  const prima = `${improntaPosts(stato.posts)}#${JSON.stringify(stato.gare)}#${JSON.stringify(stato.seguitiDati)}`;
-  try {
-    const [posts, statoSito, gare, seguitiDati] = await Promise.all([
-      api.leggiAvvisi(p.settori ?? []),
-      api.leggiStato(),
-      conCache('gare', (fresco) => api.leggiGare(fresco), { durata: 30_000 }).catch(() => stato.gare ?? []),
-      leggiSeguiti(p.seguiti ?? []).catch(() => stato.seguitiDati ?? []),
-    ]);
-    stato.posts = posts;
-    stato.statoSito = statoSito;
-    stato.gare = gare;
-    stato.seguitiDati = seguitiDati;
-    salvaCopia();
-    if (percorso() !== '') return;
-    const dopo = `${improntaPosts(posts)}#${JSON.stringify(gare)}#${JSON.stringify(seguitiDati)}`;
-    if (dopo === prima && radice.querySelector('.elenco, .vuoto')) {
-      const barra = radice.querySelector('.barra-stato');
-      const nuova = barraStato();
-      if (barra && nuova) barra.outerHTML = nuova;
-    } else {
+  const firma = () => `${improntaPosts(stato.posts)}#${JSON.stringify(stato.gare)}#${JSON.stringify(stato.seguitiDati)}#${stato.statoSito?.ultimoControllo?.getTime?.() ?? ''}`;
+  let ultimaFirma = firma();
+  let attesa = null;
+  const aggiorna = () => {
+    clearTimeout(attesa);
+    attesa = setTimeout(() => {
+      if (percorso() !== '') return;
+      const ora = firma();
+      if (ora === ultimaFirma && radice.querySelector('.elenco, .vuoto')) return;
+      ultimaFirma = ora;
       ridisegna(true);
-    }
-  } catch (err) {
+      salvaIstantanea();
+    }, 60);
+  };
+  const esiti = await Promise.allSettled([
+    api.leggiAvvisi(p.settori ?? [], (nuovi) => { stato.posts = nuovi; aggiorna(); }).then((x) => { stato.posts = x; aggiorna(); }),
+    api.leggiStato((nuovo) => { stato.statoSito = nuovo; aggiorna(); }).then((x) => { stato.statoSito = x; aggiorna(); }),
+    conCache('gare', (fresco) => api.leggiGare(fresco), { durata: 30_000 }).then((x) => { stato.gare = x; aggiorna(); }),
+    leggiSeguiti(p.seguiti ?? []).then((x) => { stato.seguitiDati = x; aggiorna(); }),
+  ]);
+  salvaCopia();
+  // Quando il telefono è libero si preparano le schede degli atleti seguiti: aprirle sarà immediato.
+  if (!stato.precaricati) {
+    stato.precaricati = true;
+    quandoLibero(() => (p.seguiti ?? []).forEach((k) => leggiAtleta(k).catch(() => {})), 3000);
+  }
+  const errore = esiti.find((e) => e.status === 'rejected')?.reason;
+  if (errore) {
     stato.aggiornatoIl = 0;
     if (percorso() === '' && radice.querySelector('.caricamento')) {
       radice.querySelector('.caricamento').replaceWith(Object.assign(document.createElement('p'), {
-        className: 'errore', textContent: err.message,
+        className: 'errore', textContent: errore.message,
       }));
     }
   }
@@ -891,15 +926,17 @@ async function mostra() {
   // Impostazioni dell'admin per tutti: categorie per età e atleti da non mostrare.
   if (!stato.configCaricata) {
     stato.configCaricata = true;
-    api.leggiCategorie().then((r) => impostaRegoleCategorie(r)).catch(() => {});
-    api.leggiNascosti().then((d) => { stato.nascosti = d?.k ?? []; }).catch(() => {});
+    quandoLibero(() => {
+      api.leggiCategorie().then((r) => impostaRegoleCategorie(r)).catch(() => {});
+      api.leggiNascosti().then((d) => { stato.nascosti = d?.k ?? []; }).catch(() => {});
+    });
   }
   if (stato.admin === undefined) {
     stato.admin = false;
-    eAdmin().then((si) => {
+    quandoLibero(() => eAdmin().then((si) => {
       stato.admin = si;
       if (si && ['', 'impostazioni'].includes(percorso())) mostra();
-    });
+    }), 2500);
   }
 
   // Chi usava già Nuotifica (account creato prima del trasloco) vede l'animazione anche sul nuovo indirizzo.
@@ -985,6 +1022,7 @@ async function avvia() {
     stato.posts = copia.posts;
     stato.statoSito = copia.statoSito;
     stato.gare = copia.gare;
+    stato.seguitiDati = copia.seguitiDati ?? null;
     mostra();
   } else {
     caricamento();
@@ -1017,7 +1055,10 @@ async function avvia() {
     const eraLaCopia = primaConferma && copia && !cambiato;
     primaConferma = false;
     stato.utente = utente;
-    if (!utente) memoria('copia', null);
+    if (!utente) {
+      memoria('copia', null);
+      memoria('istantanea', null);
+    }
     if (cambiato) {
       stato.profilo = undefined;
       stato.posts = null;
@@ -1027,7 +1068,7 @@ async function avvia() {
       stato.aggiornatoIl = 0;
       stato.cache.clear();
     }
-    if (utente) rinnovaToken(utente.uid);
+    if (utente) quandoLibero(() => rinnovaToken(utente.uid), 4000);
     if (eraLaCopia) {
       salvaCopia();
       aggiornaProfiloInSilenzio();
