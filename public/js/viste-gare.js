@@ -8,6 +8,7 @@ import {
 } from './formato.js';
 import { seguiAtleta, eSeguito } from './viste-atleti.js';
 import { riempiPosizioni } from './posizioni.js';
+import { tastoInfo } from './spiegazioni.js';
 import {
   annateDi, riferimento, indiceAnnata, scriviIndice, riempiAnnata,
 } from './annata.js';
@@ -342,7 +343,7 @@ function costruisciElenco(evento, vista, contesto = {}) {
     });
     return {
       righe,
-      html: `<p class="nota" style="margin-top:10px">Indice annata (IA): il tempo rispetto alla media dei 10 migliori d'Italia nati nello stesso anno, in questa gara e vasca (100 = come loro, più alto = meglio). Sotto la posizione, quella in classifica.</p>
+      html: `<p class="nota" style="margin-top:10px">${tastoInfo('annata', 'Come funziona l\'Indice annata')}Indice annata (IA): il tempo rispetto alla media dei 10 migliori d'Italia nati nello stesso anno, in questa gara e vasca (100 = come loro, più alto = meglio). Sotto la posizione, quella in classifica.</p>
         <ol class="risultati" style="margin-top:8px">${pezzi.join('')}</ol>`,
     };
   }

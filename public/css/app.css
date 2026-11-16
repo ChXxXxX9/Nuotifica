@@ -1589,3 +1589,19 @@ label.bottone { cursor: pointer; }
 .scelte-notifiche legend { padding: 0 6px; font-size: 13px; color: var(--tenue); font-weight: 700; }
 .scelte-notifiche label { display: flex; align-items: center; gap: 10px; font-size: 15px; }
 .scelte-notifiche input { width: 20px; height: 20px; accent-color: var(--cloro); }
+
+/* Tasto "i" e foglio con la spiegazione */
+.tasto-info { display: inline-grid; place-items: center; width: 30px; height: 30px; margin: -6px 0 -6px 2px; padding: 0; border: 0;
+  border-radius: 50%; background: transparent; color: var(--tenue); cursor: pointer; vertical-align: middle; flex-shrink: 0; }
+.tasto-info svg { width: 19px; height: 19px; }
+.tasto-info:hover, .tasto-info:focus-visible { color: var(--cloro-testo); }
+.titolo-con-info { display: inline-flex; align-items: center; gap: 2px; }
+dialog.foglio-info { border: 0; padding: 0; margin: auto auto 0; width: 100%; max-width: 560px; max-height: 88vh; background: var(--piastrella);
+  color: var(--testo); border-radius: var(--r-l) var(--r-l) 0 0; box-shadow: var(--ombra); }
+dialog.foglio-info::backdrop { background: rgba(0, 0, 0, 0.55); }
+.foglio-info-corpo { padding: 22px 18px calc(18px + var(--sotto)); overflow-y: auto; max-height: 88vh; box-sizing: border-box; }
+.foglio-info-corpo h2 { font-family: var(--titoli); font-size: 22px; margin: 0 0 12px; }
+.foglio-info-corpo p { font-size: 15px; line-height: 1.55; color: var(--tenue-2); margin: 0 0 12px; }
+.foglio-info-corpo strong { color: var(--testo); }
+.foglio-info-corpo .esempio { background: var(--fondo); border: 1px solid var(--linea); border-radius: var(--r-s); padding: 10px 12px; }
+.foglio-info-corpo .bottone { margin-top: 6px; width: 100%; }

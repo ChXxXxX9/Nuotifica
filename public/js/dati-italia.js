@@ -165,14 +165,21 @@ export function puntiSquadra(tabelle, punti) {
 export function riassuntoSquadra(doc, punti) {
   const sq = squadraDaStagioni(doc);
   if (!sq) return null;
-  const ps = puntiSquadra(Object.values(sq.stagioni).map((x) => x.t), punti);
+  // Indice Cloro di sempre: il migliore che ognuno ha raggiunto in una stagione con questa squadra.
+  const migliori = new Map();
+  for (const [st, s] of Object.entries(sq.stagioni)) {
+    for (const x of indiciStagione(s.t, punti)) {
+      if (!migliori.has(x.k) || x.valore > migliori.get(x.k).valore) migliori.set(x.k, { ...x, st });
+    }
+  }
+  const ic = [...migliori.values()].sort((a, b) => b.valore - a.valore);
   return {
     n: pulisci(sq.n),
     reg: sq.reg ?? '',
     st: sq.st.join(','),
     m: sq.m.join('~'),
     t: Object.fromEntries(Object.entries(sq.t).map(([kt, righe]) => [kt, righe.join('~')])),
-    ps: ps.map((x) => [x.k, x.sx, x.pt, x.gare, x.top?.c ?? '', x.top?.v ?? '', x.top?.p ?? ''].join('|')).join('~'),
+    ic: ic.map((x) => [x.k, x.sx, x.valore, x.st, x.gare.join(',')].join('|')).join('~'),
   };
 }
 
@@ -186,10 +193,10 @@ export function leggiRiassuntoSquadra(x) {
     st: String(x.st).split(',').filter(Boolean),
     m: elenco(x.m),
     t: Object.fromEntries(Object.entries(x.t ?? {}).map(([kt, righe]) => [kt, elenco(righe)])),
-    ps: elenco(x.ps).map((riga) => {
-      const [k, sx, pt, gare, c, v, p] = riga.split('|');
+    ic: x.ic === undefined ? null : elenco(x.ic).map((riga) => {
+      const [k, sx, valore, st, gare] = riga.split('|');
       return {
-        k, sx, pt: Number(pt), gare: Number(gare), top: c ? { c, v: Number(v), p: Number(p) } : null,
+        k, sx, valore: Number(valore), st, gare: String(gare ?? '').split(',').filter(Boolean),
       };
     }),
   };
@@ -202,4 +209,37 @@ export function leggiStagioneSquadra(d) {
     m: String(d.m ?? '').split('~').filter(Boolean),
     t: Object.fromEntries(Object.entries(d.t ?? {}).map(([kt, testo]) => [kt, String(testo).split('~').filter(Boolean)])),
   };
+}
+
+const PESI_INDICE = [0.5, 0.3, 0.2];
+
+/**
+ * Indice Cloro di un atleta in una stagione: media pesata 50/30/20 dei punti delle sue 3 specialità
+ * migliori (per ogni specialità il punteggio più alto fra le due vasche). `punteggi`: [{ c, pt }].
+ */
+export function indiceDaPunti(punteggi = []) {
+  const perGara = new Map();
+  for (const x of punteggi) if (x.pt && (!perGara.has(x.c) || x.pt > perGara.get(x.c).pt)) perGara.set(x.c, x);
+  const migliori = [...perGara.values()].sort((a, b) => b.pt - a.pt).slice(0, 3);
+  if (!migliori.length) return null;
+  const pesi = PESI_INDICE.slice(0, migliori.length);
+  const totale = pesi.reduce((a, b) => a + b, 0);
+  return { valore: Math.round(migliori.reduce((t, x, i) => t + x.pt * pesi[i], 0) / totale), gare: migliori.map((x) => x.c) };
+}
+
+/** Indice Cloro di tutti gli atleti di una stagione di una squadra. `tabelle`: { "vasca|gara|sesso": ["chiave|tempo|data", …] }. */
+export function indiciStagione(tabelle, punti) {
+  const perAtleta = new Map();
+  for (const [kt, righe] of Object.entries(tabelle ?? {})) {
+    const [v, c, sx] = kt.split('|');
+    for (const riga of righe) {
+      const [k, tempo, d] = riga.split('|');
+      const pt = punti(Number(tempo), c, sx, Number(v), d);
+      if (!pt) continue;
+      if (!perAtleta.has(k)) perAtleta.set(k, { sx, punteggi: [] });
+      perAtleta.get(k).punteggi.push({ c, pt });
+    }
+  }
+  return [...perAtleta].map(([k, x]) => ({ k, sx: x.sx, ...indiceDaPunti(x.punteggi) }))
+    .filter((x) => x.valore).sort((a, b) => b.valore - a.valore);
 }

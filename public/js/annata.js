@@ -2,6 +2,7 @@
 // gara e vasca (100 = la loro media; sopra 100 = più veloce). Le medie le prepara il controllore per
 // ogni stagione (Realtime Database, ann/s{stagione}): "media in ms|quanti".
 import { api, conCache, memoria } from './nucleo.js';
+import { tastoInfo } from './spiegazioni.js';
 
 const ORE = 12;
 
@@ -65,7 +66,7 @@ export async function riempiAnnata(el, {
   if (indice == null || !scheda.isConnected) return;
   const riga = document.createElement('p');
   riga.className = 'riga-annata';
-  riga.innerHTML = `<b>${scriviIndice(indice)}</b> <span>indice annata</span><small>100 = media dei 10 migliori d'Italia ${rif.prima ? 'della stessa età nella stagione scorsa' : `nati nel ${Number(y)}`}${!rif.prima && rif.n < 10 ? ` (${rif.n} tempi finora)` : ''}</small>`;
+  riga.innerHTML = `<b>${scriviIndice(indice)}</b> <span>indice annata</span>${tastoInfo('annata', 'Come funziona l\'Indice annata')}<small>100 = media dei 10 migliori d'Italia ${rif.prima ? 'della stessa età nella stagione scorsa' : `nati nel ${Number(y)}`}${!rif.prima && rif.n < 10 ? ` (${rif.n} tempi finora)` : ''}</small>`;
   const dove = scheda.querySelector('[data-posizioni]');
   if (dove) dove.before(riga);
   else scheda.append(riga);

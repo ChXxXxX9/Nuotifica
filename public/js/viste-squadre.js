@@ -9,8 +9,9 @@ import {
 } from './formato.js';
 import { menuClassifiche, REGIONI } from './viste-classifiche.js';
 import {
-  squadraDaStagioni, leggiRiassuntoSquadra, leggiStagioneSquadra as stagioneDaItalia, puntiSquadra,
+  squadraDaStagioni, leggiRiassuntoSquadra, leggiStagioneSquadra as stagioneDaItalia, indiciStagione,
 } from './dati-italia.js';
+import { tastoInfo } from './spiegazioni.js';
 
 const nascosto = (k) => (stato.nascosti ?? []).includes(k);
 const normalizza = (t = '') => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -173,22 +174,26 @@ export async function vistaSquadra(id) {
     v: scelta.v, sx: scelta.sx, gruppo: scelta.gruppo, rsx: scelta.rsx,
   });
 
-  // Classifica atleti: punti World Aquatics sommati (il migliore di ogni gara e vasca, per ogni stagione in squadra).
+  // Classifica atleti per Indice Cloro: di una stagione, o il migliore raggiunto con la squadra (di sempre).
   const cacheRoster = new Map();
   const classificaAtleti = () => {
     const chiave = `${scelta.st}|${scelta.rsx}`;
     if (cacheRoster.has(chiave)) return cacheRoster.get(chiave);
     let elenco = null;
     if (scelta.st === 'sempre') {
-      elenco = sq.ps ?? (sq.stagioni ? puntiSquadra(Object.values(sq.stagioni).map((x) => x.t), punti) : null);
+      if (sq.ic) elenco = sq.ic;
+      else if (sq.stagioni) {
+        const migliori = new Map();
+        for (const [st, x] of Object.entries(sq.stagioni)) {
+          for (const a of indiciStagione(x.t, punti)) if (!migliori.has(a.k) || a.valore > migliori.get(a.k).valore) migliori.set(a.k, { ...a, st });
+        }
+        elenco = [...migliori.values()].sort((a, b) => b.valore - a.valore);
+      }
     } else if (tabelleStagione) {
-      elenco = puntiSquadra([tabelleStagione], punti);
+      elenco = indiciStagione(tabelleStagione, punti);
     }
     if (!elenco) return null;
-    // In ordine di media (chi ha nuotato più gare non è avvantaggiato); a pari media, più gare prima.
-    elenco = elenco.filter((x) => !nascosto(x.k) && (scelta.rsx === 'tutti' || x.sx === scelta.rsx))
-      .map((x) => ({ ...x, media: Math.round(x.pt / x.gare) }))
-      .sort((a, b) => b.media - a.media || b.gare - a.gare);
+    elenco = elenco.filter((x) => !nascosto(x.k) && (scelta.rsx === 'tutti' || x.sx === scelta.rsx));
     cacheRoster.set(chiave, elenco);
     return elenco;
   };
@@ -296,8 +301,8 @@ export async function vistaSquadra(id) {
         </section>
 
         <section class="sezione">
-          <div class="sezione-testa"><h2 class="sezione-titolo">Classifica atleti</h2><span class="nota">${scelta.st === 'sempre' ? 'di sempre' : esc(nomeStagione(scelta.st))}</span></div>
-          <p class="nota" style="margin:-4px 0 10px">Media dei punti World Aquatics fatti con questa squadra: il migliore tempo di ogni gara e vasca${scelta.st === 'sempre' ? ', stagione per stagione' : ' della stagione'}, diviso per il numero di gare.</p>
+          <div class="sezione-testa"><h2 class="sezione-titolo titolo-con-info">Classifica atleti ${tastoInfo('indice-cloro', 'Come funziona l\'Indice Cloro')}</h2><span class="nota">${scelta.st === 'sempre' ? 'di sempre' : esc(nomeStagione(scelta.st))}</span></div>
+          <p class="nota" style="margin:-4px 0 10px">Per Indice Cloro${scelta.st === 'sempre' ? ': il migliore che ognuno ha raggiunto in una stagione con questa squadra' : ' della stagione, con i tempi nuotati per questa squadra'}.</p>
           <div class="segmenti" role="tablist" aria-label="Chi">
             ${[['tutti', 'Tutti'], ['M', 'Maschi'], ['F', 'Femmine']].map(([v, nome]) => `<button class="segmento" role="tab" data-rsx="${v}" aria-selected="${scelta.rsx === v}">${nome}</button>`).join('')}
           </div>
@@ -308,8 +313,8 @@ export async function vistaSquadra(id) {
     return `<ol class="classifica" style="margin-top:10px">${elenco.slice(0, scelta.rTutti ? Infinity : 30).map((x, i) => `
               <li><a href="#/atleta/${encodeURIComponent(x.k)}">
                 <span class="pos"><b>${i + 1}</b></span>
-                <span class="chi"><b>${esc(nomeAtleta(x.k))}</b><small>${esc([perChiave.get(x.k)?.y, scelta.rsx === 'tutti' ? x.sx : '', `${x.gare} ${x.gare === 1 ? 'gara' : 'gare'}`, x.top ? `top ${nomeGara(x.top.c, { breve: true })} ${x.top.v} m ${x.top.p}` : ''].filter(Boolean).join(' · '))}</small></span>
-                <span class="quanto"><b>${x.media}</b><small>media</small></span>
+                <span class="chi"><b>${esc(nomeAtleta(x.k))}</b><small>${esc([perChiave.get(x.k)?.y, scelta.rsx === 'tutti' ? x.sx : '', (x.gare ?? []).map((c) => nomeGara(c, { breve: true })).join(', '), scelta.st === 'sempre' && x.st ? nomeStagione(x.st) : ''].filter(Boolean).join(' · '))}</small></span>
+                <span class="quanto"><b>${x.valore}</b><small>indice</small></span>
               </a></li>`).join('')}</ol>
             ${!scelta.rTutti && elenco.length > 30 ? `<button class="bottone bottone-secondario" data-roster-tutti style="margin-top:10px">Mostra tutti (${elenco.length})</button>` : ''}`;
   })()}

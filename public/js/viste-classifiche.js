@@ -8,6 +8,7 @@ import {
   codici, nomeCodice,
 } from './formato.js';
 import { punti } from './punti.js';
+import { tastoInfo } from './spiegazioni.js';
 import { leggiAtleta } from './viste-atleti.js';
 
 export const GARE = ['50SL', '100SL', '200SL', '400SL', '800SL', '1500SL', '50DO', '100DO', '200DO', '50RA', '100RA', '200RA',
@@ -172,7 +173,7 @@ export async function vistaClassifiche() {
           ${GARE.map((c) => `<button class="chip" data-c="${c}" aria-pressed="${scelta.c === c}">${esc(nomeGara(c, { breve: true }))}</button>`).join('')}
         </div>
 
-        <p class="nota" style="margin:2px 0 10px">${esc(indice ? 'Indice Cloro: media pesata dei punti delle 3 gare migliori della stagione (atleti del Lazio).' : `Migliori tempi ${scelta.st === 'tutte' ? 'di sempre (tutte le stagioni)' : `della stagione ${nomeStagione(scelta.st)}`}${scelta.cat !== 'tutte' ? ` · ${nomeCodice(scelta.cat, scelta.sx)}` : ''}${scelta.reg === 'it' ? ' in Italia' : ` degli atleti ${scelta.reg === LAZIO ? 'del Lazio' : `della regione ${dove}`}`}, vasca da ${scelta.v} m${doc?.parziale ? ` (i primi ${righeClassifica(doc).length})` : ''}.`)}${doc?.agg ? ` Aggiornata ${esc(quando(doc.agg?.toDate ? doc.agg.toDate() : new Date(doc.agg)))}.` : ''}</p>
+        <p class="nota" style="margin:2px 0 10px">${indice ? tastoInfo('indice-cloro', 'Come funziona l\'Indice Cloro') : ''}${esc(indice ? 'Indice Cloro: media pesata dei punti delle 3 gare migliori della stagione (atleti del Lazio).' : `Migliori tempi ${scelta.st === 'tutte' ? 'di sempre (tutte le stagioni)' : `della stagione ${nomeStagione(scelta.st)}`}${scelta.cat !== 'tutte' ? ` · ${nomeCodice(scelta.cat, scelta.sx)}` : ''}${scelta.reg === 'it' ? ' in Italia' : ` degli atleti ${scelta.reg === LAZIO ? 'del Lazio' : `della regione ${dove}`}`}, vasca da ${scelta.v} m${doc?.parziale ? ` (i primi ${righeClassifica(doc).length})` : ''}.`)}${doc?.agg ? ` Aggiornata ${esc(quando(doc.agg?.toDate ? doc.agg.toDate() : new Date(doc.agg)))}.` : ''}</p>
         ${inPreparazione ? `<p class="avviso-preparazione">${doc ? 'Aggiornamento in corso: tra qualche minuto vedi i tempi nuovi.' : `Sto preparando la classifica ${scelta.reg === 'it' ? 'nazionale' : `della regione ${esc(dove)}`}: è pronta in pochi minuti, puoi restare qui.`}</p>` : ''}
 
         ${caricando ? '<p class="caricamento">Carico la classifica…</p>' : errore ? `<p class="errore">${esc(errore)}</p>` : !righe.length ? (inPreparazione && !doc ? '<p class="caricamento">In preparazione…</p>' : `

@@ -15,6 +15,7 @@ import { punti } from './punti.js';
 import { schedaRisultato } from './viste-gare.js';
 import { riempiPosizioni } from './posizioni.js';
 import { riempiAnnata } from './annata.js';
+import { tastoInfo } from './spiegazioni.js';
 
 export const MAX_SEGUITI = 10;
 
@@ -396,7 +397,7 @@ export async function vistaAtleta(k) {
           <div class="cifre">
             <div class="cifra"><b>${risultati.filter((x) => x.t).length}</b><small>Tempi in ${gare} ${gare === 1 ? 'gara' : 'gare'}</small></div>
             <div class="cifra"><b>${maxPunti || '–'}</b><small>Punti max</small></div>
-            <a class="cifra cifra-indice" href="#/classifiche"><b>${indice?.valore ?? indicePrima?.valore ?? '–'}</b><small>Indice Cloro${!indice && indicePrima ? ` ${esc(nomeStagione(String(Number(st) - 1)))}` : ''}</small></a>
+            <div class="cifra cifra-indice"><b>${indice?.valore ?? indicePrima?.valore ?? '–'}</b><small class="titolo-con-info">Indice Cloro${!indice && indicePrima ? ` ${esc(nomeStagione(String(Number(st) - 1)))}` : ''}${tastoInfo('indice-cloro', 'Come funziona l\'Indice Cloro')}</small></div>
           </div>
         </section>
 
