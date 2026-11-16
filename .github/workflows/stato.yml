@@ -24,3 +24,10 @@ jobs:
         run: |
           node src/stato-caricamento.js
           node src/diagnosi-classifiche.js
+      - name: Indirizzi
+        run: |
+          for u in https://cloro.web.app/ https://cloro.web.app/js/app.js https://nuotifica.web.app/ https://nuotifica.web.app/sw.js https://nuotifica.web.app/js/app.js; do
+            echo "$u -> $(curl -s -o /tmp/r -w '%{http_code} %{size_download}B' "$u") $(head -c 120 /tmp/r | tr '\n' ' ')"
+          done | tee /tmp/indirizzi.txt
+          echo "::notice title=Indirizzi::$(tr '\n' ';' < /tmp/indirizzi.txt | sed 's/%/%25/g')"
+
