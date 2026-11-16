@@ -18,9 +18,23 @@ const SPIEGAZIONI = {
       in più la abbasserebbe, e nelle classifiche di sempre conterebbero anche gli anni da esordiente. Una somma premierebbe
       invece chi nuota di più. L'Indice Cloro guarda solo le gare migliori, dà più peso alla specialità principale e premia
       un po' chi è forte anche in altre: è il modo più giusto che abbiamo trovato per mettere in fila atleti diversi.</p>
-      <p>Chi ha nuotato una sola specialità ha come indice i punti di quella gara.
-      Nelle classifiche di una stagione si usano i tempi di quella stagione; nella classifica "di sempre" di una squadra
-      si usano i migliori tempi di ogni specialità di tutti gli anni passati in quella squadra.</p>`,
+      <p>Chi ha nuotato una sola specialità ha come indice i punti di quella gara. Si calcola sempre su una stagione.
+      Per le squadre c'è invece la <strong>Media squadra</strong>, che guarda tutte le gare fatte con la squadra.</p>`,
+  },
+  'media-squadra': {
+    titolo: 'Media squadra',
+    testo: `
+      <p>La <strong>Media squadra</strong> è fatta solo per le squadre, come una media scolastica: si prendono tutti i "voti"
+      di un atleta con quella squadra, si sommano e si dividono per quanti sono.</p>
+      <p><strong>Un voto</strong> sono i punti World Aquatics del suo migliore tempo in una gara, in una vasca, in una stagione:
+      il 100 rana in vasca da 25 del 2023/24 è un voto, quello in vasca da 50 un altro, il 100 rana del 2024/25 un altro ancora.
+      Le gare una per una non le abbiamo per tutti, quindi per essere giusti con tutti si usa il migliore di ogni gara e vasca, stagione per stagione.</p>
+      <p class="esempio">Esempio: 520, 560, 480, 610, 530 e 500 punti in sei voti fanno 3200 ÷ 6 = <strong>533</strong>.</p>
+      <p><strong>Cosa misura.</strong> Quanto rende in media ogni sua gara con la squadra: premia chi è costante.
+      L'<strong>Indice Cloro</strong> invece guarda solo le 3 specialità migliori e dice quanto è forte.</p>
+      <p><strong>Due regole.</strong> In classifica entra chi ha almeno 6 voti: con due gare buone sole non si finisce davanti a chi ne ha fatte cinquanta
+      (gli altri sono in un elenco a parte). E con il filtro <strong>Categoria</strong> o <strong>Esordienti</strong> contano solo gli anni in cui l'atleta
+      era di quel gruppo: così chi è cresciuto in squadra non si porta dietro i punteggi da piccolo.</p>`,
   },
   annata: {
     titolo: 'Indice annata',
