@@ -77,6 +77,8 @@ export function aggiungiRiga(atleti, r, {
     voce.tp = tp;
     if (r.idGara) voce.idg = r.idGara;
   }
+  // La stessa riga letta due volte (nazionale e regione): una sola.
+  if (a.risultati.some((x) => x.i === voce.i && x.t === voce.t && x.c === voce.c && x.v === voce.v)) return;
   const pt = punti(r.ms, codice, sesso, vasca, voce.d);
   if (pt) voce.pt = pt;
   a.risultati.push(voce);
@@ -142,7 +144,14 @@ export async function scaricaItalia({
           }
           continue;
         }
-        // Troppe righe (o nazionale non letta): regione per regione.
+        // Troppe righe (o nazionale non letta): regione per regione. Le righe della nazionale (i primi 5000)
+        // si tengono lo stesso: ci sono anche gli atleti di società che non stanno in nessun comitato
+        // regionale (gruppi sportivi nazionali), che regione per regione non comparirebbero.
+        for (const r of nazionale ?? []) {
+          aggiungiRiga(atleti, r, {
+            sesso, vasca, codice, st,
+          });
+        }
         for (const reg of TUTTE_LE_REGIONI) {
           for (const r of await leggiRegione(sesso, idVasca, codFin, reg)) {
             aggiungiRiga(atleti, r, {

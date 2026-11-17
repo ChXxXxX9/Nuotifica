@@ -255,6 +255,8 @@ test('una stagione di tutta Italia: nazionale, regioni solo se serve, regione da
   assert.equal(richieste, 72 + 20);
   assert.equal(chiamate.filter((x) => x === '').length, 72);
   assert.equal(atleti.get('desempio-marco-2007').reg, '9');
+  // Le righe della nazionale piena restano (chi non sta in nessuna regione), senza doppioni.
+  assert.equal(atleti.get('altro-atleta-2000').risultati.length, 1);
   // Chi ha la regione solo dalla società.
   atleti.set('x-y-2001', { n: 'Y X', y: 2001, sx: 'M', societa: new Set(['Nuoto Esempio - Roma']), reg: null, risultati: [] });
   const { completaRegioni } = await import('../src/italia.js');

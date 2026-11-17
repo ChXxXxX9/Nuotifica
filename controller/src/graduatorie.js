@@ -38,7 +38,7 @@ const PAUSA_ITALIA = 600;
 // Versione della lettura di tutta Italia: le stagioni lette con una versione più vecchia si rileggono.
 // 2 = regioni grandi divise per anno di nascita, Indice annata.
 // 3 = anche i passaggi e le prime frazioni di staffetta (prima mancavano).
-export const VERSIONE_ITALIA = 4;
+export const VERSIONE_ITALIA = 5;
 const MESI = {
   gennaio: 1, febbraio: 2, marzo: 3, aprile: 4, maggio: 5, giugno: 6,
   luglio: 7, agosto: 8, settembre: 9, ottobre: 10, novembre: 11, dicembre: 12,
@@ -125,7 +125,8 @@ export function scegliItalia(stato, adesso, saltate = new Set()) {
   const giorni = (s) => (fatte[s] ? (Date.parse(adesso) - Date.parse(fatte[s])) / 86_400_000 : Infinity);
   const libera = (s) => !saltate.has(s);
   // La stagione in corso ogni giorno (i tempi nuovi arrivano nelle graduatorie uno o due giorni dopo la gara).
-  if (giorni(corrente) > 0.8 && libera(corrente)) return corrente;
+  // Soglia bassa: il giro programmato della notte a volte parte una sola volta al giorno.
+  if (giorni(corrente) > 0.4 && libera(corrente)) return corrente;
   if (giorni(corrente - 1) > 30 && libera(corrente - 1)) return corrente - 1;
   const fine = Number(stato.rtdbFine) || STAGIONE_PIU_VECCHIA - 1;
   for (let s = corrente - 2; s > fine; s--) if (!fatte[s] && libera(s)) return s;
