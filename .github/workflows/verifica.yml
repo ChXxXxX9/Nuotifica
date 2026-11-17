@@ -12,6 +12,10 @@ on:
         description: 'Quante graduatorie controllare'
         required: false
         default: '80'
+      atleti:
+        description: 'Atleti da guardare da vicino (chiavi separate da virgola, facoltativo)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -39,9 +43,11 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           RTDB_URL: https://nuotifica-default-rtdb.europe-west1.firebasedatabase.app
           FONTI: ${{ secrets.FONTI }}
+          QUANTE: ${{ inputs.quante || '80' }}
+          ATLETI: ${{ inputs.atleti }}
         run: |
           mkdir -p "$RUNNER_TEMP/esiti"
-          node src/verifica.js "${{ inputs.quante || '80' }}" 40 "$RUNNER_TEMP/esiti/esempi.json"
+          node src/verifica.js "$QUANTE" 40 "$RUNNER_TEMP/esiti/esempi.json" "$ATLETI"
       - name: Esempi (solo cifrati)
         run: |
           cat > "$RUNNER_TEMP/pub.pem" <<'CHIAVE'

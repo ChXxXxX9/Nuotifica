@@ -125,11 +125,26 @@ async function principale() {
       }
     }));
   }
+  // Atleti da guardare da vicino (chiavi separate da virgola): la loro scheda e le righe della squadra.
+  const atleti = {};
+  for (const k of (process.argv[5] ?? '').split(',').map((x) => x.trim()).filter(Boolean)) {
+    const doc = await leggi(`a/${k}`);
+    const ultima = Object.keys(doc ?? {}).filter((x) => /^s\d{4}$/.test(x)).sort().pop();
+    const id = ultima ? chiaveSquadra(String(doc[ultima]).split('~')[0].split('|')[0]) : null;
+    const sq = id ? await leggi(`sqx/${id}`) : null;
+    atleti[k] = {
+      a: doc,
+      squadra: id,
+      v: sq?.v ?? null,
+      sempre: Object.fromEntries(Object.entries(sq?.t ?? {}).map(([kt, righe]) => [kt, String(righe).split('~').filter((r) => r.startsWith(`${k}|`))]).filter(([, r]) => r.length)),
+      ic: String(sq?.ic ?? '').split('~').filter((r) => r.startsWith(`${k}|`)),
+    };
+  }
   const pct = (o) => `${o.ok ?? 0}/${Object.values(o).reduce((a, b) => a + b, 0)} giusti${Object.entries(o).filter(([x]) => x !== 'ok').map(([x, n]) => `, ${n} ${x}`).join('')}`;
   const testo = `${conti.righe} tempi controllati. Schede: ${pct(conti.scheda)}. Squadre (stagione): ${pct(conti.squadra)}. Squadre (di sempre): ${pct(conti.sempre)}.`;
   console.log(process.env.GITHUB_ACTIONS ? `::notice title=Verifica::${testo}` : testo);
   await db.scrivi('meta/verifica', { quando: new Date().toISOString(), conti, testo });
-  if (fileEsempi) writeFileSync(fileEsempi, JSON.stringify(esempi, null, 1));
+  if (fileEsempi) writeFileSync(fileEsempi, JSON.stringify({ esempi, atleti }, null, 1));
 }
 
 if (process.argv[1]?.endsWith('verifica.js')) {
