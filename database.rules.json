@@ -30,6 +30,11 @@
         ".read": "auth != null"
       }
     },
+    "cl": {
+      "$classifica": {
+        ".read": "auth != null"
+      }
+    },
     "sqr": {
       "$squadra": {
         ".read": "auth != null"

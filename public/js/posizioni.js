@@ -26,7 +26,10 @@ async function classifica(r, idNotte) {
   const doc = await leggi(id);
   const corrente = Number(r.st) === Number(new Date().getMonth() >= 8 ? new Date().getFullYear() : new Date().getFullYear() - 1);
   const vecchia = doc && corrente && Date.now() - (dataDi(doc)?.getTime() ?? 0) > ORE_VALIDITA * 3_600_000;
-  if (!doc || vecchia) api.chiediClassifica(r).catch(() => {});
+  const erroreVecchio = doc?.errore && Date.now() - (dataDi(doc)?.getTime() ?? 0) > 10 * 60_000;
+  if (!doc || vecchia || erroreVecchio) api.chiediClassifica(r).catch(() => {});
+  // Classifica non disponibile (la fonte non ha risposto): niente posizione, senza restare in attesa.
+  if (doc?.errore) return { doc: null, attesa: false, errore: true };
   return { doc, attesa: !doc };
 }
 
@@ -45,10 +48,10 @@ export async function posizioniTempo({
     st: String(st), v: Number(v), c, sx,
   };
   const codici = y ? codiciAtleta(y, sx, st, regoleCategorie()) : [];
-  const [lazio, italia, ...italiaCat] = await Promise.all([
+  // Le classifiche di una stagione sono intere: le categorie si contano qui (una richiesta sola per l'Italia).
+  const [lazio, italia] = await Promise.all([
     classifica({ ...base, reg: '12', cat: 'tutte' }, Number(st) >= 2018 ? `${st}-${v}-${c}-${sx}` : null),
     classifica({ ...base, reg: 'it', cat: 'tutte' }),
-    ...codici.map((cod) => classifica({ ...base, reg: 'it', cat: cod })),
   ]);
   const colonne = [{ cod: 'tutte', nome: 'Assoluti' }, ...codici.map((cod) => ({ cod, nome: nomeCodice(cod, sx) }))];
   const listaLazio = lazio.doc ? righe(lazio.doc) : [];
@@ -56,6 +59,7 @@ export async function posizioniTempo({
     {
       dove: 'Lazio',
       celle: colonne.map((col) => {
+        if (lazio.errore) return { testo: '–' };
         if (!lazio.doc) return { attesa: true };
         const lista = col.cod === 'tutte' ? listaLazio
           : listaLazio.filter((x) => codiciAtleta(x.y, sx, st, regoleCategorie()).includes(col.cod));
@@ -64,10 +68,12 @@ export async function posizioniTempo({
     },
     {
       dove: 'Italia',
-      celle: colonne.map((col, i) => {
-        const r = i === 0 ? italia : italiaCat[i - 1];
-        if (!r.doc) return { attesa: true };
-        return posizione(righe(r.doc), t, k, r.doc.parziale);
+      celle: colonne.map((col) => {
+        if (italia.errore) return { testo: '–' };
+        if (!italia.doc) return { attesa: true };
+        const tutta = righe(italia.doc);
+        const lista = col.cod === 'tutte' ? tutta : tutta.filter((x) => codiciAtleta(x.y, sx, st, regoleCategorie()).includes(col.cod));
+        return posizione(lista, t, k, italia.doc.parziale);
       }),
     },
   ];

@@ -5,7 +5,9 @@ import { AVVISO_NON_UFFICIALE } from './costanti.js';
 export const radice = document.getElementById('app');
 const parametri = new URLSearchParams(location.search);
 export const configurato = Boolean(CONFIG.firebase.apiKey && CONFIG.firebase.projectId);
-export const modoDemo = parametri.has('demo') || !configurato;
+// Anteprima con dati di esempio: solo sul computer di chi sviluppa (indirizzi locali), mai sul sito vero.
+const indirizzoLocale = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+export const modoDemo = (parametri.has('demo') && indirizzoLocale) || !configurato;
 export const pocoMovimento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export const stato = {
@@ -77,19 +79,12 @@ export function installata() {
     .some((m) => window.matchMedia(`(display-mode: ${m})`).matches) || navigator.standalone === true;
 }
 
-/** Cloro si usa solo come app installata. Con ?demo si può provare nel browser (?soloapp per vedere il blocco). */
+/**
+ * Cloro si usa solo come app installata, per tutti: anche l'admin (dal computer la installa da Chrome o
+ * Edge). Nel browser si vedono solo i passaggi per installarla. ?demo vale solo sugli indirizzi locali.
+ */
 export function deveInstallare() {
-  if (inModoPc()) return false;
   return (!modoDemo || parametri.has('soloapp')) && !installata();
-}
-
-/** Dal computer, chi gestisce Cloro può entrare dal browser (lo sceglie dalla pagina "si usa come app"). */
-export function inModoPc() {
-  try {
-    return !installata() && !dispositivo().telefono && localStorage.getItem('nuotifica.admin-pc') === 'true';
-  } catch {
-    return false;
-  }
 }
 
 export function dispositivo() {

@@ -39,7 +39,9 @@ const GUSCIO = [
 ];
 
 self.addEventListener('install', (evento) => {
-  evento.waitUntil(caches.open(VERSIONE).then((c) => c.addAll(GUSCIO)).then(() => self.skipWaiting()));
+  // Sempre dalla rete (non dalla cache HTTP del browser): è la versione nuova appena pubblicata.
+  evento.waitUntil(caches.open(VERSIONE).then((c) => c.addAll(GUSCIO.map((u) => new Request(u, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (evento) => {
@@ -50,13 +52,15 @@ self.addEventListener('activate', (evento) => {
   })());
 });
 
-// File dell'app: si risponde subito con la copia sul telefono e intanto si scarica la versione nuova
-// (che si vedrà alla prossima apertura). Senza copia si va in rete.
+// File dell'app: si risponde subito con la copia sul telefono, senza scaricarli di nuovo a ogni apertura
+// (cambiano solo quando si pubblica: allora cambia anche questo file, e il telefono prende tutto il nuovo
+// in un colpo). Solo la pagina si ricontrolla in sottofondo. Senza copia si va in rete.
 async function primaLaCopia(evento) {
   const richiesta = evento.request;
   const navigazione = richiesta.mode === 'navigate';
   const cache = await caches.open(VERSIONE);
   const inCache = await cache.match(navigazione ? '/' : richiesta, { ignoreSearch: navigazione });
+  if (inCache && !navigazione) return inCache;
   const dallaRete = fetch(richiesta).then((risposta) => {
     if (risposta.ok) cache.put(navigazione ? '/' : richiesta, risposta.clone());
     return risposta;

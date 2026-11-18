@@ -22,10 +22,13 @@ export const MAX_SEGUITI = 10;
 
 const normalizza = (t = '') => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-/** Risultati senza doppioni (se un tempo è stato corretto vale l'ultima versione). */
+/**
+ * Risultati senza doppioni (se un tempo è stato corretto vale l'ultima versione) e senza i passaggi
+ * (i 100 dentro un 200…: da regolamento non valgono come tempo).
+ */
 export function risultatiPuliti(r = []) {
   const perId = new Map();
-  for (const v of r) perId.set(v.i ?? `${v.g}|${v.c}|${v.d}|${v.t}`, v);
+  for (const v of r) if (v.tp !== 'p') perId.set(v.i ?? `${v.g}|${v.c}|${v.d}|${v.t}`, v);
   // Lo stesso tempo arrivato da più fonti (gara letta in diretta e graduatorie): si tiene il più completo.
   const ricchezza = (v) => (v.sp ? 4 : 0) + (v.ci ? 2 : 0) + (v.f ? 0 : 1);
   const perTempo = new Map();
@@ -71,7 +74,10 @@ async function leggiStoricoAtleta(k) {
 /** Scheda di un atleta: la sua scheda (gare lette e graduatorie del Lazio) più i migliori di ogni stagione di tutta Italia. */
 export async function leggiAtleta(k, { fresco = false, italia = true } = {}) {
   if (fresco) stato.cache.delete(`atleta:${k}`);
-  const pulisci = (a) => (a ? { ...a, k, r: risultatiPuliti(a.r) } : null);
+  // (i passaggi della scheda si tolgono, ma si ricordano per pulire lo storico)
+  const pulisci = (a) => (a ? {
+    ...a, k, r: risultatiPuliti(a.r), passaggi: (a.r ?? []).filter((v) => v.tp === 'p').map((v) => `${v.c}|${v.v}|${v.t}|${v.d}`),
+  } : null);
   const base = conCache(`atleta:${k}`, async (fresco) => pulisci(await api.leggiAtleta(k, (nuovo) => fresco(pulisci(nuovo)))), { durata: 60_000 });
   if (!italia) return base;
   const [scheda, daItalia, storico] = await Promise.all([base, leggiDaItalia(k).catch(() => null), leggiStoricoAtleta(k).catch(() => null)]);
@@ -82,12 +88,15 @@ export async function leggiAtleta(k, { fresco = false, italia = true } = {}) {
   const insieme = scheda ?? (daItalia ? pulisci(daItalia) : null);
   if (!insieme) return null;
   const sx = insieme.sx ?? daItalia?.sx;
+  // Lo storico della federazione non dice quali tempi sono passaggi: si tolgono quelli che conosciamo.
+  const passaggi = new Set([...(daItalia?.px ?? []), ...(scheda?.passaggi ?? [])]);
+  const valido = (v) => !passaggi.has(`${v.c}|${v.v}|${v.t}|${v.d}`);
   return {
     ...insieme,
     reg: insieme.reg ?? daItalia?.reg,
     storico: storico ? { agg: storico.agg, nessuno: storico.nessuno, n: storico.r.length } : null,
     // Punti su tutti i tempi (anche quelli delle gare lette), così l'Indice Cloro è uguale ovunque.
-    r: conPunti(sx, risultatiPuliti([...insieme.r, ...(scheda && daItalia ? daItalia.r : []), ...(storico?.r ?? [])])),
+    r: conPunti(sx, risultatiPuliti([...insieme.r, ...(scheda && daItalia ? daItalia.r : []), ...(storico?.r ?? []).filter(valido)])),
   };
 }
 

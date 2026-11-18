@@ -12,6 +12,7 @@ on:
       - 'firestore.indexes.json'
       - 'database.rules.json'
       - '.github/workflows/pubblica.yml'
+      - 'strumenti/**'
   workflow_dispatch:
 
 permissions:
@@ -72,8 +73,9 @@ jobs:
 
       - name: Codice più leggero (solo nella copia pubblicata)
         run: |
-          # Stessi file e stessi nomi, senza spazi e commenti: circa la metà dei byte da scaricare.
-          npx --yes esbuild@0.24.2 public/js/*.js --minify --outdir=public/js --allow-overwrite --log-level=warning
+          # Il codice in pochi file compressi (2-3 invece di 25) e il service worker con la versione di questa
+          # pubblicazione: così l'app si apre leggendo pochissimo e si aggiorna da sola quando c'è del nuovo.
+          node strumenti/impacchetta.mjs public "$(echo "$GITHUB_SHA" | cut -c1-10)"
           npx --yes esbuild@0.24.2 public/css/*.css --minify --outdir=public/css --allow-overwrite --log-level=warning
           du -sh public/js public/css
 

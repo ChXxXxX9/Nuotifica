@@ -44,12 +44,30 @@ export function risolviOrigini(atleti) {
   }
 }
 
+/**
+ * Un passaggio (i 100 dentro un 200…) non vale come tempo: non entra nei risultati, ma si ricorda
+ * (atleti.passaggi: chiave -> ["gara|vasca|tempo|data"]) per toglierlo dallo storico gara per gara,
+ * dove la federazione non dice quali tempi sono passaggi.
+ */
+function ricordaPassaggio(atleti, r, { vasca, codice }) {
+  const { cognome, nome } = dividiNome(r.nome);
+  const k = chiaveAtleta(cognome, nome, r.anno);
+  if (!k) return;
+  if (!atleti.passaggi) Object.defineProperty(atleti, 'passaggi', { value: new Map(), enumerable: false });
+  if (!atleti.passaggi.has(k)) atleti.passaggi.set(k, new Set());
+  atleti.passaggi.get(k).add(`${codice}|${vasca}|${r.ms}|${r.data ?? ''}`);
+}
+
 /** Aggiunge una riga di graduatoria agli atleti della stagione (stessa forma per Lazio e Italia). */
 export function aggiungiRiga(atleti, r, {
   sesso, vasca, codice, st, reg = null,
 }) {
-  if (!tempoValido(r.turno)) return;
   const tp = tipoTempo(r.turno);
+  if (tp === 'p') {
+    ricordaPassaggio(atleti, r, { vasca, codice });
+    return;
+  }
+  if (!tempoValido(r.turno)) return;
   if (!tp && r.idGara) ID_GARE.set(r.idGara, codice);
   const { cognome, nome } = dividiNome(r.nome);
   const k = chiaveAtleta(cognome, nome, r.anno);
@@ -230,6 +248,11 @@ export function vociStagione(atleti, st, { indice = 'tutti', squadre = squadreDe
   }
   for (const [id, sq] of squadre) {
     voci[`sqs/${id}/s${st}`] = rigaSquadra(sq);
+  }
+  // Passaggi della stagione (non validi): si ricordano a parte; chi ha solo passaggi non ha tempi validi.
+  for (const [k, lista] of atleti.passaggi ?? []) {
+    voci[`a/${k}/x${st}`] = [...lista].join('~');
+    if (!atleti.has(k)) voci[`a/${k}/s${st}`] = null;
   }
   return voci;
 }

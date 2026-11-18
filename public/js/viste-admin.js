@@ -1,4 +1,4 @@
-// Sezione Admin (anche dal computer): panoramica e lavori, consigli, annunci, tempi limite,
+// Sezione Admin (anche dal computer, con l'app installata): panoramica e lavori, consigli, annunci, tempi limite,
 // categorie, atleti nascosti, utenti.
 import {
   stato, api, esc, barraTop, disegna, caricamento, paginaErrore, ICONE, avviso, conAttesa, mostraErrore, percorso,

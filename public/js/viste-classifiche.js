@@ -35,6 +35,7 @@ const ORE_VALIDITA = 24;
 const nomeRegione = (reg) => (reg === 'it' ? 'Italia' : REGIONI[reg] ?? reg);
 
 const nascosto = (k) => (stato.nascosti ?? []).includes(k);
+const normalizzaNome = (t = '') => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/['’`-]/g, ' ').replace(/\s+/g, ' ').trim();
 
 /** Sotto-menu della sezione Classifiche. */
 export function menuClassifiche(attiva) {
@@ -48,14 +49,17 @@ export function leggiClassifica(id) {
   return conCache(`classifica:${id}`, (fresco) => api.leggiClassifica(id, fresco), { durata: 600_000 });
 }
 
-/** Righe di una classifica: { k, n, y, s, valore, d, tp } (tp: p passaggio, f prima frazione di staffetta). */
+/**
+ * Righe di una classifica: { k, n, y, s, valore, d, tp } (tp f = prima frazione di staffetta).
+ * I passaggi (tp p, nelle classifiche preparate prima) non valgono da regolamento: si tolgono.
+ */
 export function righeClassifica(doc) {
   return (doc?.righe ?? []).map((riga) => {
     const [k, n, y, s, valore, d, tp] = riga.split('|');
     return {
       k, n, y: Number(y) || null, s, valore: Number(valore), d, tp,
     };
-  }).filter((r) => !nascosto(r.k));
+  }).filter((r) => r.tp !== 'p' && !nascosto(r.k));
 }
 
 /** Posizioni (a pari merito stessa posizione) e movimenti rispetto alla settimana scorsa. */
@@ -111,8 +115,11 @@ export async function vistaClassifiche() {
   let lazioSuRichiesta = false;
 
   // Lazio: classifiche complete (dalle graduatorie di notte). Italia e altre regioni: preparate su richiesta.
+  // Le classifiche di una stagione sono intere: la categoria si filtra qui. "Di sempre" ha solo i primi
+  // 5000, quindi per l'Italia ogni categoria di sempre è una classifica a sé.
+  const catSuRichiesta = () => scelta.reg === 'it' && scelta.st === 'tutte';
   const richiesta = () => ({
-    st: scelta.st, v: scelta.v, c: scelta.c, sx: scelta.sx, reg: scelta.reg, cat: scelta.reg === 'it' ? scelta.cat : 'tutte',
+    st: scelta.st, v: scelta.v, c: scelta.c, sx: scelta.sx, reg: scelta.reg, cat: catSuRichiesta() ? scelta.cat : 'tutte',
   });
   const notturna = () => scelta.reg === LAZIO && scelta.st !== 'tutte' && Number(scelta.st) >= PRIMA_NOTTE && !lazioSuRichiesta;
   const idDoc = () => {
@@ -125,18 +132,30 @@ export async function vistaClassifiche() {
   let caricando = true;
   let errore = null;
   let inPreparazione = false;
+  // Dopo qualche minuto di attesa si propone di riprovare.
+  let ritardo = false;
   let attesa = null;
 
   const ridisegna = (aggiornamento = false) => {
     const indice = scelta.c === 'indice';
     const lazio = scelta.reg === LAZIO;
-    const righe = doc ? conPosizioni(righeClassifica(doc), doc, {
-      indice, cat: scelta.reg === 'it' ? 'tutte' : scelta.cat, sx: scelta.sx, st: scelta.st,
+    const righe = doc && !doc.errore ? conPosizioni(righeClassifica(doc), doc, {
+      indice, cat: catSuRichiesta() ? 'tutte' : scelta.cat, sx: scelta.sx, st: scelta.st,
     }) : [];
     const dove = nomeRegione(scelta.reg);
     const risalita = righe.filter((r) => typeof r.mov === 'number' && r.mov > 0).sort((a, b) => b.mov - a.mov).slice(0, 6);
     const seguiti = new Set(stato.profilo?.seguiti ?? []);
     const mostrate = scelta.tutti ? righe : righe.slice(0, 100);
+    const voce = (r) => `
+            <li class="${seguiti.has(r.k) ? 'seguito' : ''}">
+              <a href="#/atleta/${encodeURIComponent(r.k)}">
+                <span class="pos"><b>${r.pos}</b>${badgeMovimento(r.mov)}</span>
+                <span class="chi"><b>${esc(r.n)}</b><small>${esc([r.y, r.s].filter(Boolean).join(' · '))}${r.picco && r.picco < r.pos ? ` · picco ${r.picco}°` : ''}</small></span>
+                <span class="quanto">${indice ? `<b>${r.valore}</b><small>${esc((r.d ?? '').split(',').filter(Boolean).map((c) => nomeGara(c, { breve: true })).join(' · '))}</small>`
+    : `<b>${esc(tempo(r.valore))}</b><small>${esc([punti(r.valore, scelta.c, scelta.sx, scelta.v, r.d) ? `${punti(r.valore, scelta.c, scelta.sx, scelta.v, r.d)} pt` : '', r.d ? giorno(r.d) : '', etichettaTipo(r.tp)].filter(Boolean).join(' · '))}</small>`}</span>
+              </a>
+            </li>`;
+    const lunga = ritardo && !doc;
     disegna(`
       ${barraTop()}
       <main class="pagina">
@@ -174,10 +193,14 @@ export async function vistaClassifiche() {
         </div>
 
         <p class="nota" style="margin:2px 0 10px">${indice ? tastoInfo('indice-cloro', 'Come funziona l\'Indice Cloro') : ''}${esc(indice ? 'Indice Cloro: media pesata dei punti delle 3 gare migliori della stagione (atleti del Lazio).' : `Migliori tempi ${scelta.st === 'tutte' ? 'di sempre (tutte le stagioni)' : `della stagione ${nomeStagione(scelta.st)}`}${scelta.cat !== 'tutte' ? ` · ${nomeCodice(scelta.cat, scelta.sx)}` : ''}${scelta.reg === 'it' ? ' in Italia' : ` degli atleti ${scelta.reg === LAZIO ? 'del Lazio' : `della regione ${dove}`}`}, vasca da ${scelta.v} m${doc?.parziale ? ` (i primi ${righeClassifica(doc).length})` : ''}.`)}${doc?.agg ? ` Aggiornata ${esc(quando(doc.agg?.toDate ? doc.agg.toDate() : new Date(doc.agg)))}.` : ''}</p>
-        ${inPreparazione ? `<p class="avviso-preparazione">${doc ? 'Aggiornamento in corso: tra qualche minuto vedi i tempi nuovi.' : `Sto preparando la classifica ${scelta.reg === 'it' ? 'nazionale' : `della regione ${esc(dove)}`}: è pronta in pochi minuti, puoi restare qui.`}</p>` : ''}
+        ${inPreparazione && !lunga ? `<p class="avviso-preparazione">${doc && !doc.errore ? 'Aggiornamento in corso: tra qualche minuto vedi i tempi nuovi.' : `Sto preparando la classifica ${scelta.reg === 'it' ? 'nazionale' : `della regione ${esc(dove)}`} (tutti gli atleti): di solito è pronta in un minuto o due, puoi restare qui.`}</p>` : ''}
 
-        ${caricando ? '<p class="caricamento">Carico la classifica…</p>' : errore ? `<p class="errore">${esc(errore)}</p>` : !righe.length ? (inPreparazione && !doc ? '<p class="caricamento">In preparazione…</p>' : `
-          <div class="vuoto"><strong>${doc ? 'Nessuno qui' : 'Classifica in arrivo'}</strong>${doc ? 'Prova un\'altra categoria o un\'altra gara.' : 'Le graduatorie del Lazio si caricano di notte, una stagione dopo l\'altra: torna domani.'}</div>`) : `
+        ${caricando ? '<p class="caricamento">Carico la classifica…</p>' : errore ? `<p class="errore">${esc(errore)}</p>`
+    : doc?.errore && !inPreparazione ? `<div class="vuoto"><strong>Classifica non disponibile adesso</strong>Le graduatorie non hanno risposto. <button class="bottone bottone-piccolo" data-riprova style="margin-top:10px">Riprova</button></div>`
+      : lunga ? `<div class="vuoto"><strong>Ci sta mettendo più del solito</strong>La classifica è in coda: puoi aspettare qui o riprovare. <button class="bottone bottone-piccolo" data-riprova style="margin-top:10px">Riprova</button></div>`
+        : !righe.length ? (inPreparazione && !doc ? '<p class="caricamento">In preparazione…</p>' : `
+          <div class="vuoto"><strong>${doc ? 'Nessun atleta' : 'Classifica in arrivo'}</strong>${doc ? 'In questa gara non ha nuotato nessuno con questi filtri.' : 'Le graduatorie del Lazio si caricano di notte, una stagione dopo l\'altra: torna domani.'}</div>`) : `
+          ${righe.length > 30 ? `<label class="cerca cerca-classifica"><input type="search" data-cerca-nome placeholder="Cerca un atleta o una squadra in classifica" autocomplete="off" aria-label="Cerca in classifica"></label>` : ''}
           ${risalita.length ? `
             <section class="risalita" aria-label="In risalita">
               <h2 class="sezione-titolo">In risalita</h2>
@@ -185,15 +208,8 @@ export async function vistaClassifiche() {
                 <a href="#/atleta/${encodeURIComponent(r.k)}" class="risalita-voce"><b>▲${r.mov}</b><span>${esc(r.n.split(' ')[0])} ${esc(r.n.split(' ').slice(1).join(' ').slice(0, 1))}.</span><small>${r.pos}°</small></a>`).join('')}
               </div>
             </section>` : ''}
-          <ol class="classifica">${mostrate.map((r) => `
-            <li class="${seguiti.has(r.k) ? 'seguito' : ''}">
-              <a href="#/atleta/${encodeURIComponent(r.k)}">
-                <span class="pos"><b>${r.pos}</b>${badgeMovimento(r.mov)}</span>
-                <span class="chi"><b>${esc(r.n)}</b><small>${esc([r.y, r.s].filter(Boolean).join(' · '))}${r.picco && r.picco < r.pos ? ` · picco ${r.picco}°` : ''}</small></span>
-                <span class="quanto">${indice ? `<b>${r.valore}</b><small>${esc((r.d ?? '').split(',').filter(Boolean).map((c) => nomeGara(c, { breve: true })).join(' · '))}</small>`
-    : `<b>${esc(tempo(r.valore))}</b><small>${esc([punti(r.valore, scelta.c, scelta.sx, scelta.v, r.d) ? `${punti(r.valore, scelta.c, scelta.sx, scelta.v, r.d)} pt` : '', r.d ? giorno(r.d) : '', etichettaTipo(r.tp)].filter(Boolean).join(' · '))}</small>`}</span>
-              </a>
-            </li>`).join('')}</ol>
+          <ol class="classifica" data-elenco-classifica>${mostrate.map(voce).join('')}</ol>
+          <p class="nota" data-nessuno-trovato hidden>Nessuno con questo nome in classifica.</p>
           ${!scelta.tutti && righe.length > 100 ? `<button class="bottone bottone-secondario" data-tutti style="margin-top:12px">Mostra tutti (${righe.length})</button>` : ''}`}
       </main>
       ${tabBar('classifiche')}`, (el) => {
@@ -218,8 +234,8 @@ export async function vistaClassifiche() {
       el.querySelectorAll('[data-c]').forEach((b) => b.addEventListener('click', () => cambia({ c: b.dataset.c })));
       el.querySelector('[data-categoria]').addEventListener('change', (e) => {
         const cat = e.target.value;
-        // Per l'Italia ogni categoria è una classifica a sé (i primi 3000 di tutti non bastano per i più piccoli).
-        if (scelta.reg === 'it') {
+        // Italia "di sempre": ogni categoria è una classifica a sé (i primi 5000 di sempre non bastano per i più piccoli).
+        if (catSuRichiesta()) {
           cambia({ cat });
           return;
         }
@@ -233,6 +249,31 @@ export async function vistaClassifiche() {
         scelta.tutti = true;
         ridisegna(true);
       });
+      // Cerca in classifica: si filtrano le righe (con la loro posizione vera) senza ridisegnare la pagina.
+      const cercaNome = el.querySelector('[data-cerca-nome]');
+      if (cercaNome) {
+        let attesaCerca;
+        cercaNome.addEventListener('input', () => {
+          clearTimeout(attesaCerca);
+          attesaCerca = setTimeout(() => {
+            const q = normalizzaNome(cercaNome.value);
+            const lista = el.querySelector('[data-elenco-classifica]');
+            const trovati = q ? righe.filter((r) => normalizzaNome(`${r.n} ${r.s ?? ''}`).includes(q)).slice(0, 200) : mostrate;
+            lista.innerHTML = trovati.map(voce).join('');
+            el.querySelector('[data-nessuno-trovato]').hidden = !q || trovati.length > 0;
+            const tutti = el.querySelector('[data-tutti]');
+            if (tutti) tutti.hidden = !!q;
+          }, 120);
+        });
+      }
+      el.querySelectorAll('[data-riprova]').forEach((b) => b.addEventListener('click', () => {
+        api.chiediClassifica(richiesta()).catch(() => {});
+        inPreparazione = true;
+        ritardo = false;
+        doc = doc?.errore ? null : doc;
+        aspetta(idDoc(), dataDi(doc)?.getTime() ?? 0, Date.now());
+        ridisegna(true);
+      }));
       el.querySelector('[aria-pressed="true"][data-c]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
     }, { aggiornamento });
   };
@@ -242,6 +283,7 @@ export async function vistaClassifiche() {
     caricando = true;
     errore = null;
     inPreparazione = false;
+    ritardo = false;
     lazioSuRichiesta = false;
     clearTimeout(attesa);
     let id = idDoc();
@@ -265,15 +307,21 @@ export async function vistaClassifiche() {
     caricando = false;
     // Italia e altre regioni: se manca (o è di ieri, per la stagione in corso) la si chiede al controllore.
     const vecchia = doc && (scelta.st === corrente || scelta.st === 'tutte') && Date.now() - (dataDi(doc)?.getTime() ?? 0) > ORE_VALIDITA * 3_600_000;
-    if (!errore && !notturna() && scelta.c !== 'indice' && (!doc || vecchia)) {
+    // Un errore di più di 10 minuti fa: si riprova da soli.
+    const erroreVecchio = doc?.errore && Date.now() - (dataDi(doc)?.getTime() ?? 0) > 10 * 60_000;
+    if (!errore && !notturna() && scelta.c !== 'indice' && (!doc || vecchia || erroreVecchio)) {
       inPreparazione = true;
       api.chiediClassifica(richiesta()).catch(() => {});
       aspetta(id, dataDi(doc)?.getTime() ?? 0, Date.now());
     }
     ridisegna(true);
   }
-  /** Controlla ogni 20 secondi se la classifica chiesta è pronta (per 8 minuti al massimo). */
+  /**
+   * Controlla ogni 8 secondi se la classifica chiesta è pronta. Dopo 4 minuti propone di riprovare (e
+   * intanto richiede la classifica, nel caso la richiesta si sia persa); smette dopo 15 minuti.
+   */
   function aspetta(id, primaDel, inizio) {
+    clearTimeout(attesa);
     attesa = setTimeout(async () => {
       if (!qui() || id !== idDoc()) return;
       try {
@@ -281,13 +329,19 @@ export async function vistaClassifiche() {
         if (nuovo && (dataDi(nuovo)?.getTime() ?? 0) > primaDel) {
           doc = nuovo;
           inPreparazione = false;
+          ritardo = false;
           stato.cache.set(`classifica:${id}`, { valore: nuovo, quando: Date.now() });
           ridisegna(true);
           return;
         }
       } catch { /* riproviamo */ }
-      if (Date.now() - inizio < 8 * 60_000) aspetta(id, primaDel, inizio);
-    }, 20_000);
+      if (!ritardo && Date.now() - inizio > 4 * 60_000) {
+        ritardo = true;
+        api.chiediClassifica(richiesta()).catch(() => {});
+        ridisegna(true);
+      }
+      if (Date.now() - inizio < 15 * 60_000) aspetta(id, primaDel, inizio);
+    }, 8_000);
   }
   ridisegna();
   carica();
@@ -585,6 +639,7 @@ export async function vistaQuantoVale() {
       italia = await leggiClassifica(`${st}-${scelta.v}-${scelta.c}-${scelta.sx}-it-tutte`);
       const agg = italia?.agg?.toDate ? italia.agg.toDate() : italia?.agg ? new Date(italia.agg) : null;
       if (!italia || !agg || Date.now() - agg.getTime() > ORE_VALIDITA * 3_600_000) api.chiediClassifica(r).catch(() => {});
+      if (italia?.errore) italia = null;
       if (mio === giro && qui()) mostra(lazio);
     } catch { /* niente Italia per ora */ }
   }

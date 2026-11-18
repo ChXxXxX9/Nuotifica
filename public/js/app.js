@@ -18,7 +18,7 @@ import {
 } from './viste-atleti.js';
 import { forseBenvenuto } from './benvenuto.js';
 import {
-  vistaSoloApp, gestisciTrasloco, modoPc, vistaPcSoloAdmin,
+  vistaSoloApp, gestisciTrasloco,
 } from './installazione.js';
 import {
   vistaClassifiche, vistaLimiti, vistaLimite, vistaQuantoVale,
@@ -756,13 +756,18 @@ async function vistaPerTe() {
       salvaIstantanea();
     }, 60);
   };
+  // Atleti seguiti: sono le letture più pesanti (scheda, tutta Italia, storico). Se c'è la copia di ieri
+  // si mostrano quelli e si aggiornano dopo il resto, così non rallentano avvisi e gare.
+  const seguiti = () => leggiSeguiti(p.seguiti ?? []).then((x) => { stato.seguitiDati = x; aggiorna(); });
+  const seguitiSubito = !stato.seguitiDati;
   const esiti = await Promise.allSettled([
     api.leggiAvvisi(p.settori ?? [], (nuovi) => { stato.posts = nuovi; aggiorna(); }).then((x) => { stato.posts = x; aggiorna(); }),
     api.leggiStato((nuovo) => { stato.statoSito = nuovo; aggiorna(); }).then((x) => { stato.statoSito = x; aggiorna(); }),
     conCache('gare', (fresco) => api.leggiGare(fresco), { durata: 30_000 }).then((x) => { stato.gare = x; aggiorna(); }),
-    leggiSeguiti(p.seguiti ?? []).then((x) => { stato.seguitiDati = x; aggiorna(); }),
+    ...(seguitiSubito ? [seguiti()] : []),
   ]);
   salvaCopia();
+  if (!seguitiSubito) quandoLibero(() => seguiti().then(salvaCopia).catch(() => {}), 800);
   // Quando il telefono è libero si preparano le schede degli atleti seguiti: aprirle sarà immediato.
   if (!stato.precaricati) {
     stato.precaricati = true;
@@ -912,18 +917,6 @@ async function mostra() {
     }
   }
   if (!stato.profilo) return vistaImpostazioni({ primaVolta: true });
-  // Dal computer (non installata) Cloro è solo per l'admin.
-  if (modoPc()) {
-    if (stato.admin !== true) {
-      caricamento('Controllo l\'accesso…');
-      stato.admin = await eAdmin();
-      if (!stato.admin) return vistaPcSoloAdmin();
-    }
-    if (p === '') {
-      location.replace('#/admin');
-      return null;
-    }
-  }
   // Impostazioni dell'admin per tutti: categorie per età e atleti da non mostrare.
   if (!stato.configCaricata) {
     stato.configCaricata = true;

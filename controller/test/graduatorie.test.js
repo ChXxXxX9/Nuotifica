@@ -38,7 +38,7 @@ test('stagione da leggere: prima la corrente, poi indietro', () => {
   assert.equal(scegliStagione({ fatte: tutte }, adesso), null);
 });
 
-test('una stagione: schede, primati e squadre (anche i passaggi, come la federazione)', async () => {
+test('una stagione: schede, primati e squadre (i passaggi non valgono, si ricordano a parte)', async () => {
   const docs = new Map();
   const db = {
     conta: { letture: 0, scritture: 0 },
@@ -68,7 +68,8 @@ test('una stagione: schede, primati e squadre (anche i passaggi, come la federaz
     db, rtdb, chiedi, st: 2025, adesso: '2026-11-15T02:00:00Z', log: () => {},
   });
   assert.equal(n, 72);
-  assert.equal(esito.atleti, 3);
+  // La terza riga è un passaggio: non è un tempo valido.
+  assert.equal(esito.atleti, 2);
   const marco = docs.get('atleti/desempio-marco-2007');
   assert.equal(marco.n, "Marco D'Esempio");
   assert.equal(marco.r[0].t, 45_680);
@@ -81,6 +82,9 @@ test('una stagione: schede, primati e squadre (anche i passaggi, come la federaz
   assert.ok(voci['a/desempio-marco-2007/s2025'].startsWith('Nuoto Esempio - Roma|12~100SL|25|45680|2026-04-01|Roma'));
   assert.ok(voci['c/desempio marco~desempio-marco-2007']);
   assert.ok(voci['c/marco d esempio~desempio-marco-2007']);
+  assert.equal(voci['a/rossi-andrea-2010/x2025'], '100SL|25|62400|2025-12-05');
+  assert.equal(voci['a/rossi-andrea-2010/s2025'], null);
+  assert.ok(!docs.get('atleti/rossi-andrea-2010'));
   const { squadraDaStagioni } = await import('../src/dati-italia.js');
   const squadra = squadraDaStagioni({ s2025: voci['sqs/nuoto-esempio-roma/s2025'] });
   assert.equal(squadra.m.length, 2);
@@ -166,7 +170,7 @@ test('lavori dell\'admin: rileggere una gara e una stagione', async () => {
   assert.equal(docs.get('lavori/b').esito, 'graduatorie avviate');
 });
 
-test('classifiche su richiesta: Italia per categoria e regione intera', async () => {
+test('classifiche su richiesta: Italia per categoria e regione intera, nel Realtime Database', async () => {
   const { eseguiRichieste, anniCategoria, richiestaValida } = await import('../src/classifiche.js');
   assert.deepEqual(anniCategoria('EA', 'M', 2026), { dal: 2014, al: 2015 });
   assert.ok(!richiestaValida({ st: '2026', v: 25, c: '100SL', sx: 'M', reg: '9', cat: 'EA' }));
@@ -180,21 +184,67 @@ test('classifiche su richiesta: Italia per categoria e regione intera', async ()
     async scrivi(p, d) { docs.set(p, d); },
     async elimina(p) { docs.delete(p); },
   };
+  const rt = new Map();
+  const rtdb = {
+    async leggi(p) { return rt.get(p) ?? null; },
+    async scrivi(p, d) { rt.set(p, d); },
+  };
   const chiamate = [];
   const scarica = async (url, opz) => { chiamate.push(opz.modulo); return campione; };
   const n = await eseguiRichieste({
-    db, fonti: { naz: 'N?x=1' }, scarica, adesso: '2026-11-15T12:00:00Z', log: () => {},
+    db, rtdb, fonti: { naz: 'N?x=1' }, scarica, adesso: '2026-11-15T12:00:00Z', log: () => {},
   });
   assert.equal(n, 2);
   // Prima la richiesta più recente (è quella che qualcuno sta guardando).
   assert.equal(chiamate[0]['solr[id_comitato]'], '9');
   assert.equal(chiamate[1]['solr[id_comitato]'], '');
   assert.equal(chiamate[1]['solr[dalyob]'], '2014');
-  const it = docs.get('classifiche/2026-25-100SL-M-it-EA');
-  assert.equal(it.righe.length, 3);
+  assert.equal(chiamate[1]['solr[limit]'], '5000');
+  const it = rt.get('cl/2026-25-100SL-M-it-EA');
+  // Due tempi validi (il terzo è un passaggio), in una sola stringa.
+  assert.equal(it.righe.split('~').length, 2);
   assert.ok(it.b);
-  assert.ok(!docs.get('classifiche/2025-25-100SL-M-9-tutte').b);
+  assert.equal(it.parziale, false);
+  assert.ok(!rt.get('cl/2025-25-100SL-M-9-tutte').b);
   assert.ok(![...docs.keys()].some((p) => p.startsWith('richieste/')));
+});
+
+test('classifiche su richiesta: graduatoria piena divisa per anno di nascita; errori riprovati', async () => {
+  const { leggiIntera, eseguiRichieste } = await import('../src/classifiche.js');
+  // Finta federazione: 3000 atleti per anno di nascita dal 2008 al 2015, limite 5000 righe.
+  const riga = (i, y) => `<div class="row"><div class="tempo"> ${(30 + i / 1000).toFixed(2)}</div><span data-view="gratleta">ATLETA N${i}Y${y}</span><div class="nascita"><span>${y}</span></div></div>`;
+  let richieste = 0;
+  const chiedi = async (campi) => {
+    richieste++;
+    const dal = Number(campi['solr[dalyob]'] ?? 1900);
+    const al = Number(campi['solr[alyob]'] ?? 3000);
+    const righe = [];
+    for (let y = Math.max(dal, 2008); y <= Math.min(al, 2015); y++) for (let i = 0; i < 3000; i++) righe.push(riga(i, y));
+    return JSON.stringify({ content: righe.slice(0, 5000).join('') });
+  };
+  const { righe, piena } = await leggiIntera(chiedi, {}, { primo: 1900, ultimo: 2023 });
+  assert.equal(righe.length, 8 * 3000);
+  assert.equal(piena, false);
+  assert.ok(richieste < 40);
+  // La fonte non risponde: la richiesta resta in coda con il conto dei tentativi; alla terza si scrive l'errore.
+  const docs = new Map([['richieste/x', { st: '2026', v: 25, c: '100SL', sx: 'M', reg: 'it', cat: 'tutte', creato: '1' }]]);
+  const db = {
+    async elenca(c) { return [...docs].filter(([p]) => p.startsWith(`${c}/`)).map(([p, d]) => ({ id: p.split('/')[1], ...d })); },
+    async leggi(p) { return docs.get(p) ?? null; },
+    async scrivi(p, d) { docs.set(p, d); },
+    async elimina(p) { docs.delete(p); },
+  };
+  const rt = new Map();
+  const rtdb = { async leggi(p) { return rt.get(p) ?? null; }, async scrivi(p, d) { rt.set(p, d); } };
+  const scarica = async () => { throw new Error('connessione non riuscita'); };
+  for (let i = 0; i < 3; i++) {
+    await eseguiRichieste({
+      db, rtdb, fonti: { naz: 'N?x=1' }, scarica, adesso: '2026-11-15T12:00:00Z', log: () => {},
+    });
+    if (i < 2) assert.equal(docs.get('richieste/x').tentativi, i + 1);
+  }
+  assert.ok(!docs.has('richieste/x'));
+  assert.equal(rt.get('cl/x').errore, 'fonte non raggiungibile');
 });
 
 test('dati di tutta Italia: atleta, ricerca e squadra si rileggono uguali', async () => {
@@ -428,14 +478,14 @@ test('riassunto di una squadra: componenti, migliori di sempre e punti fatti con
   assert.deepEqual(indiceDaPunti(prova), indiceCloro(prova));
 });
 
-test('tempi validi: individuali, passaggi e prime frazioni (come nelle graduatorie federali)', async () => {
+test('tempi validi: individuali e prime frazioni di staffetta; i passaggi no (regolamento)', async () => {
   const { tempoValido } = await import('../src/graduatorie.js');
   assert.ok(tempoValido('Serie - Individuale'));
-  assert.ok(tempoValido('Serie - Passaggio gara'));
+  assert.ok(!tempoValido('Serie - Passaggio gara'));
   assert.ok(tempoValido('Finale - Prima frazione staffetta'));
   assert.ok(tempoValido(''));
   assert.ok(!tempoValido('Finale - Staffetta'));
-  // Un atleta il cui migliore della stagione è un passaggio non deve sparire.
+  // Un passaggio non entra nei tempi, ma si ricorda per pulire lo storico.
   const { aggiungiRiga } = await import('../src/italia.js');
   const atleti = new Map();
   aggiungiRiga(atleti, {
@@ -443,7 +493,8 @@ test('tempi validi: individuali, passaggi e prime frazioni (come nelle graduator
   }, {
     sesso: 'M', vasca: 25, codice: '100SL', st: 2025, reg: '12',
   });
-  assert.equal(atleti.get('pulcini-ettore-2009').risultati[0].t, 57_680);
+  assert.ok(!atleti.has('pulcini-ettore-2009'));
+  assert.deepEqual([...atleti.passaggi.get('pulcini-ettore-2009')], ['100SL|25|57680|2026-01-04']);
 });
 
 test('verifica: confronto di una riga con scheda, squadra e migliori di sempre', async () => {
@@ -471,55 +522,51 @@ test('verifica: confronto di una riga con scheda, squadra e migliori di sempre',
   assert.equal(nuovo.scheda, 'dopo');
 });
 
-test('tempi presi a metà gara: tipo e gara di origine si salvano e si rileggono', async () => {
+test('prime frazioni di staffetta: tipo e staffetta di origine si salvano e si rileggono', async () => {
   const { tipoTempo } = await import('../src/graduatorie.js');
   assert.equal(tipoTempo('Serie - Individuale'), '');
   assert.equal(tipoTempo('Serie - Passaggio gara'), 'p');
   assert.equal(tipoTempo('Finale - Prima frazione staffetta'), 'f');
-  const {
-    aggiungiRiga, risolviOrigini, ID_GARE,
-  } = await import('../src/italia.js');
+  const { aggiungiRiga, risolviOrigini } = await import('../src/italia.js');
   const { rigaStagione, leggiAtletaItalia, rigaInfo } = await import('../src/dati-italia.js');
-  ID_GARE.clear();
   const atleti = new Map();
   const riga = (nome, ms, turno, idGara, data = '2026-01-04') => ({
     ms, nome, anno: 2009, societa: ['Vita ssd'], data, luogo: 'Roma', turno, idEvento: '148147', idGara, idTurno: '1',
   });
-  // 100 SL: passaggio dei 200 SL (gara numero 3) e prima frazione di una staffetta.
-  aggiungiRiga(atleti, riga('PULCINI ETTORE', 57_680, 'Serie - Passaggio gara', '3'), {
-    sesso: 'M', vasca: 25, codice: '100SL', st: 2025,
+  aggiungiRiga(atleti, riga('PULCINI ETTORE', 56_620, 'Finale - Prima frazione staffetta', '25', '2026-07-02'), {
+    sesso: 'M', vasca: 50, codice: '100SL', st: 2025,
   });
-  aggiungiRiga(atleti, riga('ROSSI MARCO', 58_000, 'Finale - Prima frazione staffetta', '25'), {
+  aggiungiRiga(atleti, riga('PULCINI ETTORE', 57_680, 'Serie - Passaggio gara', '3'), {
     sesso: 'M', vasca: 25, codice: '100SL', st: 2025,
   });
   aggiungiRiga(atleti, riga('BIANCHI LUCA', 61_000, 'Finale - Prima frazione staffetta', '27'), {
     sesso: 'M', vasca: 25, codice: '100DO', st: 2025,
   });
-  // La graduatoria dei 200 SL fa sapere che la gara numero 3 è il 200 SL.
-  aggiungiRiga(atleti, riga('VERDI ANDREA', 119_550, 'Serie - Individuale', '3'), {
-    sesso: 'M', vasca: 25, codice: '200SL', st: 2025,
-  });
   risolviOrigini(atleti);
-  const pulcini = atleti.get('pulcini-ettore-2009').risultati[0];
-  assert.deepEqual([pulcini.tp, pulcini.og, pulcini.g, pulcini.idg], ['p', '200SL', 'n148147', undefined]);
-  assert.equal(atleti.get('rossi-marco-2009').risultati[0].og, '4x100SL');
+  const [frazione, ...altri] = atleti.get('pulcini-ettore-2009').risultati;
+  assert.equal(altri.length, 0);
+  assert.deepEqual([frazione.tp, frazione.og, frazione.g], ['f', '4x100SL', 'n148147']);
   assert.equal(atleti.get('bianchi-luca-2009').risultati[0].og, '4x100MI');
-  assert.equal(atleti.get('verdi-andrea-2009').risultati[0].tp, undefined);
-  // Nel Realtime Database e ritorno.
-  const a = atleti.get('pulcini-ettore-2009');
-  const doc = { i: rigaInfo(a), s2025: rigaStagione({ ...a, s: 'Vita ssd' }) };
-  const [letto] = leggiAtletaItalia(doc).r;
-  assert.deepEqual([letto.t, letto.tp, letto.og, letto.g], [57_680, 'p', '200SL', 'n148147']);
-  const v = atleti.get('verdi-andrea-2009');
-  const [normale] = leggiAtletaItalia({ i: rigaInfo(v), s2025: rigaStagione({ ...v, s: 'Vita ssd' }) }).r;
-  assert.deepEqual([normale.t, normale.tp, normale.og], [119_550, undefined, undefined]);
-  // Nelle tabelle della squadra il tipo resta (anche nei migliori di sempre).
+  // Nel Realtime Database e ritorno, con il passaggio ricordato a parte.
+  const { vociStagione } = await import('../src/italia.js');
+  const voci = vociStagione(atleti, 2025);
+  const doc = { i: voci['a/pulcini-ettore-2009/i'], s2025: voci['a/pulcini-ettore-2009/s2025'], x2025: voci['a/pulcini-ettore-2009/x2025'] };
+  const letto = leggiAtletaItalia(doc);
+  assert.deepEqual(letto.r.map((x) => [x.t, x.tp, x.og]), [[56_620, 'f', '4x100SL']]);
+  assert.deepEqual(letto.px, ['100SL|25|57680|2026-01-04']);
+  // Dati vecchi con un passaggio segnato: l'app lo scarta.
+  const vecchio = leggiAtletaItalia({ i: rigaInfo({ n: 'Ettore Pulcini', y: 2009, sx: 'M' }), s2025: 'Vita ssd|12~100SL|25|57680|2026-01-04|Roma|p|148147|200SL~200SL|25|119550|2026-01-04|Roma' });
+  assert.deepEqual(vecchio.r.map((x) => x.t), [119_550]);
+  assert.deepEqual(vecchio.px, ['100SL|25|57680|2026-01-04']);
+  // Nelle tabelle della squadra il tipo resta (anche nei migliori di sempre); quelle vecchie con "p" si scartano.
   const { squadreDellaStagione } = await import('../src/italia.js');
-  const { rigaSquadra, squadraDaStagioni } = await import('../src/dati-italia.js');
+  const { rigaSquadra, squadraDaStagioni, leggiStagioneSquadra } = await import('../src/dati-italia.js');
   const sq = rigaSquadra(squadreDellaStagione(atleti).get('vita-ssd'));
-  assert.ok(sq.t['25|100SL|M'].includes('pulcini-ettore-2009|57680|2026-01-04|p'));
-  const tutto = squadraDaStagioni({ s2025: sq });
-  assert.ok(tutto.t['25|100SL|M'].includes('pulcini-ettore-2009|57680|2026-01-04|2025|p'));
+  assert.ok(sq.t['50|100SL|M'].includes('pulcini-ettore-2009|56620|2026-07-02|f'));
+  const tutto = squadraDaStagioni({ s2025: { ...sq, t: { ...sq.t, '25|100SL|M': 'pulcini-ettore-2009|57680|2026-01-04|p' } } });
+  assert.ok(tutto.t['50|100SL|M'].includes('pulcini-ettore-2009|56620|2026-07-02|2025|f'));
+  assert.equal(tutto.t['25|100SL|M'], undefined);
+  assert.deepEqual(leggiStagioneSquadra({ m: '', t: { '25|100SL|M': 'a|57680|2026-01-04|p~b|58000|2026-01-05' } }).t['25|100SL|M'], ['b|58000|2026-01-05']);
 });
 
 test('classifica atleti di squadra: solo i tempi fatti da Categoria', async () => {

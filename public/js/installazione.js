@@ -1,7 +1,7 @@
 // Cloro si usa solo come app sulla schermata Home: istruzioni per installarla dal browser,
-// trasloco dal vecchio indirizzo e accesso dal computer riservato all'admin.
+// trasloco dal vecchio indirizzo. Nel browser Cloro non si apre per nessuno (neanche per l'admin).
 import {
-  stato, api, esc, ICONE, tessera, disegna, piede, dispositivo, memoria, avviso, installata, inModoPc,
+  stato, api, esc, ICONE, tessera, disegna, piede, dispositivo, memoria, avviso, installata,
 } from './nucleo.js';
 import { CONFIG } from './config.js';
 
@@ -67,7 +67,14 @@ export function passiAggiunta(d) {
   return `
     <p class="intro">Cloro è fatta per il telefono. Apri questo indirizzo dal browser del tuo telefono (Safari su iPhone, Chrome su Android) e segui i passaggi che ti mostra:</p>
     <p class="titolo-pagina" style="font-size:24px;word-break:break-all">${esc(indirizzo())}</p>
-    ${bottoneCopia()}`;
+    ${bottoneCopia()}
+    <h3 class="sezione-titolo" style="margin:18px 0 6px">Sul computer (per chi gestisce Cloro)</h3>
+    ${stato.eventoInstalla ? '<button class="bottone" data-azione="installa">Installa Cloro</button><p class="nota" style="margin-top:8px">Oppure, a mano:</p>' : ''}
+    <ol class="passi">
+      <li><span>Apri questo indirizzo con <strong>Chrome</strong> o <strong>Edge</strong>.</span></li>
+      <li><span>Clicca l'icona <strong>Installa</strong> ${ICONE.piu} a destra nella barra dell'indirizzo (oppure menu ${ICONE.menu} → <strong>Trasmetti, salva e condividi</strong> → <strong>Installa pagina come app</strong>).</span></li>
+      <li><span>Apri <strong>Cloro</strong> dalla finestra che si apre (o dal menu Start / Applicazioni) ed entra con il tuo account.</span></li>
+    </ol>`;
 }
 
 /** Pagina mostrata a chi apre Cloro nel browser invece che dall'app. */
@@ -82,15 +89,12 @@ export function vistaSoloApp() {
         <h2 class="sezione-titolo" style="margin-bottom:6px">${d.ios ? 'Su iPhone' : d.android ? 'Su Android' : 'Dal computer'}</h2>
         ${passiAggiunta(d)}
       </section>
-      ${d.telefono ? '<p class="nota">Hai già aggiunto Cloro? Chiudi il browser e aprila dall\'icona <strong>Cl</strong> sulla schermata Home.</p>' : `
-        <button class="link" data-admin-pc style="margin-top:6px">Gestisci Cloro dal computer (solo admin)</button>`}
+      <p class="nota">${d.telefono ? 'Hai già aggiunto Cloro? Chiudi il browser e aprila dall\'icona <strong>Cl</strong> sulla schermata Home.' : 'Dal browser Cloro non si apre, nemmeno per chi la gestisce: si usa solo installata.'}</p>
       ${piede()}
     </main>`, (el) => {
     collegaCopia(el);
-    el.querySelector('[data-admin-pc]')?.addEventListener('click', () => {
-      memoria('admin-pc', true);
-      location.reload();
-    });
+    // Il vecchio permesso "dal computer" dell'admin non vale più.
+    memoria('admin-pc', null);
     el.querySelector('[data-azione="installa"]')?.addEventListener('click', async () => {
       const evento = stato.eventoInstalla;
       if (!evento) return;
@@ -98,30 +102,6 @@ export function vistaSoloApp() {
       const { outcome } = await evento.userChoice;
       stato.eventoInstalla = null;
       if (outcome === 'accepted') avviso('Fatto! Ora apri Cloro dall\'icona sulla schermata Home.');
-    });
-  }, { classeBody: 'senza-tab' });
-}
-
-/* ---------- dal computer: solo per l'admin ---------- */
-
-export const modoPc = inModoPc;
-
-/** Pagina per chi entra dal computer senza essere admin. */
-export function vistaPcSoloAdmin() {
-  disegna(`
-    <main class="ospite">
-      <div class="ospite-marchio">${tessera()}<span class="logo-parola">cloro</span></div>
-      <h1>Dal computer Cloro è <em>solo per chi la gestisce</em>.</h1>
-      <p class="intro">Il tuo account non è admin. Cloro si usa come app sul telefono: apri ${esc(location.host)} da lì.</p>
-      <div class="pila">
-        <button class="bottone" data-esci>Esci e torna indietro</button>
-      </div>
-      ${piede()}
-    </main>`, (el) => {
-    el.querySelector('[data-esci]').addEventListener('click', async () => {
-      memoria('admin-pc', null);
-      await api.esci().catch(() => {});
-      location.replace('/');
     });
   }, { classeBody: 'senza-tab' });
 }

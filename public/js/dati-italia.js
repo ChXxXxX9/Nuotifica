@@ -1,8 +1,9 @@
 // Dati di tutta Italia nel Realtime Database: come si scrivono (controllore) e come si rileggono (app).
 // Righe di testo corte invece di oggetti, per stare comodi nel giga gratuito.
 //   a/{chiave}/i             "nome|anno|sesso"
-//   a/{chiave}/s{stagione}   "società|regione~gara|vasca|tempo|data|luogo~…" (per i tempi presi a metà gara anche
-//                            "|tipo|evento|gara di origine": tipo p = passaggio, f = prima frazione di staffetta)
+//   a/{chiave}/s{stagione}   "società|regione~gara|vasca|tempo|data|luogo~…" (per le prime frazioni di staffetta
+//                            anche "|f|evento|staffetta"; i dati vecchi possono avere "|p|…" = passaggio, da scartare)
+//   a/{chiave}/x{stagione}   passaggi della stagione (non validi), "gara|vasca|tempo|data~…": servono a toglierli dallo storico
 //   a/{chiave}/f             id dell'atleta nella fonte (per lo storico)
 //   sqx/{squadra}            riassunto della squadra (componenti, migliori di sempre, punti di sempre): vedi riassuntoSquadra
 //   sqr/{squadra}/{impronta} staffette dalle gare lette: "gara|sesso|vasca|tempo|data|id gara|categoria"
@@ -38,8 +39,14 @@ export function leggiAtletaItalia(doc) {
   if (!stagioni.length) return null;
   const [testa] = doc[stagioni[0]].split('~');
   const [s, reg] = testa.split('|');
+  // Passaggi (non validi da regolamento): quelli ricordati a parte e quelli rimasti nei dati vecchi.
+  const px = Object.keys(doc).filter((x) => /^x\d{4}$/.test(x)).flatMap((x) => String(doc[x]).split('~').filter(Boolean));
   const r = stagioni.flatMap((x) => doc[x].split('~').slice(1).map((riga) => {
     const [c, v, t, d, l, tp, ev, og] = riga.split('|');
+    if (tp === 'p') {
+      px.push([c, v, t, d].join('|'));
+      return null;
+    }
     const voce = {
       i: `i${x.slice(1)}-${c}-${v}`, c, v: Number(v), t: Number(t), d, gn: l || 'Gara FIN', l, f: 1,
     };
@@ -49,9 +56,9 @@ export function leggiAtletaItalia(doc) {
       if (og) voce.og = og;
     }
     return voce;
-  }));
+  }).filter(Boolean));
   return {
-    n, y: Number(y) || null, sx, s, reg, r,
+    n, y: Number(y) || null, sx, s, reg, r, px: [...new Set(px)],
   };
 }
 
@@ -119,11 +126,12 @@ export function squadraDaStagioni(doc) {
     }
     const tabelle = {};
     for (const [kt, testo] of Object.entries(d.t ?? {})) {
-      const righe = String(testo).split('~').filter(Boolean);
+      const righe = String(testo).split('~').filter((r) => r && !r.endsWith('|p'));
       tabelle[kt] = righe;
       if (!sempre.has(kt)) sempre.set(kt, new Map());
       for (const riga of righe) {
         const [k, t, data, tp] = riga.split('|');
+        if (tp === 'p') continue; // passaggio: non vale
         const ora = sempre.get(kt).get(k);
         if (!ora || Number(t) < ora.t) {
           sempre.get(kt).set(k, {
@@ -136,6 +144,7 @@ export function squadraDaStagioni(doc) {
   }
   const t = {};
   for (const [kt, perAtleta] of sempre) {
+    if (!perAtleta.size) continue;
     t[kt] = [...perAtleta].sort((x, y) => x[1].t - y[1].t).slice(0, TOP_SEMPRE).map(([k, v]) => `${k}|${v.t}|${v.d}|${v.s}${v.tp ? `|${v.tp}` : ''}`);
   }
   const ultima = doc[chiavi[0]];
@@ -175,7 +184,7 @@ export function puntiSquadra(tabelle, punti) {
   return [...totali.values()].sort((a, b) => b.pt - a.pt);
 }
 
-export const VERSIONE_RIASSUNTO = 2;
+export const VERSIONE_RIASSUNTO = 3;
 
 /** Il riassunto di una squadra da tutte le sue stagioni (lo prepara il controllore, l'app legge solo questo). */
 export function riassuntoSquadra(doc, punti) {
@@ -186,7 +195,7 @@ export function riassuntoSquadra(doc, punti) {
   const anni = annidiNascita(sq.m);
   const ic = indiciStagione(unisciTabelle(Object.entries(sq.stagioni).map(([st, x]) => soloCategoria(x.t, st, anni))), punti);
   return {
-    // Versione del riassunto: 2 = Indice Cloro di sempre con i soli tempi da Categoria.
+    // Versione del riassunto: 2 = Indice Cloro di sempre con i soli tempi da Categoria; 3 = senza passaggi.
     v: VERSIONE_RIASSUNTO,
     n: pulisci(sq.n),
     reg: sq.reg ?? '',
@@ -207,7 +216,7 @@ export function leggiRiassuntoSquadra(x) {
     reg: x.reg,
     st: String(x.st).split(',').filter(Boolean),
     m: elenco(x.m),
-    t: Object.fromEntries(Object.entries(x.t ?? {}).map(([kt, righe]) => [kt, elenco(righe)])),
+    t: Object.fromEntries(Object.entries(x.t ?? {}).map(([kt, righe]) => [kt, elenco(righe).filter((r) => !r.endsWith('|p'))])),
     ic: x.ic === undefined ? null : elenco(x.ic).map((riga) => {
       const [k, sx, valore, st, gare] = riga.split('|');
       return {
@@ -222,7 +231,7 @@ export function leggiStagioneSquadra(d) {
   if (!d) return null;
   return {
     m: String(d.m ?? '').split('~').filter(Boolean),
-    t: Object.fromEntries(Object.entries(d.t ?? {}).map(([kt, testo]) => [kt, String(testo).split('~').filter(Boolean)])),
+    t: Object.fromEntries(Object.entries(d.t ?? {}).map(([kt, testo]) => [kt, String(testo).split('~').filter((r) => r && !r.endsWith('|p'))])),
   };
 }
 

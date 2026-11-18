@@ -1,6 +1,9 @@
 // Classifiche nazionali e delle altre regioni, preparate su richiesta dall'app.
-// L'app scrive richieste/{id}; il controllore (a ogni giro, poche per volta) legge la graduatoria
-// e la salva in classifiche/{id}, dove la leggono tutti. Per la stagione in corso si rifanno ogni giorno.
+// L'app scrive richieste/{id} (Firestore); il controllore legge la graduatoria COMPLETA (se supera le
+// 5000 righe la divide per anno di nascita) e la salva nel Realtime Database in cl/{id}
+// ({ righe: "chiave|nome|anno|società|tempo|data[|tipo]~…", agg, parziale, b, bd, p }), dove la leggono tutti.
+// Per la stagione in corso si rifanno ogni giorno. Se la fonte non risponde si riprova (3 volte), poi si
+// scrive l'errore così l'app non resta ad aspettare.
 //
 // id = {stagione}-{vasca}-{gara}-{sesso}-{regione}-{categoria}
 //   regione: "it" (tutta Italia) o il numero del comitato regionale; categoria: "tutte" o EB, EA, R, J, C, S
@@ -9,7 +12,6 @@ import {
   leggiGraduatoria, dividiNome, CODICI, aggiungiMovimenti, tempoValido, tipoTempo,
 } from './graduatorie.js';
 import { chiaveAtleta, oggiRoma } from './tempi.js';
-import { comeData } from './firestore.js';
 import { stagione } from './gare.js';
 import { REGOLE_BASE, anniCodice, etaCodice } from './categorie.js';
 
@@ -21,7 +23,10 @@ export const COMITATI = {
 const CODICE_FIN = Object.fromEntries(Object.entries(CODICI).map(([fin, c]) => [c, fin.padStart(2, '0')]));
 const CODICI_CAT = ['EB', 'EA', 'R', 'R14', 'R1', 'R2', 'J', 'J1', 'J2', 'C', 'S'];
 const MAX_PER_GIRO = 4;
-const LIMITE = { it: 3000, regione: 5000 };
+const LIMITE = 5000;
+// Una graduatoria che arriva quasi al limite potrebbe essere tagliata: si divide per anno di nascita.
+const PIENA = 4_900;
+const TENTATIVI = 3;
 
 export const idClassifica = ({
   st, v, c, sx, reg, cat,
@@ -38,8 +43,26 @@ export function richiestaValida(r) {
 export const anniCategoria = (cat, sx, st, regole = REGOLE_BASE) => anniCodice(cat, sx, st, regole);
 
 /** Prepara una classifica: la scarica, la ordina e (stagione in corso) aggiunge i movimenti. */
+/**
+ * Una graduatoria intera: se arriva al limite (e si può) si divide per anni di nascita, a metà ogni volta,
+ * finché ogni pezzo sta sotto il limite. `anni`: { dal, al } già fissati (categoria) o null.
+ */
+export async function leggiIntera(chiedi, campi, { anni = null, primo, ultimo, dividi = true } = {}) {
+  const conAnni = anni ? { ...campi, 'solr[dalyob]': String(anni.dal), 'solr[alyob]': String(anni.al) } : campi;
+  const righe = leggiGraduatoria(await chiedi(conAnni));
+  if (righe.length < PIENA || !dividi) return { righe, piena: righe.length >= PIENA };
+  const da = anni?.dal ?? primo;
+  const a = anni?.al ?? ultimo;
+  if (da == null || a == null || da >= a) return { righe, piena: true };
+  const meta = Math.floor((da + a) / 2);
+  const x = await leggiIntera(chiedi, campi, { anni: { dal: da, al: meta }, dividi });
+  const y = await leggiIntera(chiedi, campi, { anni: { dal: meta + 1, al: a }, dividi });
+  return { righe: [...x.righe, ...y.righe], piena: x.piena || y.piena };
+}
+
+/** Prepara una classifica: la scarica tutta, la ordina e (stagione in corso) aggiunge i movimenti. */
 export async function preparaClassifica({
-  db, chiedi, r, adesso, regole,
+  rtdb, chiedi, r, adesso, regole,
 }) {
   const sempre = r.st === 'tutte';
   const campi = {
@@ -50,8 +73,9 @@ export async function preparaClassifica({
     ...(sempre ? {} : { 'solr[stagione]': String(r.st) }),
     'solr[codice_gara]': CODICE_FIN[r.c],
     'solr[id_comitato]': r.reg === 'it' ? '' : String(r.reg),
-    'solr[limit]': String(r.reg === 'it' ? LIMITE.it : LIMITE.regione),
+    'solr[limit]': String(LIMITE),
   };
+  let anni = null;
   if (r.cat !== 'tutte') {
     if (sempre) {
       // Di sempre per categoria: l'età al momento della gara.
@@ -61,17 +85,17 @@ export async function preparaClassifica({
         campi['solr[aleta]'] = String(eta.a);
       }
     } else {
-      const anni = anniCategoria(r.cat, r.sx, r.st, regole);
-      if (anni) {
-        campi['solr[dalyob]'] = String(anni.dal);
-        campi['solr[alyob]'] = String(anni.al);
-      }
+      anni = anniCategoria(r.cat, r.sx, r.st, regole);
     }
   }
-  const lette = leggiGraduatoria(await chiedi(campi)).filter((x) => tempoValido(x.turno));
+  // Di sempre: i primi 5000 (tutta la storia sarebbe troppo). Una stagione: tutti, divisa per anni se serve.
+  const { righe: lette, piena } = await leggiIntera(chiedi, campi, {
+    anni, primo: 1900, ultimo: sempre ? null : Number(r.st) - 3, dividi: !sempre,
+  });
+  const valide = lette.filter((x) => tempoValido(x.turno));
   const visti = new Set();
   const righe = [];
-  for (const x of lette.sort((a, b) => a.ms - b.ms)) {
+  for (const x of valide.sort((a, b) => a.ms - b.ms)) {
     const { cognome, nome } = dividiNome(x.nome);
     const k = chiaveAtleta(cognome, nome, x.anno);
     if (!k || visti.has(k)) continue;
@@ -81,46 +105,68 @@ export async function preparaClassifica({
     });
   }
   const id = idClassifica(r);
+  const pulisci = (t) => String(t ?? '').replace(/[|~]/g, ' ');
   const dati = {
-    righe: righe.map((x) => [x.k, x.n, x.y ?? '', x.s, x.valore, x.d ?? '', ...(x.tp ? [x.tp] : [])].join('|')),
-    agg: comeData(adesso),
-    parziale: lette.length >= Number(campi['solr[limit]']),
+    righe: righe.map((x) => [x.k, pulisci(x.n), x.y ?? '', pulisci(x.s), x.valore, x.d ?? '', ...(x.tp ? [x.tp] : [])].join('|')),
+    agg: adesso,
+    parziale: piena,
   };
   if (String(r.st) === stagione(oggiRoma(adesso))) {
-    aggiungiMovimenti(dati, righe, await db.leggi(`classifiche/${id}`), adesso);
+    const prima = await rtdb.leggi(`cl/${id}`).catch(() => null);
+    aggiungiMovimenti(dati, righe, prima?.righe ? { ...prima, righe: String(prima.righe).split('~') } : prima, adesso);
   }
-  await db.scrivi(`classifiche/${id}`, dati);
+  await rtdb.scrivi(`cl/${id}`, { ...dati, righe: dati.righe.join('~') });
   return righe.length;
 }
 
-/** Un giro: le richieste più vecchie, poche per volta. */
+/**
+ * Un giro: le richieste in coda, poche per volta (prima le più recenti, che qualcuno sta guardando, ma
+ * anche la più vecchia, così nessuna resta indietro). Se la fonte non risponde la richiesta resta in coda
+ * e si riprova; dopo 3 volte si scrive l'errore (l'app smette di aspettare e propone di riprovare).
+ */
 export async function eseguiRichieste({
-  db, fonti, scarica, adesso = new Date().toISOString(), log = console.log, max = MAX_PER_GIRO,
+  db, rtdb, fonti, scarica, adesso = new Date().toISOString(), log = console.log, max = MAX_PER_GIRO,
 }) {
-  if (!fonti?.naz) return 0;
-  // Prima le più recenti: è la classifica che qualcuno sta guardando adesso (le altre subito dopo).
-  const richieste = (await db.elenca('richieste'))
-    .sort((a, b) => String(b.creato ?? '').localeCompare(String(a.creato ?? '')))
-    .slice(0, max);
-  if (!richieste.length) return 0;
+  if (!fonti?.naz || !rtdb) return 0;
+  const coda = (await db.elenca('richieste')).sort((a, b) => String(b.creato ?? '').localeCompare(String(a.creato ?? '')));
+  if (!coda.length) return 0;
+  const scelte = coda.length > max ? [...coda.slice(0, max - 1), coda[coda.length - 1]] : coda;
   const regole = (await db.leggi('config/categorie'))?.regole ?? REGOLE_BASE;
-  const chiedi = (campi) => scarica(`${fonti.naz}&currentpage=1&format=json&view=grricerca`, {
-    metodo: 'POST', timeout: 90, modulo: { 'solr[settore]': 'NUO', ...campi },
-  });
+  const chiedi = async (campi) => {
+    await new Promise((ok) => { setTimeout(ok, 300); });
+    return scarica(`${fonti.naz}&currentpage=1&format=json&view=grricerca`, {
+      metodo: 'POST', timeout: 90, modulo: { 'solr[settore]': 'NUO', ...campi },
+    });
+  };
   let fatte = 0;
-  for (const r of richieste) {
-    try {
-      if (richiestaValida(r)) {
-        const n = await preparaClassifica({
-          db, chiedi, r, adesso, regole,
-        });
-        log(`Classifica ${idClassifica(r)}: ${n} atleti.`);
-        fatte++;
-      }
-    } catch (e) {
-      log(`Classifica ${r.id} non preparata: ${e.message}`);
+  for (const r of scelte) {
+    const inizio = Date.now();
+    if (!richiestaValida(r)) {
+      log(`Classifica ${r.id}: richiesta non valida, tolta.`);
+      await rtdb.scrivi(`cl/${r.id}`, { errore: 'non valida', agg: adesso }).catch(() => {});
+      await db.elimina(`richieste/${r.id}`);
+      continue;
     }
-    await db.elimina(`richieste/${r.id}`);
+    try {
+      const n = await preparaClassifica({
+        rtdb, chiedi, r, adesso, regole,
+      });
+      log(`Classifica ${idClassifica(r)}: ${n} atleti in ${Math.round((Date.now() - inizio) / 1000)} s.`);
+      fatte++;
+      await db.elimina(`richieste/${r.id}`);
+    } catch (e) {
+      const tentativi = (Number(r.tentativi) || 0) + 1;
+      log(`Classifica ${r.id}: tentativo ${tentativi} non riuscito (${e.message}).`);
+      if (tentativi >= TENTATIVI) {
+        const prima = await rtdb.leggi(`cl/${r.id}/agg`).catch(() => null);
+        // Se c'è già una classifica (di ieri) la si lascia; altrimenti si scrive l'errore.
+        if (!prima) await rtdb.scrivi(`cl/${r.id}`, { errore: 'fonte non raggiungibile', agg: adesso }).catch(() => {});
+        await db.elimina(`richieste/${r.id}`);
+      } else {
+        const { id, ...campi } = r;
+        await db.scrivi(`richieste/${id}`, { ...campi, tentativi });
+      }
+    }
   }
   return fatte;
 }

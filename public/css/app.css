@@ -501,6 +501,8 @@ p { margin: 0; }
 .cerca { position: relative; margin: 12px 0; }
 .cerca input { width: 100%; padding-left: 46px; }
 .cerca svg { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; color: var(--tenue); }
+.cerca-classifica { display: block; margin: 4px 0 12px; }
+.cerca-classifica input { padding-left: 16px; }
 
 .avviso {
   position: fixed;

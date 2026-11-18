@@ -38,7 +38,7 @@ const PAUSA_ITALIA = 600;
 // Versione della lettura di tutta Italia: le stagioni lette con una versione più vecchia si rileggono.
 // 2 = regioni grandi divise per anno di nascita, Indice annata.
 // 3 = anche i passaggi e le prime frazioni di staffetta (prima mancavano).
-export const VERSIONE_ITALIA = 5;
+export const VERSIONE_ITALIA = 6;
 const MESI = {
   gennaio: 1, febbraio: 2, marzo: 3, aprile: 4, maggio: 5, giugno: 6,
   luglio: 7, agosto: 8, settembre: 9, ottobre: 10, novembre: 11, dicembre: 12,
@@ -72,7 +72,9 @@ export function dividiNome(completo = '') {
  * si tenevano solo le gare individuali, e chi aveva il migliore tempo in un passaggio o in una prima
  * frazione spariva da quella gara.) Si scarta solo un'eventuale riga di staffetta intera.
  */
-export const tempoValido = (turno = '') => !/staffetta/i.test(turno) || /prima frazione/i.test(turno);
+// Tempi validi: gare individuali e prima frazione di staffetta. I passaggi di una gara più lunga (es. i 100
+// dentro un 200) da regolamento non valgono come tempo: si scartano (si ricordano solo per pulire lo storico).
+export const tempoValido = (turno = '') => !/passaggio/i.test(turno) && (!/staffetta/i.test(turno) || /prima frazione/i.test(turno));
 /** Che tempo è: '' gara individuale, 'p' passaggio di una gara più lunga, 'f' prima frazione di una staffetta. */
 export const tipoTempo = (turno = '') => (/prima frazione/i.test(turno) ? 'f' : /passaggio/i.test(turno) ? 'p' : '');
 
@@ -554,6 +556,19 @@ export async function giroGraduatorie({
     }
     return { esiti, ancora };
   };
+
+  // Primati (PB e SB delle gare in diretta) rifatti da zero quando cambiano le regole sui tempi validi
+  // (prima contenevano anche i passaggi): si tolgono e le stagioni li riscrivono una per una.
+  if (['tutto', 'notte'].includes(lavoro) && !forza && (stato.primatiPuliti ?? 0) < VERSIONE_ITALIA) {
+    const percorsi = [];
+    for (const [vasca] of VASCHE) for (const sx of ['M', 'F']) for (const c of Object.values(CODICI)) percorsi.push(`primati/${vasca}-${c}-${sx}`);
+    for (const p of percorsi) await db.elimina(p);
+    stato.primatiPuliti = VERSIONE_ITALIA;
+    stato.primatiV = {};
+    delete stato.fatte?.[corrente];
+    await salva();
+    log(`Primati tolti (${percorsi.length}): si rifanno stagione per stagione.`);
+  }
 
   if (lavoro === 'squadre' && rtdb) {
     // Tutti i riassunti delle squadre, da zero.

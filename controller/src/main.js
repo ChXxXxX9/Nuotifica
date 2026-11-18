@@ -351,7 +351,9 @@ async function principale() {
 
   // Classifiche nazionali e delle altre regioni chieste dall'app.
   try {
-    const n = await eseguiRichieste({ db, fonti, scarica, adesso });
+    const n = await eseguiRichieste({
+      db, rtdb, fonti, scarica, adesso,
+    });
     if (n) console.log(`Classifiche preparate: ${n}.`);
   } catch (e) {
     console.log(`::warning title=Classifiche::${String(e.message).slice(0, 300)}`);
@@ -413,7 +415,7 @@ async function principale() {
     let fatte = 0;
     while (Date.now() < fine) {
       const n = await eseguiRichieste({
-        db, fonti, scarica, adesso: new Date().toISOString(), log: () => {}, max: 3,
+        db, rtdb, fonti, scarica, adesso: new Date().toISOString(), max: 3,
       });
       fatte += n;
       if (!n) await new Promise((r) => { setTimeout(r, 20_000); });

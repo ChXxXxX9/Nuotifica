@@ -106,6 +106,10 @@ export async function creaBackendFirebase(config) {
    * Con `veloce` la risposta resta anche sul telefono: la volta dopo si mostra subito quella e intanto
    * si chiede la versione nuova (se è diversa arriva a `fresco`).
    */
+  // Classifiche su richiesta: id "stagione-vasca-gara-sesso-regione-categoria" (sei pezzi).
+  const suRichiesta = (id) => String(id).split('-').length === 6;
+  const comeClassifica = (x) => (x ? { ...x, righe: x.righe ? String(x.righe).split('~') : [] } : null);
+
   async function leggiRtdb(percorso, parametri = {}, { veloce = false, fresco } = {}) {
     if (!config.rtdb) return null;
     const indirizzo = `${config.rtdb}/${percorso.split('/').map(encodeURIComponent).join('/')}.json`;
@@ -435,10 +439,18 @@ export async function creaBackendFirebase(config) {
 
     eliminaLimite: (id) => avvolgi(() => F.deleteDoc(F.doc(db, 'limiti', id))),
 
-    leggiClassifica: (id, fresco) => avvolgi(() => leggiVeloce(F.doc(db, 'classifiche', id), (s) => s.data(), fresco)),
+    /**
+     * Classifica: quelle del Lazio preparate di notte stanno in Firestore (id "stagione-vasca-gara-sesso");
+     * quelle su richiesta (Italia e regioni, id con regione e categoria) nel Realtime Database, intere.
+     */
+    leggiClassifica: (id, fresco) => avvolgi(async () => {
+      if (!suRichiesta(id)) return leggiVeloce(F.doc(db, 'classifiche', id), (s) => s.data(), fresco);
+      return comeClassifica(await leggiRtdb(`cl/${id}`, {}, { veloce: true, fresco: fresco && ((nuovo) => fresco(comeClassifica(nuovo))) }));
+    }),
 
     /** Lettura senza copia locale (per vedere se una classifica chiesta è pronta). */
     leggiClassificaRete: (id) => avvolgi(async () => {
+      if (suRichiesta(id)) return comeClassifica(await leggiRtdb(`cl/${id}`));
       const snap = await F.getDocFromServer(F.doc(db, 'classifiche', id));
       return snap.exists() ? snap.data() : null;
     }),
