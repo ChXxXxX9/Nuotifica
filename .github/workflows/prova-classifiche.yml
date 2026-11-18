@@ -1,0 +1,25 @@
+name: Prova delle classifiche
+
+# A mano: prepara un gruppo vario di classifiche su richiesta e dice se sono intere e quanto ci mettono.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prova:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Prova
+        working-directory: controller
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          RTDB_URL: https://nuotifica-default-rtdb.europe-west1.firebasedatabase.app
+          FONTI: ${{ secrets.FONTI }}
+        run: node src/prova-classifiche.js
