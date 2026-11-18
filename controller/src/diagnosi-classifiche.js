@@ -9,7 +9,9 @@ const it = docs.filter((d) => /-it-/.test(d.id));
 const vuote = it.filter((d) => !(d.righe ?? []).length).map((d) => d.id);
 const richieste = await db.elenca('richieste');
 console.log(`::notice title=Classifiche::Totale ${docs.length}, nazionali ${it.length}, nazionali vuote ${vuote.length}: ${vuote.slice(0, 60).join(', ')}`);
-console.log(`::notice title=Richieste::In coda ${richieste.length}: ${richieste.slice(0, 40).map((r) => r.id).join(', ')}`);
+const eta = (r) => Math.round((Date.now() - Date.parse(r.creato ?? 0)) / 60_000);
+const ordinate = [...richieste].sort((a, b) => String(a.creato ?? '').localeCompare(String(b.creato ?? '')));
+console.log(`::notice title=Richieste::In coda ${richieste.length}; la più vecchia aspetta da ${ordinate[0] ? eta(ordinate[0]) : 0} minuti; più di 10 minuti: ${richieste.filter((r) => eta(r) > 10).length}. ${ordinate.slice(0, 40).map((r) => `${r.id}(${eta(r)}m)`).join(', ')}`);
 const perStagione = {};
 for (const d of it) {
   const st = d.id.split('-')[0];
