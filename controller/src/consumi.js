@@ -52,7 +52,7 @@ async function principale() {
         const fmt = (v) => (v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(1)}k` : String(Math.round(v * 100) / 100));
         valori.push(`${d.type.slice(prefisso.length)}${gauge ? ' (max)' : ''}: ${perGiorno.map(([g, v]) => `${g} ${fmt(v)}`).join(', ')}`);
       } catch (e) {
-        valori.push(`${d.type.slice(prefisso.length)}: errore ${String(e.message).slice(0, 120)}`);
+        valori.push(`${d.type.slice(prefisso.length)}: errore ${e.status ?? ''} ${String(e.message).split(': ').slice(1).join(': ').slice(0, 160)}`);
       }
     }
     righe.push(`${prefisso} (${descrittori.length} metriche) — ${valori.join(' | ') || 'nessun dato'}`);
