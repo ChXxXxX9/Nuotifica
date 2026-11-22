@@ -1,10 +1,11 @@
 // Tutela di atleti e iscritti (adeguamento legale, parte B). Documenti che leggono solo l'admin e il controllore:
 //   richiestePrivacy/{id}          "Sei questo atleta o un suo genitore?" (l'admin le gestisce in Admin → Richieste)
-//   richiestePrivacyFoto/{id}      la foto della tessera della richiesta: si cancella quando la richiesta si chiude
+//   richiestePrivacyFoto/{id}      la foto della tessera della richiesta: si cancella 30 giorni dopo la chiusura
 //   privato/segnali                { daFare }: l'admin ha deciso qualcosa su un segnale, da eseguire
 //   privato/segnali/utenti/{uid}   account che seguono molti atleti sotto i 14 anni di società diverse
 //   meta/manutenzione              quando sono stati fatti i lavori di ogni giorno, mese e stagione
 //   meta/inattivi                  account non usati da quasi 3 anni già avvisati
+//   privato/inattivi/account/{uid} account inattivi senza notifiche: l'avviso lo manda l'admin per email
 import { comeData } from './firestore.js';
 import { tokensAttivi } from './invio.js';
 import { sotto14 } from './testi.js';
@@ -95,10 +96,11 @@ export async function ripulisciRichieste({ db, adesso, log = console.log }) {
 const APERTA = new Set(['nuova', 'in-attesa']);
 
 /**
- * Foto delle tessere: restano solo quelle delle richieste aperte. L'app le cancella già quando l'admin chiude
- * la richiesta; questo è il controllo di sicurezza (anche per foto rimaste senza richiesta).
+ * Foto delle tessere: restano finché la richiesta è aperta e fino a 30 giorni dopo la chiusura (al 29° giorno
+ * le cancella ripulisciRichieste con gli altri dati). Qui il controllo di sicurezza: foto di richieste chiuse da
+ * più di 29 giorni o già ripulite, e foto rimaste senza richiesta.
  */
-export async function cancellaFotoChiuse({ db, log = console.log }) {
+export async function cancellaFotoChiuse({ db, adesso = new Date().toISOString(), log = console.log }) {
   const ids = [];
   for (;;) {
     const pagina = await db.nomi('richiestePrivacyFoto', 300);
@@ -108,7 +110,13 @@ export async function cancellaFotoChiuse({ db, log = console.log }) {
   }
   if (!ids.length) return 0;
   const richieste = await db.leggiTanti(ids.map((id) => `richiestePrivacy/${id}`));
-  const via = ids.filter((id) => !APERTA.has(richieste.get(`richiestePrivacy/${id}`)?.stato));
+  const limite = new Date(adesso).getTime() - GIORNI_DATI_VERIFICA * GIORNO;
+  const via = ids.filter((id) => {
+    const r = richieste.get(`richiestePrivacy/${id}`);
+    if (!r || r.ripulita) return true;
+    if (APERTA.has(r.stato)) return false;
+    return !r.chiusa || new Date(r.chiusa).getTime() <= limite;
+  });
   if (via.length) {
     await db.eliminaTanti(via.map((id) => `richiestePrivacyFoto/${id}`));
     log(`Foto di richieste chiuse cancellate: ${via.length}.`);
@@ -271,9 +279,17 @@ export async function eseguiSegnali({
 
 /* ---------- B4: account non usati ---------- */
 
+export const AVVISO_INATTIVO = {
+  titolo: 'Il tuo account Cloro',
+  corpo: 'Non lo usi da quasi 3 anni. Se non lo apri entro 30 giorni verrà eliminato.',
+};
+const INATTIVI = 'privato/inattivi/account';
+
 /**
- * Una volta al mese: chi non usa Cloro da 35 mesi riceve un avviso (una volta); da 36 mesi, e almeno 30
- * giorni dopo l'avviso, l'account si elimina. Chi non ha le notifiche attive non può ricevere l'avviso.
+ * Una volta al mese: chi non usa Cloro da 35 mesi riceve un avviso (una volta). Chi non ha le notifiche
+ * attive va in Admin → Inattivi (privato/inattivi/account/{uid}, con la sua email): l'avviso lo manda l'admin
+ * per email e lo segna come mandato. Da 36 mesi, e almeno 30 giorni dopo l'avviso, l'account si elimina; senza
+ * avviso mai.
  */
 export async function controllaInattivi({
   db, invio, sito, chiamaGoogle, progetto, adesso, log = console.log,
@@ -281,11 +297,15 @@ export async function controllaInattivi({
   const ora = new Date(adesso);
   const meta = (await db.leggi('meta/inattivi')) ?? {};
   const avvisati = meta.avvisati ?? {};
+  // Vecchio formato (solo la data).
+  for (const [uid, x] of Object.entries(avvisati)) if (typeof x === 'string') avvisati[uid] = { il: x };
   const admin = new Set((await db.elenca('admin')).map((a) => a.id));
   const visti = new Set();
   let avvisi = 0;
+  let perEmail = 0;
   let tolti = 0;
   let pagina = '';
+  const togliScheda = (uid) => (avvisati[uid]?.email ? db.elimina(`${INATTIVI}/${uid}`) : null);
   do {
     const r = await chiamaGoogle(`${auth(progetto)}:batchGet?maxResults=500${pagina ? `&nextPageToken=${encodeURIComponent(pagina)}` : ''}`);
     for (const u of r?.users ?? []) {
@@ -296,37 +316,70 @@ export async function controllaInattivi({
       if (!ultimo) continue;
       const mesi = mesiTra(ultimo, ora);
       if (mesi < MESI_AVVISO) {
-        delete avvisati[uid];
+        // È tornato: si dimentica l'avviso.
+        if (avvisati[uid]) {
+          await togliScheda(uid);
+          delete avvisati[uid];
+        }
         continue;
       }
       if (!avvisati[uid]) {
         const n = await pushUtente({
-          db,
-          invio,
-          uid,
-          messaggio: {
-            titolo: 'Il tuo account Cloro',
-            corpo: 'Non lo usi da quasi 3 anni. Se non lo apri entro 30 giorni verrà eliminato.',
-            url: `${sito}/#/`,
-            tag: 'account-inattivo',
-          },
+          db, invio, uid, messaggio: { ...AVVISO_INATTIVO, url: `${sito}/#/`, tag: 'account-inattivo' },
         });
-        avvisati[uid] = { il: adesso, notifiche: n };
+        if (n) {
+          avvisati[uid] = { il: adesso, notifiche: n };
+        } else {
+          // Nessun dispositivo con le notifiche: l'avviso lo manda l'admin per email.
+          avvisati[uid] = { il: null, email: true };
+          await db.scrivi(`${INATTIVI}/${uid}`, {
+            email: u.email ?? '', ultimo: comeData(new Date(ultimo).toISOString()), stato: 'da-avvisare', creato: comeData(adesso),
+          });
+          perEmail++;
+        }
         avvisi++;
-      } else if (mesi >= MESI_ELIMINA && ora - new Date(avvisati[uid].il ?? avvisati[uid]) >= 30 * GIORNO) {
+        continue;
+      }
+      const av = avvisati[uid];
+      if (av.email && !av.il) {
+        const scheda = await db.leggi(`${INATTIVI}/${uid}`);
+        if (scheda?.mandata) av.il = new Date(scheda.mandata).toISOString();
+      }
+      if (mesi >= MESI_ELIMINA && av.il && ora - new Date(av.il) >= 30 * GIORNO) {
         await eliminaUtente({
           db, chiamaGoogle, progetto, uid,
         });
+        await togliScheda(uid);
         delete avvisati[uid];
         tolti++;
       }
     }
     pagina = r?.nextPageToken ?? '';
   } while (pagina);
-  for (const uid of Object.keys(avvisati)) if (!visti.has(uid)) delete avvisati[uid];
+  for (const uid of Object.keys(avvisati)) {
+    if (visti.has(uid)) continue;
+    await togliScheda(uid);
+    delete avvisati[uid];
+  }
   await db.scrivi('meta/inattivi', { avvisati, controllato: comeData(adesso) });
-  log(`Account inattivi: ${avvisi} avvisati, ${tolti} eliminati.`);
-  return { avvisi, tolti };
+  if (perEmail) {
+    const uid = await adminUid(db);
+    if (uid) {
+      await pushUtente({
+        db,
+        invio,
+        uid,
+        messaggio: {
+          titolo: 'Account da avvisare per email',
+          corpo: `${perEmail === 1 ? 'Un account non usato' : `${perEmail} account non usati`} da quasi 3 anni senza notifiche: scrivigli da Admin → Inattivi.`,
+          url: `${sito}/#/admin?sez=inattivi`,
+          tag: 'inattivi',
+        },
+      });
+    }
+  }
+  log(`Account inattivi: ${avvisi} avvisati (${perEmail} da avvisare per email), ${tolti} eliminati.`);
+  return { avvisi, perEmail, tolti };
 }
 
 /* ---------- B5: conservazione ---------- */
@@ -423,7 +476,7 @@ export async function tutela({
       return r.nuovi;
     });
     const ok2 = await prova('verifiche', () => ripulisciRichieste({ db, adesso, log }));
-    const ok3 = await prova('foto', () => cancellaFotoChiuse({ db, log }));
+    const ok3 = await prova('foto', () => cancellaFotoChiuse({ db, adesso, log }));
     if (ok && ok2 && ok3) m.giorno = oggi;
   }
   if (m.mese !== oggi.slice(0, 7)) {

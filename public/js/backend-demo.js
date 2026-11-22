@@ -108,6 +108,10 @@ const segnali = [{
     ['Martina Marini', 2016, 'Acquarium Ostia'], ['Aurora Serra', 2016, 'Tritone Roma'], ['Ginevra Conti', 2016, 'Polisportiva Aniene Blu']]
     .map(([n, y, s]) => ({ n, y, s })),
 }];
+// Anteprima: un account inattivo senza notifiche, da avvisare per email.
+const inattivi = [{
+  uid: 'esempio-inattivo', email: 'nuotatore@example.com', ultimo: new Date(Date.now() - 1066 * 86_400_000), stato: 'da-avvisare', creato: new Date(),
+}];
 const lavori = [];
 const limiti = [{
   id: 'regionali-2026', nome: 'Regionali di Categoria 2027', vasca: 25, st: '2026', stato: 'pubblicato',
@@ -364,7 +368,12 @@ export function creaBackendDemo() {
       await pausa();
       const r = richieste.find((x) => x.id === id);
       if (r) Object.assign(r, { stato, ...(chiusa ? { chiusa: new Date() } : {}) });
-      if (chiusa) fotoRichieste.delete(id);
+    },
+    async leggiInattivi() { await pausa(80); return inattivi.map((x) => ({ ...x })); },
+    async segnaEmailMandata(uid) {
+      await pausa();
+      const x = inattivi.find((y) => y.uid === uid);
+      if (x) Object.assign(x, { stato: 'avvisato', mandata: new Date() });
     },
     async leggiSegnali() { await pausa(80); return segnali.map((x) => ({ ...x })); },
     async decidiSegnale(uid, azione) {

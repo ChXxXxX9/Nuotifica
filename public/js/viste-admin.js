@@ -18,7 +18,7 @@ import { comprimiFoto } from './viste-privacy.js';
 
 const SEZIONI = [
   ['panoramica', 'Panoramica'], ['consigli', 'Consigli'], ['annunci', 'Annunci'], ['limiti', 'Tempi limite'],
-  ['categorie', 'Categorie'], ['richieste', 'Richieste'], ['segnali', 'Segnali'], ['nascosti', 'Atleti nascosti'], ['utenti', 'Utenti'],
+  ['categorie', 'Categorie'], ['richieste', 'Richieste'], ['segnali', 'Segnali'], ['inattivi', 'Inattivi'], ['nascosti', 'Atleti nascosti'], ['utenti', 'Utenti'],
 ];
 const NOME_TIPO = {
   idea: 'Idea', problema: 'Problema', altro: 'Altro', errore: 'Errore nei dati',
@@ -53,7 +53,7 @@ export async function vistaAdmin() {
   stato.admin = true;
   const sez = parametriHash().get('sez') ?? 'panoramica';
   const vista = {
-    panoramica, consigli, annunci, limiti, categorie, richieste, segnali, nascosti, utenti,
+    panoramica, consigli, annunci, limiti, categorie, richieste, segnali, inattivi, nascosti, utenti,
   }[sez] ?? panoramica;
   try {
     await vista();
@@ -582,7 +582,7 @@ async function richieste() {
   };
 
   disegna(pagina('richieste', `
-    <p class="intro">Chi chiede di togliere una scheda o di avere "Solo risultati". Verifica dalla foto della tessera che sia l'atleta (almeno 14 anni) o un genitore, poi applica la richiesta entro 48 ore e rispondi per email. La foto si cancella quando chiudi la richiesta (cancella anche le email con foto); gli altri dati della verifica 30 giorni dopo.</p>
+    <p class="intro">Chi chiede di togliere una scheda o di avere "Solo risultati". Verifica dalla foto della tessera che sia l'atleta (almeno 14 anni) o un genitore, poi applica la richiesta entro 48 ore e rispondi per email. La foto e gli altri dati della verifica si cancellano da soli 30 giorni dopo la chiusura (entro lo stesso tempo cancella anche le email con foto).</p>
     <div class="filtri" role="toolbar" aria-label="Filtra le richieste">
       <button class="chip" data-filtro-richieste="aperte" aria-pressed="${filtro === 'aperte'}">Aperte (${aperte})</button>
       <button class="chip" data-filtro-richieste="chiuse" aria-pressed="${filtro === 'chiuse'}">Chiuse</button>
@@ -599,7 +599,7 @@ async function richieste() {
           <dt>Chi scrive</dt><dd>${esc(CHI_RICHIESTA[r.chi] ?? r.chi ?? '–')}</dd>
           ${r.prova ? `<dt>Note</dt><dd>${esc(r.prova)}</dd>` : ''}
           <dt>Email</dt><dd>${r.email ? `<a href="mailto:${esc(r.email)}">${esc(r.email)}</a>` : '–'}</dd>
-          <dt>Foto</dt><dd>${!r.foto ? 'nessuna' : APERTA(r) ? '<button class="link" type="button" data-vedi-foto>Vedi la foto della tessera</button>' : 'cancellata alla chiusura'}</dd>
+          <dt>Foto</dt><dd>${!r.foto ? 'nessuna' : '<button class="link" type="button" data-vedi-foto>Vedi la foto della tessera</button>'}</dd>
         </dl>
         <div class="foto-tessera" data-box-foto hidden></div>`}
         ${APERTA(r) ? `<p class="${lunga ? 'errore' : 'nota'}">${lunga ? `Aperta da ${giorni} giorni: oltre 15, rispondi o chiudila.` : (giorni ? `Aperta da ${giorni === 1 ? '1 giorno' : `${giorni} giorni`}.` : 'Aperta oggi.')}</p>` : (r.chiusa ? `<p class="nota">Chiusa ${esc(quando(r.chiusa))}.</p>` : '')}
@@ -635,7 +635,7 @@ async function richieste() {
           <label class="opzione"><input type="radio" name="chi" value="genitore"><span class="opzione-testo">Un genitore</span></label>
         </fieldset>
         <div class="campo-foto">
-          <p class="nota">Foto della tessera (facoltativa: se è arrivata per email). Si cancella alla chiusura.</p>
+          <p class="nota">Foto della tessera (facoltativa: se è arrivata per email). Si cancella 30 giorni dopo la chiusura.</p>
           <div class="anteprima-foto" data-anteprima hidden><img alt="Foto scelta"></div>
           <label class="bottone bottone-secondario scegli-foto"><input type="file" accept="image/*" data-foto><span data-testo-foto>Aggiungi la foto</span></label>
         </div>
@@ -801,6 +801,47 @@ async function segnali() {
         await conAttesa(b, () => api.decidiSegnale(li.dataset.uid, azione, Number(li.dataset.n)));
         avviso(azione === 'ignora' ? 'Segnato come ignorato.' : 'Decisione salvata: il controllore la esegue entro pochi minuti.');
         segnali();
+      } catch (err) {
+        avviso(err.message, 'errore');
+      }
+    }));
+  }, { classeBody: 'senza-tab' });
+}
+
+/* ---------- account inattivi da avvisare per email ---------- */
+
+const OGGETTO_INATTIVO = 'Il tuo account Cloro';
+const TESTO_INATTIVO = 'Ciao,\n\nnon usi il tuo account Cloro da quasi 3 anni. Se non lo apri entro 30 giorni verrà eliminato. '
+  + 'Per tenerlo basta aprire l\'app.\n\nCloro';
+
+// privato/inattivi/account: chi non usa Cloro da quasi 3 anni e non ha le notifiche attive. L'avviso lo manda
+// l'admin per email; l'account si elimina solo 30 giorni dopo "Email mandata" (lo fa il controllore, ogni mese).
+async function inattivi() {
+  caricamento('Carico gli account inattivi…');
+  const elenco = (await api.leggiInattivi()).sort((a, b) => (a.stato === 'da-avvisare' ? 0 : 1) - (b.stato === 'da-avvisare' ? 0 : 1));
+  if (!qui()) return;
+  const giorno = (d) => (d ? d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }) : '–');
+  const dopo30 = (d) => (d ? giorno(new Date(d.getTime() + 30 * 86_400_000)) : '');
+  disegna(pagina('inattivi', `
+    <p class="intro">Account non usati da quasi 3 anni che non hanno le notifiche attive: l'avviso glielo mandi tu per email. Quando l'hai mandata tocca "Email mandata": l'account si elimina solo 30 giorni dopo (se nel frattempo lo apre, non succede niente).</p>
+    ${elenco.length ? `<ul class="elenco griglia-consigli">${elenco.map((x) => `
+      <li class="scheda consiglio" data-uid="${esc(x.uid)}">
+        <div class="consiglio-testa"><span class="tipo">Account …${esc(String(x.uid).slice(-6))}</span><span class="stato-consiglio">${x.stato === 'avvisato' ? 'Avvisato' : 'Da avvisare'}</span></div>
+        <dl class="dati-richiesta">
+          <dt>Email</dt><dd>${x.email ? `<a href="mailto:${esc(x.email)}?subject=${encodeURIComponent(OGGETTO_INATTIVO)}&body=${encodeURIComponent(TESTO_INATTIVO)}">${esc(x.email)}</a>` : 'non c\'è'}</dd>
+          <dt>Ultimo uso</dt><dd>${esc(giorno(x.ultimo))}</dd>
+        </dl>
+        ${x.stato === 'avvisato'
+    ? `<p class="nota">Email mandata il ${esc(giorno(x.mandata))}: se non apre Cloro, l'account si elimina dopo il ${esc(dopo30(x.mandata))}.</p>`
+    : `<p class="nota">Tocca l'email: si apre già scritta. Poi segna qui che l'hai mandata.</p>
+        <div class="dettaglio-azioni"><button class="bottone bottone-piccolo" data-mandata>Email mandata</button></div>`}
+      </li>`).join('')}</ul>` : '<p class="nota">Nessun account da avvisare.</p>'}
+    <p class="nota" style="margin-top:14px">Testo dell'email: "${esc(TESTO_INATTIVO.replace(/\n+/g, ' '))}"</p>`), (el) => {
+    el.querySelectorAll('[data-mandata]').forEach((b) => b.addEventListener('click', async () => {
+      try {
+        await conAttesa(b, () => api.segnaEmailMandata(b.closest('[data-uid]').dataset.uid));
+        avviso('Segnato: si elimina solo se non lo apre entro 30 giorni.');
+        inattivi();
       } catch (err) {
         avviso(err.message, 'errore');
       }

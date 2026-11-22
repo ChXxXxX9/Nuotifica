@@ -302,8 +302,9 @@ test('una stagione di tutta Italia: nazionale, regioni solo se serve, regione da
     return r;
   };
   const { atleti, richieste } = await scaricaItalia({ chiedi: finto, st: 2015, log: () => {} });
-  assert.equal(richieste, 72 + 20);
-  assert.equal(chiamate.filter((x) => x === '').length, 72);
+  // + 1: la nazionale piena riletta per l'annata 2000 (ALTRO ATLETA non sta in nessuna regione).
+  assert.equal(richieste, 72 + 20 + 1);
+  assert.equal(chiamate.filter((x) => x === '').length, 73);
   assert.equal(atleti.get('desempio-marco-2007').reg, '9');
   // Le righe della nazionale piena restano (chi non sta in nessuna regione), senza doppioni.
   assert.equal(atleti.get('altro-atleta-2000').risultati.length, 1);
@@ -354,7 +355,7 @@ test('regioni grandi divise per anno di nascita, e Indice annata', async () => {
   };
   const { atleti, richieste } = await scaricaItalia({ chiedi, st: 2025, log: () => {} });
   assert.equal(anni.length, fasce.length);
-  assert.equal(richieste, 72 + 20 + fasce.length);
+  assert.equal(richieste, 72 + 20 + fasce.length + 1);
   assert.equal(atleti.get('bianchi-luca-2014').reg, '3');
   const annate = annateStagione(atleti);
   assert.equal(annate['25|50SL|M|2014'], '31200|3');
@@ -592,4 +593,30 @@ test('classifica atleti di squadra: solo i tempi fatti da Categoria', async () =
   assert.deepEqual(luca.gare.sort(), ['100SL', '400SL']);
   // I migliori per gara restano di tutti (lì c'è il filtro Categoria / Esordienti).
   assert.ok(r.t['25|400SL|M'].some((x) => x.startsWith('m|')));
+});
+
+test('società fuori dai comitati regionali: la nazionale piena si rilegge anno per anno', async () => {
+  const { scaricaItalia, fasceFuoriRegione } = await import('../src/italia.js');
+  assert.deepEqual(fasceFuoriRegione(new Set([2003, 1995, 2001]), 2025), [{ dal: 2003, al: 2003 }, { dal: 2001, al: 2001 }, { dal: 1900, al: 2000 }]);
+  const riga = (n, anno, t, soc) => `<div class="row"><div class="tempo"> ${t}</div><span data-view="gratleta">${n}</span><div class="nascita"><span>${anno}</span></div><div class="societa"><span>${soc}</span></div></div>`;
+  // Nazionale piena: dentro c'è un atleta di un gruppo sportivo (nato 2003); il suo compagno nato 2003 è oltre i primi 5000.
+  const piena = JSON.stringify({ content: riga('ROSSI MARIO', 2003, '22.50', 'G.S. Esempio') + riga('ALTRO ATLETA', 2010, '35.00', 'Nuoto Prova').repeat(4999) });
+  const chieste = [];
+  const chiedi = async (c) => {
+    const giusta = c['solr[codice_gara]'] === '00' && c['solr[sesso]'] === 'M' && c['solr[id_lunghezza_vasca]'] === '1';
+    if (!giusta) return JSON.stringify({ content: '' });
+    if (c['solr[id_comitato]'] === '' && !c['solr[dalyob]']) return piena;
+    if (c['solr[id_comitato]'] === '' && c['solr[dalyob]']) {
+      chieste.push(`${c['solr[dalyob]']}-${c['solr[alyob]']}`);
+      return JSON.stringify({ content: riga('ROSSI MARIO', 2003, '22.50', 'G.S. Esempio') + riga('BIANCHI LUCA', 2003, '29.90', 'G.S. Esempio') });
+    }
+    // Regioni: solo gli atleti delle società regionali.
+    if (c['solr[id_comitato]'] === '9') return JSON.stringify({ content: riga('ALTRO ATLETA', 2010, '35.00', 'Nuoto Prova') });
+    return JSON.stringify({ content: '' });
+  };
+  const { atleti } = await scaricaItalia({ chiedi, st: 2025, log: () => {} });
+  assert.deepEqual(chieste, ['2003-2003']);
+  assert.ok(atleti.has('bianchi-luca-2003'));
+  assert.equal(atleti.get('rossi-mario-2003').risultati.length, 1);
+  assert.equal(atleti.get('altro-atleta-2010').reg, '9');
 });

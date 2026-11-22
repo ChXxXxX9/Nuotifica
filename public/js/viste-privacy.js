@@ -1,6 +1,6 @@
 // "Sei questo atleta o un suo genitore?": richiesta per togliere una scheda o per "Solo risultati".
 // La prova è per forza una foto della tessera federale (il numero da solo non basta). Richiesta e foto le
-// leggono solo l'admin e il controllore; la foto si cancella quando la richiesta si chiude.
+// leggono solo l'admin e il controllore; la foto si cancella 30 giorni dopo la chiusura della richiesta.
 import {
   stato, api, esc, barraTop, disegna, caricamento, mostraErrore, conAttesa, percorso, piede,
 } from './nucleo.js';
@@ -69,7 +69,7 @@ export async function vistaRichiesta(k) {
         </fieldset>
         <fieldset class="campo-foto">
           <legend>Foto della tessera federale</legend>
-          <p class="nota">Serve per forza la foto della tessera dell'atleta: il numero da solo non basta. Lascia visibili solo nome, cognome e numero (il resto puoi coprirlo). La vede solo chi gestisce Cloro e la cancelliamo ovunque quando la richiesta si chiude.</p>
+          <p class="nota">Serve per forza la foto della tessera dell'atleta: il numero da solo non basta. Lascia visibili solo nome, cognome e numero (il resto puoi coprirlo). La vede solo chi gestisce Cloro e la cancelliamo ovunque entro 30 giorni dalla chiusura della richiesta.</p>
           <div class="anteprima-foto" data-anteprima hidden><img alt="Foto scelta"></div>
           <label class="bottone bottone-secondario scegli-foto">
             <input type="file" accept="image/*" data-foto>
