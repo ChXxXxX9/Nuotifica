@@ -5,7 +5,7 @@ import {
 import {
   stato, api, backendCaricato, modoDemo, pocoMovimento, esc, memoria, dispositivo, percorso,
   avviso, mostraErrore, conAttesa, ICONE, tessera, barraTop, tabBar, piede, disegna, caricamento,
-  paginaErrore, conCache, radice, deveInstallare,
+  paginaErrore, conCache, radice, deveInstallare, impostaNascosti, eNascosto,
 } from './nucleo.js';
 import {
   tempo, nomeGara, periodo, quando, inCorso, iniziali, giorno, oggi, stagioneCorrente, nomeStagione,
@@ -14,7 +14,7 @@ import { vistaGare, vistaGara, delLazio, cartaGara, statoGara } from './viste-ga
 import { vistaConsigli, vistaAdmin, eAdmin } from './viste-consigli.js';
 import { applicaTema, temaScelto } from './tema.js';
 import {
-  vistaAtleti, vistaAtleta, leggiSeguiti, leggiAtleta,
+  vistaAtleti, vistaAtleta, leggiSeguiti, leggiAtleta, seguiAtleta,
 } from './viste-atleti.js';
 import { forseBenvenuto } from './benvenuto.js';
 import {
@@ -607,6 +607,14 @@ function vistaInstalla() {
 
 // Atleta seguito: ultima gara a sinistra, a destra l'Indice Cloro di adesso (lo stesso del profilo).
 function rigaSeguito(a) {
+  // Scheda tolta su richiesta: resta solo il nome (dalla copia sul telefono) e "Smetti di seguire".
+  if (eNascosto(a.k)) {
+    return `
+    <li class="scheda seguito-tolto">
+      <span><b>${esc(a.n)}</b>: scheda tolta su richiesta</span>
+      <button class="link" data-smetti="${esc(a.k)}" data-nome="${esc(a.n)}">Smetti di seguire</button>
+    </li>`;
+  }
   const ultimo = a.ultimo;
   const ic = a.ic;
   const scorsa = ic && ic.st !== stagioneCorrente();
@@ -732,6 +740,12 @@ async function vistaPerTe() {
     el.querySelectorAll('[data-filtro]').forEach((b) => b.addEventListener('click', () => {
       stato.filtro = b.dataset.filtro;
       memoria('filtro', stato.filtro);
+      ridisegna(true);
+    }));
+    el.querySelectorAll('[data-smetti]').forEach((b) => b.addEventListener('click', async () => {
+      await seguiAtleta(b.dataset.smetti, b.dataset.nome, b);
+      stato.seguitiDati = (stato.seguitiDati ?? []).filter((x) => x.k !== b.dataset.smetti);
+      salvaCopia();
       ridisegna(true);
     }));
   }, { aggiornamento, scrollA });
@@ -922,7 +936,7 @@ async function mostra() {
     stato.configCaricata = true;
     quandoLibero(() => {
       api.leggiCategorie().then((r) => impostaRegoleCategorie(r)).catch(() => {});
-      api.leggiNascosti().then((d) => { stato.nascosti = d?.k ?? []; }).catch(() => {});
+      api.leggiNascosti().then((d) => impostaNascosti(d)).catch(() => {});
     });
   }
   if (stato.admin === undefined) {

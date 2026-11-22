@@ -23,6 +23,8 @@ import { eseguiRichieste } from './classifiche.js';
 import { giroStorico, creaChiedi } from './storico.js';
 import { salvaStaffette } from './avvisi-squadre.js';
 import { trovaUrlRtdb, creaRtdb } from './rtdb.js';
+import { caricaPrivato, pulisciNascosti } from './nascosti.js';
+import { aggiornaRiassunti } from './italia.js';
 import { appendFile } from 'node:fs/promises';
 import { oggiRoma, giornoQuota } from './tempi.js';
 import {
@@ -306,6 +308,17 @@ async function principale() {
   const invio = creaInvio({ chiamaGoogle, progetto });
   // Realtime Database (tutta Italia, storico, staffette): se non c'è, il resto del giro va avanti lo stesso.
   const rtdb = await trovaUrlRtdb(chiamaGoogle, progetto).then((url) => creaRtdb(chiamaGoogle, url)).catch(() => null);
+
+  // Atleti che hanno chiesto di non comparire: senza l'elenco il giro non parte (per non rimetterli).
+  await caricaPrivato(db);
+  try {
+    const puliti = await pulisciNascosti({
+      db, rtdb, log: (t) => console.log(t), aggiornaRiassunti,
+    });
+    if (puliti) console.log(`::notice title=Nascosti::Dati cancellati per ${puliti} atleti.`);
+  } catch (e) {
+    console.log(`::warning title=Nascosti::${String(e.message).slice(0, 300)}`);
+  }
 
   const adesso = new Date().toISOString();
   const giorno = giornoQuota(adesso);

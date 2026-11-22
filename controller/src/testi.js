@@ -11,6 +11,8 @@ import { promisify } from 'node:util';
 import { impronta } from './tempi.js';
 import { comeData } from './firestore.js';
 import { USER_AGENT } from './fonti.js';
+import { eNascosto, soloRisultati } from './nascosti.js';
+import { stagioneDi } from './categorie.js';
 
 const esegui = promisify(execFile);
 const MAX_PER_GIRO = 6;
@@ -119,6 +121,12 @@ export function trovaAtleta(pagine, { n, y }) {
   return null;
 }
 
+/** Sotto i 14 anni: età = anno di fine stagione meno anno di nascita (come le categorie). */
+export function sotto14(anno, oggi = new Date().toISOString().slice(0, 10)) {
+  if (!anno) return false;
+  return stagioneDi(oggi) + 1 - Number(anno) < 14;
+}
+
 const TIPI_ELENCO = { ammessi: 'è tra gli ammessi', startlist: 'è in start list', iscritti: 'è tra gli iscritti' };
 
 /** Avvisa chi segue un atleta che compare in un elenco appena uscito (ammessi, start list, iscritti). */
@@ -133,13 +141,17 @@ export async function avvisaElenchi({
   const schede = await db.leggiTanti(chiavi.map((k) => `atleti/${k}`));
   const trovati = new Map(); // chiave -> [{ doc, forma }]
   for (const k of chiavi) {
+    // Nascosti e "Solo risultati": nessun avviso sugli elenchi.
+    if (eNascosto(k) || soloRisultati(k)) continue;
     const a = schede.get(`atleti/${k}`);
     if (!a?.n) continue;
     for (const d of elenchi) {
       const forma = trovaAtleta(d.pagine, a);
       if (forma) {
         if (!trovati.has(k)) trovati.set(k, []);
-        trovati.get(k).push({ d, forma, nome: a.n });
+        trovati.get(k).push({
+          d, forma, nome: a.n, piccolo: sotto14(a.y),
+        });
       }
     }
   }
@@ -147,10 +159,13 @@ export async function avvisaElenchi({
   for (const u of utenti) {
     const loro = u.seguiti.flatMap((k) => trovati.get(k) ?? []);
     if (!loro.length) continue;
-    let messaggi = loro.map(({ d, forma, nome }) => ({
-      titolo: `${nome} ${TIPI_ELENCO[d.tipo] ?? 'è in un elenco nuovo'}`.slice(0, 60),
-      corpo: `${d.etichetta || 'Documento del Comitato'}: tocca per vederlo.`.slice(0, 180),
-      url: `${sito}/#/documento/${encodeURIComponent(d.post)}/${d.indice}?q=${encodeURIComponent(forma)}`,
+    // Sotto i 14 anni: notifica discreta, senza il titolo del documento (si vede aprendo l'app).
+    let messaggi = loro.map(({
+      d, nome, piccolo,
+    }) => ({
+      titolo: (piccolo ? `${nome} è in un elenco nuovo` : `${nome} ${TIPI_ELENCO[d.tipo] ?? 'è in un elenco nuovo'}`).slice(0, 60),
+      corpo: piccolo ? 'Tocca per vederlo in Cloro.' : `${d.etichetta || 'Documento del Comitato'}: tocca per vederlo.`.slice(0, 180),
+      url: `${sito}/#/post/${encodeURIComponent(d.post)}`,
       tag: `elenco-${idTesto(d.url)}-${nome}`.slice(0, 60),
     }));
     if (messaggi.length > 3) {

@@ -1,4 +1,6 @@
 // Collegamento a Firebase (Auth, Firestore, Cloud Messaging) con l'SDK ufficiale dal CDN di Google.
+import { impronta } from './impronta.js';
+
 const V = '12.19.0';
 const CDN = `https://www.gstatic.com/firebasejs/${V}`;
 
@@ -416,12 +418,27 @@ export async function creaBackendFirebase(config) {
       tipo, ...dati, stato: 'da-fare', creato: F.serverTimestamp(),
     })),
 
+    /** Impronte degli atleti nascosti (h) e fuori dalla ricerca (r): per tutti, senza nomi. */
     leggiNascosti: () => avvolgi(async () => {
       const snap = await F.getDoc(F.doc(db, 'config', 'nascosti'));
-      return snap.exists() ? snap.data() : { k: [] };
+      return snap.exists() ? snap.data() : { h: [], r: [] };
     }),
 
-    salvaNascosti: (dati) => avvolgi(() => F.setDoc(F.doc(db, 'config', 'nascosti'), { ...dati, aggiornato: F.serverTimestamp() })),
+    /** Solo admin: privato/nascosti, privato/inAttesa, privato/soloRisultati ({ chiave: { n, il } }). */
+    leggiPrivato: (nome) => avvolgi(async () => {
+      const snap = await F.getDoc(F.doc(db, 'privato', nome));
+      return snap.exists() ? (snap.data().atleti ?? {}) : {};
+    }),
+
+    /** Solo admin: salva un elenco privato e subito le impronte per l'app (il controllore poi cancella i dati). */
+    salvaPrivato: (nome, atleti) => avvolgi(async () => {
+      await F.setDoc(F.doc(db, 'privato', nome), { atleti, aggiornato: F.serverTimestamp() });
+      const leggi = async (x) => (x === nome ? atleti : ((await F.getDoc(F.doc(db, 'privato', x))).data()?.atleti ?? {}));
+      const [nascosti, inAttesa] = await Promise.all([leggi('nascosti'), leggi('inAttesa')]);
+      await F.setDoc(F.doc(db, 'config', 'nascosti'), {
+        h: Object.keys(nascosti).map(impronta).sort(), r: Object.keys(inAttesa).map(impronta).sort(), aggiornato: F.serverTimestamp(),
+      });
+    }),
 
     leggiLimiti: () => avvolgi(async () => {
       const snap = await F.getDocs(F.collection(db, 'limiti'));

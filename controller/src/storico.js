@@ -3,6 +3,7 @@
 // Si salva nel Realtime Database:
 //   st/{chiave}  { agg, f: id dell'atleta nella fonte, g: { "100SL": "vasca|tempo|data|luogo|evento~…" } }
 import { inMs, chiaveAtleta } from './tempi.js';
+import { eNascosto } from './nascosti.js';
 import {
   CODICI, dataIso, dividiNome, leggiGraduatoria,
 } from './graduatorie.js';
@@ -145,6 +146,11 @@ export async function giroStorico({
   for (const r of richieste) {
     if (fatti.size >= massimo || ora() > scadenza) break;
     const k = r.id;
+    // Atleta nascosto su richiesta: niente storico.
+    if (eNascosto(k)) {
+      await db.elimina(`richiesteStorico/${k}`);
+      continue;
+    }
     try {
       gare += (await aggiornaStorico({
         db, rtdb, chiedi, k, adesso, log,
@@ -159,7 +165,7 @@ export async function giroStorico({
   const vecchio = (agg) => !agg || (Date.parse(adesso) - Date.parse(agg)) / 86_400_000 > GIORNI_STORICO;
   for (const k of await chiaviSeguite(db)) {
     if (fatti.size >= massimo || ora() > scadenza) break;
-    if (fatti.has(k)) continue;
+    if (fatti.has(k) || eNascosto(k)) continue;
     const prima = await rtdb.leggi(`st/${k}/agg`).catch(() => null);
     if (!vecchio(prima)) continue;
     try {

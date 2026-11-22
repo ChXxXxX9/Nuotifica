@@ -24,7 +24,7 @@ export const CONFIG = {
   // viene invitato a reinstallarla da quello nuovo.
   indirizzo: 'cloro.web.app',
   trasferimento: true,
-  // Chi gestisce il servizio, mostrato nella pagina Privacy.
-  titolare: '',
-  contatto: '',
+  // Chi gestisce il servizio (titolare del trattamento) e il contatto, nelle pagine Privacy, Termini e Sicurezza.
+  titolare: 'Christian Caputi',
+  contatto: 'cloroita@gmail.com',
 };

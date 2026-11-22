@@ -1,5 +1,6 @@
 // Backend finto con dati di esempio (nomi inventati): serve per l'anteprima con ?demo.
 import { DEMO } from './demo-dati.js';
+import { impronta } from './impronta.js';
 import { riassuntoSquadra } from './dati-italia.js';
 import { punti } from './punti.js';
 const ora = Date.now();
@@ -93,7 +94,7 @@ const POST = [
   },
 ];
 
-const nascosti = [];
+const privati = { nascosti: {}, inAttesa: {}, soloRisultati: {} };
 const lavori = [];
 const limiti = [{
   id: 'regionali-2026', nome: 'Regionali di Categoria 2027', vasca: 25, st: '2026', stato: 'pubblicato',
@@ -352,8 +353,12 @@ export function creaBackendDemo() {
       }));
     },
     async creaLavoro(tipo, dati = {}) { await pausa(); lavori.unshift({ id: String(Date.now()), tipo, ...dati, stato: 'da-fare', creato: new Date() }); },
-    async leggiNascosti() { await pausa(60); return { k: [...nascosti] }; },
-    async salvaNascosti(dati) { await pausa(); nascosti.splice(0, nascosti.length, ...(dati.k ?? [])); },
+    async leggiNascosti() {
+      await pausa(60);
+      return { h: Object.keys(privati.nascosti).map(impronta), r: Object.keys(privati.inAttesa).map(impronta) };
+    },
+    async leggiPrivato(nome) { await pausa(60); return { ...(privati[nome] ?? {}) }; },
+    async salvaPrivato(nome, atleti) { await pausa(); privati[nome] = { ...atleti }; },
     async leggiLimiti() { await pausa(80); return limiti.map((l) => ({ ...l })); },
     async leggiLimitiPubblicati() { await pausa(80); return limiti.filter((l) => l.stato !== 'bozza').map((l) => ({ ...l })); },
     async salvaLimite(id, dati) {

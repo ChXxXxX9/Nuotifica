@@ -4,6 +4,7 @@ import {
   inMs, leggiGara, nomeProprio, slug, nomeCategoria, ordineGara, piuGiorni, oggiRoma,
 } from './tempi.js';
 import { punti } from './punti.js';
+import { eNascosto, NOME_NASCOSTO } from './nascosti.js';
 import { comeData } from './firestore.js';
 import { stagione, leggiPrimato } from './gare.js';
 import { scrittureRicerca, scrittureNoti, leggiNotiTutti } from './ricerca.js';
@@ -275,10 +276,13 @@ async function leggiGaraNazionale({
           voce: [c.gara.codice, c.sesso, vasca, r.ms, g.al, g.id, nomeCategoria(`${c.categoria} ${c.sesso === 'F' ? 'femmine' : 'maschi'}`)].join('|'),
         });
       }
-      const k = c.gara.staffetta ? null : `${slug(r.nome).slice(0, 60)}${r.anno ? `-${r.anno}` : ''}`;
-      const riga = { n: r.nome, s: r.societa, p: r.posizione };
+      const chiave = c.gara.staffetta ? null : `${slug(r.nome).slice(0, 60)}${r.anno ? `-${r.anno}` : ''}`;
+      // Atleta nascosto su richiesta: restano tempo e posizione, senza nome, anno, società e scheda.
+      const nascosto = eNascosto(chiave);
+      const k = nascosto ? null : chiave;
+      const riga = nascosto ? { n: NOME_NASCOSTO, p: r.posizione } : { n: r.nome, s: r.societa, p: r.posizione };
       if (k) riga.k = k;
-      if (r.anno) riga.y = r.anno;
+      if (r.anno && !nascosto) riga.y = r.anno;
       if (r.ms) riga.t = r.ms;
       if (r.stato) riga.x = r.stato;
       const pt = punti(r.ms, c.gara.codice, c.sesso, vasca, g.al);

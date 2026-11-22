@@ -3,6 +3,7 @@
 // solo se arriva al limite di righe si legge regione per regione. La regione di chi compare solo
 // nella nazionale si ricava dalla sua società.
 import { chiaveAtleta } from './tempi.js';
+import { eNascosto, fuoriRicerca } from './nascosti.js';
 import { punti } from './punti.js';
 import { comeData } from './firestore.js';
 import { chiaveSquadra } from './ricerca.js';
@@ -52,7 +53,7 @@ export function risolviOrigini(atleti) {
 function ricordaPassaggio(atleti, r, { vasca, codice }) {
   const { cognome, nome } = dividiNome(r.nome);
   const k = chiaveAtleta(cognome, nome, r.anno);
-  if (!k) return;
+  if (!k || eNascosto(k)) return;
   if (!atleti.passaggi) Object.defineProperty(atleti, 'passaggi', { value: new Map(), enumerable: false });
   if (!atleti.passaggi.has(k)) atleti.passaggi.set(k, new Set());
   atleti.passaggi.get(k).add(`${codice}|${vasca}|${r.ms}|${r.data ?? ''}`);
@@ -71,7 +72,8 @@ export function aggiungiRiga(atleti, r, {
   if (!tp && r.idGara) ID_GARE.set(r.idGara, codice);
   const { cognome, nome } = dividiNome(r.nome);
   const k = chiaveAtleta(cognome, nome, r.anno);
-  if (!k) return;
+  // Chi ha chiesto di non comparire non si carica più.
+  if (!k || eNascosto(k)) return;
   if (!atleti.has(k)) {
     atleti.set(k, {
       n: `${nome} ${cognome}`.trim(), y: r.anno, sx: sesso, societa: new Set(), fin: r.idAtleta, reg, risultati: [],
@@ -242,7 +244,8 @@ export function vociStagione(atleti, st, { indice = 'tutti', squadre = squadreDe
     voci[`a/${k}/i`] = rigaInfo(a);
     if (a.fin) voci[`a/${k}/f`] = String(a.fin);
     voci[`a/${k}/s${st}`] = rigaStagione({ ...a, s });
-    if (indice === 'tutti' || !indice.has(k)) {
+    // (chi è in attesa di verifica di una richiesta privacy resta fuori dalla ricerca)
+    if ((indice === 'tutti' || !indice.has(k)) && !fuoriRicerca(k)) {
       for (const chiave of chiaviRicerca(a.n)) voci[`c/${chiave}~${k}`] = rigaRicerca(k, { ...a, s });
     }
   }

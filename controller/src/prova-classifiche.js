@@ -8,11 +8,14 @@ import { preparaClassifica, idClassifica, richiestaValida } from './classifiche.
 import { REGOLE_BASE } from './categorie.js';
 import { stagione } from './gare.js';
 import { oggiRoma } from './tempi.js';
+import { caricaPrivato } from './nascosti.js';
+import { creaFirestore } from './firestore.js';
 
 const fonti = leggiFonti();
 const account = leggiAccountServizio(process.env.FIREBASE_SERVICE_ACCOUNT);
 const chiama = creaClientGoogle(creaGestoreToken(account));
 const rtdb = creaRtdb(chiama, await trovaUrlRtdb(chiama, account.project_id));
+await caricaPrivato(creaFirestore(chiama, account.project_id));
 const adesso = new Date().toISOString();
 const st = stagione(oggiRoma(adesso));
 const prec = String(Number(st) - 1);

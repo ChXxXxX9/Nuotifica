@@ -2,7 +2,7 @@
 // categorie, atleti nascosti, utenti.
 import {
   stato, api, esc, barraTop, disegna, caricamento, paginaErrore, ICONE, avviso, conAttesa, mostraErrore, percorso,
-  parametriHash, conCache,
+  parametriHash, conCache, impostaNascosti,
 } from './nucleo.js';
 import {
   quando, tempo, nomeGara, nomeStagione, stagioneCorrente, impostaRegoleCategorie, regoleCategorie,
@@ -445,30 +445,33 @@ async function categorie() {
 
 /* ---------- atleti nascosti ---------- */
 
+// privato/nascosti: lo leggono solo l'admin e il controllore. Il controllore, al giro dopo, cancella i
+// dati dell'atleta ovunque e nelle gare mette "Atleta nascosto"; l'app riceve solo impronte senza nomi.
 async function nascosti() {
   caricamento('Carico gli atleti nascosti…');
-  const dati = await api.leggiNascosti();
+  let elenco = await api.leggiPrivato('nascosti');
   if (!qui()) return;
-  let elenco = [...(dati.k ?? [])];
-  const nomi = dati.n ?? {};
   const salva = async (bottone) => {
     try {
-      await conAttesa(bottone, () => api.salvaNascosti({ k: elenco, n: nomi }));
-      stato.nascosti = elenco;
-      avviso('Salvato.');
+      await conAttesa(bottone, () => api.salvaPrivato('nascosti', elenco));
+      impostaNascosti(await api.leggiNascosti());
+      avviso('Salvato: entro pochi minuti i suoi dati spariscono da tutto Cloro.');
       disegnaPagina();
     } catch (err) {
       avviso(err.message, 'errore');
     }
   };
+  const voci = () => Object.entries(elenco).sort((x, y) => String(y[1]?.il ?? '').localeCompare(String(x[1]?.il ?? '')));
   const disegnaPagina = () => disegna(pagina('nascosti', `
-    <p class="intro">Chi chiede di non comparire: la sua scheda sparisce da ricerca, classifiche e squadre.</p>
+    <p class="intro">Chi chiede di togliere la scheda: i suoi dati vengono cancellati da schede, ricerca, classifiche e squadre, nelle gare compare "Atleta nascosto" e non partono più notifiche. Non si ricarica più.</p>
     <label class="cerca"><span class="nascosto">Cerca un atleta</span>${ICONE.cerca}<input type="search" placeholder="Nome e cognome" autocomplete="off"></label>
     <ul class="elenco risultati-ricerca" data-trovati></ul>
     <section class="sezione">
-      <div class="sezione-testa"><h2 class="sezione-titolo">Nascosti</h2><span class="nota">${elenco.length}</span></div>
-      ${elenco.length ? `<ul class="elenco elenco-admin">${elenco.map((k) => `
-        <li class="scheda"><b>${esc(nomi[k] ?? k)}</b><button class="bottone bottone-secondario bottone-piccolo" data-mostra="${esc(k)}">Mostra di nuovo</button></li>`).join('')}</ul>` : '<p class="nota">Nessuno.</p>'}
+      <div class="sezione-testa"><h2 class="sezione-titolo">Nascosti</h2><span class="nota">${voci().length}</span></div>
+      ${voci().length ? `<ul class="elenco elenco-admin">${voci().map(([k, x]) => `
+        <li class="scheda"><b>${esc(x?.n ?? k)}</b><small class="nota">${esc(k)}${x?.il ? ` · dal ${esc(quando(new Date(x.il)))}` : ''}</small>
+          <button class="bottone bottone-secondario bottone-piccolo" data-mostra="${esc(k)}">Mostra di nuovo</button></li>`).join('')}</ul>
+        <p class="nota" style="margin-top:8px">"Mostra di nuovo": i dati tornano con i prossimi caricamenti (la stagione in corso ogni notte).</p>` : '<p class="nota">Nessuno.</p>'}
     </section>`), (el) => {
     const input = el.querySelector('input');
     const box = el.querySelector('[data-trovati]');
@@ -481,15 +484,15 @@ async function nascosti() {
           <li><a href="#" data-nascondi="${esc(v.k)}" data-nome="${esc(v.n)}"><b>${esc(v.n)}</b><small>${esc([v.y, v.s].filter(Boolean).join(' · '))} · Nascondi</small></a></li>`).join('');
         box.querySelectorAll('[data-nascondi]').forEach((x) => x.addEventListener('click', (e) => {
           e.preventDefault();
-          if (!elenco.includes(x.dataset.nascondi)) elenco.push(x.dataset.nascondi);
-          nomi[x.dataset.nascondi] = x.dataset.nome;
+          if (!window.confirm(`Nascondere ${x.dataset.nome}? I suoi dati vengono cancellati da tutto Cloro.`)) return;
+          elenco = { ...elenco, [x.dataset.nascondi]: { n: x.dataset.nome, il: new Date().toISOString() } };
           salva(null);
         }));
       }, 150);
     });
     el.querySelectorAll('[data-mostra]').forEach((x) => x.addEventListener('click', () => {
-      elenco = elenco.filter((k) => k !== x.dataset.mostra);
-      delete nomi[x.dataset.mostra];
+      const { [x.dataset.mostra]: _, ...resto } = elenco;
+      elenco = resto;
       salva(x);
     }));
   }, { classeBody: 'senza-tab' });

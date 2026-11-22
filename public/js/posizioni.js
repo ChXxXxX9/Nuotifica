@@ -1,6 +1,8 @@
 // Dove si piazza un tempo: nelle graduatorie della sua stagione, nel Lazio e in Italia,
 // in assoluto, nella categoria e nell'anno (R14, J1…). Si usa nella scheda di ogni risultato.
-import { stato, api, esc, conCache } from './nucleo.js';
+import {
+  api, esc, conCache, eNascosto,
+} from './nucleo.js';
 import { codiciAtleta, nomeCodice } from './categorie.js';
 import { regoleCategorie, nomeStagione } from './formato.js';
 
@@ -9,11 +11,10 @@ const leggi = (id) => conCache(`classifica:${id}`, (fresco) => api.leggiClassifi
 const dataDi = (d) => (d?.agg?.toDate ? d.agg.toDate() : d?.agg ? new Date(d.agg) : null);
 
 function righe(doc) {
-  const nascosti = new Set(stato.nascosti ?? []);
   return (doc?.righe ?? []).map((riga) => {
     const [k, , y, , valore] = riga.split('|');
     return { k, y: Number(y) || null, valore: Number(valore) };
-  }).filter((r) => !nascosti.has(r.k));
+  }).filter((r) => !eNascosto(r.k));
 }
 
 /** Classifica pronta oppure chiesta al controllore (null + "in preparazione"). */

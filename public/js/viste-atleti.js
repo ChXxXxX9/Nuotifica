@@ -1,7 +1,7 @@
 // Sezione Atleti: ricerca, scheda atleta (personali, grafico, storico) e "Segui".
 import {
   stato, api, esc, barraTop, tabBar, disegna, caricamento, paginaErrore, ICONE, conCache, giaInCache,
-  percorso, memoria, avviso, conAttesa,
+  percorso, memoria, avviso, conAttesa, eNascosto, fuoriRicerca,
 } from './nucleo.js';
 import {
   tempo, nomeGara, ordineGara, giorno, iniziali, differenza, codici, stagioneCorrente, stagioneDi, nomeStagione,
@@ -115,8 +115,13 @@ export function indiceAttuale(risultati = []) {
 
 /** Dati brevi degli atleti seguiti, per "Per te": ultima gara e Indice Cloro di adesso. */
 export async function leggiSeguiti(chiavi) {
-  const schede = await Promise.all(chiavi.map((k) => leggiAtleta(k).catch(() => null)));
+  const schede = await Promise.all(chiavi.map((k) => (eNascosto(k) ? null : leggiAtleta(k).catch(() => null))));
   return chiavi.map((k, i) => {
+    // Scheda tolta su richiesta: il nome si tiene dalla copia sul telefono.
+    if (eNascosto(k)) {
+      const prima = (stato.seguitiDati ?? []).find((x) => x.k === k);
+      return { k, n: prima?.n ?? k.replace(/-\d{4}$/, '').replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) };
+    }
     const a = schede[i];
     if (!a) return { k, n: k.replace(/-\d{4}$/, '').replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) };
     return {
@@ -213,8 +218,7 @@ export async function cerca(testo) {
   const perChiave = new Map(lazio.map((v) => [v.k, v]));
   for (const v of italia) perChiave.set(v.k, v);
   const voci = [...perChiave.values()];
-  const nascosti = new Set(stato.nascosti ?? []);
-  const trovati = voci.filter((v) => !nascosti.has(v.k) && parole.every((p) => v.cerca.includes(p)));
+  const trovati = voci.filter((v) => !fuoriRicerca(v.k) && parole.every((p) => v.cerca.includes(p)));
   const primo = parole[0];
   const iniziaCon = (v) => testoCerca(v.n).split(' ').some((x) => x.startsWith(primo));
   return trovati
@@ -379,7 +383,7 @@ export async function vistaAtleta(k) {
     }
   };
   window.addEventListener('cloro:fresco', fresco);
-  if (a && (stato.nascosti ?? []).includes(k)) {
+  if (eNascosto(k)) {
     disegna(`${barraTop({ indietro: true })}<main class="pagina"><h1 class="titolo-pagina">Scheda non disponibile</h1><p class="intro">Questa scheda è stata tolta su richiesta.</p></main>${tabBar('atleti')}`);
     return;
   }

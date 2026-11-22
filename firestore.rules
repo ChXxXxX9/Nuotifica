@@ -84,11 +84,17 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // Configurazione gestita dall'admin: atleti da non mostrare (config/nascosti),
-    // categorie per età (config/categorie).
+    // Configurazione gestita dall'admin: categorie per età (config/categorie) e impronte degli atleti
+    // nascosti (config/nascosti: solo impronte delle chiavi, mai nomi).
     match /config/{id} {
       allow read: if registrato();
       allow write: if admin();
+    }
+
+    // Dati riservati: elenchi degli atleti nascosti, in attesa, "solo risultati", segnali sugli account.
+    // Li legge e li scrive solo l'admin (il controllore usa l'account di servizio).
+    match /privato/{doc=**} {
+      allow read, write: if admin();
     }
 
     // Lavori chiesti dall'admin al controllore (rileggere una stagione, una gara…).
@@ -142,20 +148,18 @@ service cloud.firestore {
       allow read: if registrato();
       allow write: if false;
     }
+    // Vecchi indici (non più usati dall'app): chiusi, il controllore li cancella.
     match /indici/{lettera} {
-      allow read: if registrato();
-      allow write: if false;
+      allow read, write: if false;
     }
 
     // Ricerca degli atleti (due lettere per documento), squadre e testi dei documenti del Comitato.
     // Tutta Italia: migliori di ogni stagione "a pacchi" e indice di ricerca a tre lettere.
     match /pacchi/{pacco} {
-      allow read: if registrato();
-      allow write: if false;
+      allow read, write: if false;
     }
     match /cerca/{prefisso} {
-      allow read: if registrato();
-      allow write: if false;
+      allow read, write: if false;
     }
 
     match /ricerca/{prefisso} {
@@ -170,8 +174,9 @@ service cloud.firestore {
         allow write: if false;
       }
     }
+    // Testi dei PDF del Comitato (contengono nomi): li usa solo il controllore per gli avvisi.
     match /testi/{documento} {
-      allow read: if registrato();
+      allow read: if admin();
       allow write: if false;
     }
     // Tempi limite: li scrive l'admin (anche dal computer), li leggono tutti gli iscritti.

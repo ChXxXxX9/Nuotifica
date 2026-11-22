@@ -1573,3 +1573,7 @@ dialog.foglio-info::backdrop { background: rgba(0, 0, 0, 0.55); }
 .foglio-info-corpo strong { color: var(--testo); }
 .foglio-info-corpo .esempio { background: var(--fondo); border: 1px solid var(--linea); border-radius: var(--r-s); padding: 10px 12px; }
 .foglio-info-corpo .bottone { margin-top: 6px; width: 100%; }
+
+/* "Per te": atleta seguito con la scheda tolta su richiesta. */
+.seguito-tolto { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px; color: var(--tenue); font-size: 14px; }
+.seguito-tolto b { color: var(--testo); }

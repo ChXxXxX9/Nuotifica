@@ -14,6 +14,7 @@ import {
 import { chiaveAtleta, oggiRoma } from './tempi.js';
 import { stagione } from './gare.js';
 import { REGOLE_BASE, anniCodice, etaCodice } from './categorie.js';
+import { eNascosto } from './nascosti.js';
 
 export const COMITATI = {
   1: 'Piemonte', 3: 'Lombardia', 5: 'Veneto', 6: 'Friuli Venezia Giulia', 7: 'Liguria', 8: 'Emilia Romagna', 9: 'Toscana',
@@ -98,7 +99,7 @@ export async function preparaClassifica({
   for (const x of valide.sort((a, b) => a.ms - b.ms)) {
     const { cognome, nome } = dividiNome(x.nome);
     const k = chiaveAtleta(cognome, nome, x.anno);
-    if (!k || visti.has(k)) continue;
+    if (!k || visti.has(k) || eNascosto(k)) continue;
     visti.add(k);
     righe.push({
       k, n: `${nome} ${cognome}`.trim(), y: x.anno, s: x.societa.join(' / '), valore: x.ms, d: x.data, tp: tipoTempo(x.turno),
