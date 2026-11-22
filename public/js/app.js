@@ -1,6 +1,6 @@
 import { CONFIG } from './config.js';
 import {
-  SETTORI, GRUPPI, TIPI, NOME_SETTORE, TIPO_BREVE, GIORNI_NOVITA, AVVISO_NON_UFFICIALE, VERSIONE_TESTI,
+  SETTORI, GRUPPI, TIPI, NOME_SETTORE, TIPO_BREVE, GIORNI_NOVITA, AVVISO_NON_UFFICIALE, VERSIONE_TESTI, AVVISO_RECAPTCHA,
 } from './costanti.js';
 import {
   stato, api, backendCaricato, modoDemo, pocoMovimento, esc, memoria, dispositivo, percorso,
@@ -209,6 +209,7 @@ function vistaOspite() {
         <button class="bottone bottone-google" data-azione="google">${ICONE.google}<span>Continua con Google</span></button>
         <button class="bottone bottone-secondario" data-azione="mostra-email">Entra con email e password</button>
         <p class="nota nota-accetta">Continuando accetti i <a href="#/termini">Termini d'uso</a> e confermi di aver letto l'<a href="#/privacy">Informativa privacy</a>.</p>
+        <p class="nota nota-accetta">${esc(AVVISO_RECAPTCHA)}</p>
         ${inApp ? '<p class="nota">Se l\'accesso con Google non si apre, usa email e password.</p>' : ''}
         <p class="errore" data-errore-google hidden></p>
 

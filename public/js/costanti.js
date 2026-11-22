@@ -51,5 +51,7 @@ export const GIORNI_NOVITA = 7;
 // Versione di Termini d'uso e Informativa privacy: chi non l'ha accettata la vede una volta prima di "Per te".
 export const VERSIONE_TESTI = '2026-11-18';
 
+// Al posto del marchio di reCAPTCHA (nascosto): niente link alle norme di Google, che tratta i dati per conto di Cloro.
+export const AVVISO_RECAPTCHA = 'Questa app è protetta da reCAPTCHA.';
 export const AVVISO_NON_UFFICIALE = 'Cloro è un servizio non ufficiale, non collegato a federazioni, '
   + 'comitati o organizzatori. Fanno fede solo i risultati e le comunicazioni ufficiali.';

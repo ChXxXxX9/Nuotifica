@@ -1,4 +1,4 @@
-// Privacy, Termini d'uso, Sicurezza e minori, Domande frequenti (testi versione 2026-11-18).
+// Privacy, Termini d'uso, Sicurezza e minori, Domande frequenti (testi versione 2026-11-18, aggiornati il 22/11/2026).
 // Si aprono anche senza accesso e dal browser. I testi sono scritti per rispettare GDPR e Codice privacy:
 // non cambiarne il senso senza chiedere a chi gestisce Cloro.
 import { CONFIG } from './config.js';
@@ -22,6 +22,9 @@ const DATI_UTENTI = [
     'Cancellati con l\'account, e comunque dopo 24 mesi'],
   ['Dati tecnici: data di iscrizione e di ultimo uso, registri tecnici dei servizi che usiamo', 'Sicurezza e funzionamento',
     'Legittimo interesse', 'Il tempo tecnico necessario (per i registri al massimo 90 giorni)'],
+  ['Dati del dispositivo e dell\'uso dell\'app analizzati da reCAPTCHA di Google (per esempio indirizzo IP, tipo di browser e di dispositivo, interazioni con l\'app)',
+    'Riconoscere i programmi automatici e proteggere i dati degli atleti dalla copia di massa',
+    'Legittimo interesse alla sicurezza del servizio (art. 6.1.f GDPR)', 'Il tempo necessario all\'analisi. Google li tratta per conto di Cloro, solo per questo scopo'],
   ['Atleti seguiti, confrontati con la loro età e la loro società', 'Accorgerci di chi usa Cloro per seguire ragazzi senza motivo, e proteggerli',
     'Legittimo interesse', 'Il tempo della verifica'],
 ];
@@ -49,7 +52,7 @@ const privacy = () => `
       <dt>Per quanto tempo</dt><dd>${esc(tempo)}</dd>
     </dl>`).join('')}
   </div>
-  <p>Sul tuo dispositivo Cloro salva copie dei dati e le tue preferenze, solo per aprirsi più in fretta e funzionare anche con poca rete. Sono dati tecnici: non usiamo cookie di profilazione né strumenti di statistica, e non serve il tuo consenso. Non facciamo pubblicità e non vendiamo né cediamo i dati a nessuno.</p>
+  <p>Sul tuo dispositivo Cloro salva copie dei dati e le tue preferenze, solo per aprirsi più in fretta e funzionare anche con poca rete. Per proteggere l'app, reCAPTCHA salva anche un cookie tecnico (_GRECAPTCHA), necessario alla sua analisi. Sono dati tecnici: non usiamo cookie di profilazione né strumenti di statistica, e non serve il tuo consenso. Non facciamo pubblicità e non vendiamo né cediamo i dati a nessuno.</p>
 
   <h2>4. Gli atleti</h2>
   <p><strong>Quali dati.</strong> Nome e cognome, anno di nascita, sesso, società, regione o comitato, gare nuotate con tempi, parziali, posizioni, batteria, corsia ed esito. Da questi dati Cloro calcola punti World Aquatics, personali e stagionali, Indice Cloro, Indice annata, posizioni in classifica e tempi limite raggiunti.</p>
@@ -78,7 +81,7 @@ const privacy = () => `
 
   <h2>6. Chi tratta i dati per conto di Cloro, e dove</h2>
   <ul>
-    <li><strong>Google (Firebase):</strong> account, database, notifiche e sito. I database sono nell'Unione Europea; alcuni servizi, come l'accesso e l'invio delle notifiche, possono trattare dati negli Stati Uniti.</li>
+    <li><strong>Google (Firebase e reCAPTCHA):</strong> account, database, notifiche, sito e protezione dai programmi automatici. I database sono nell'Unione Europea; alcuni servizi, come l'accesso e l'invio delle notifiche, possono trattare dati negli Stati Uniti.</li>
     <li><strong>GitHub (Microsoft):</strong> esegue il programma che raccoglie i risultati e aggiorna i dati. I suoi registri tecnici restano al massimo 90 giorni.</li>
     <li><strong>Apple:</strong> consegna le notifiche su iPhone e iPad.</li>
   </ul>

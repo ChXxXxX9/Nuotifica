@@ -19,6 +19,8 @@ const GIORNI_DATI_VERIFICA = 29;
 const MESI_AVVISO = 35;
 const MESI_ELIMINA = 36;
 const MESI_CONSIGLI = 24;
+// Richieste privacy ripulite (stato, tipo e date): si cancellano del tutto 3 anni dopo la chiusura.
+const MESI_RICHIESTE = 36;
 const VECCHIE_AL_GIORNO = 4000;
 
 const auth = (progetto) => `https://identitytoolkit.googleapis.com/v1/projects/${progetto}/accounts`;
@@ -77,17 +79,31 @@ export async function avvisaRichieste({
   return nuove.length;
 }
 
-/** Richieste chiuse da 29 giorni: restano solo stato, tipo e date (i dati della verifica si cancellano). */
+/**
+ * Richieste chiuse da 29 giorni: restano solo stato, tipo e date (i dati della verifica, foto compresa, si
+ * cancellano). Le richieste ripulite si cancellano del tutto 3 anni dopo la chiusura (registro e procedura
+ * delle richieste).
+ */
 export async function ripulisciRichieste({ db, adesso, log = console.log }) {
   const limite = new Date(adesso).getTime() - GIORNI_DATI_VERIFICA * GIORNO;
+  const fine = mesiPrima(adesso, MESI_RICHIESTE).getTime();
   let n = 0;
+  const vecchie = [];
   for (const r of await db.elenca('richiestePrivacy')) {
+    if (r.ripulita && r.chiusa && new Date(r.chiusa).getTime() <= fine) {
+      vecchie.push(r.id);
+      continue;
+    }
     if (r.ripulita || !r.chiusa || new Date(r.chiusa).getTime() > limite) continue;
     await db.scrivi(`richiestePrivacy/${r.id}`, {
       stato: r.stato ?? '', tipo: r.tipo ?? '', creato: comeData(r.creato), chiusa: comeData(r.chiusa), ripulita: true, avvisato: true,
     });
     await db.elimina(`richiestePrivacyFoto/${r.id}`);
     n++;
+  }
+  if (vecchie.length) {
+    await db.eliminaTanti(vecchie.flatMap((id) => [`richiestePrivacy/${id}`, `richiestePrivacyFoto/${id}`]));
+    log(`Richieste privacy chiuse da più di 3 anni cancellate: ${vecchie.length}.`);
   }
   if (n) log(`Richieste privacy: dati di verifica cancellati da ${n} richieste chiuse.`);
   return n;

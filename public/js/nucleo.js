@@ -1,6 +1,6 @@
 // Il "nucleo" dell'app: stato condiviso, collegamento al backend, pezzi di interfaccia comuni.
 import { CONFIG } from './config.js';
-import { AVVISO_NON_UFFICIALE } from './costanti.js';
+import { AVVISO_NON_UFFICIALE, AVVISO_RECAPTCHA } from './costanti.js';
 import { impronta } from './impronta.js';
 
 export const radice = document.getElementById('app');
@@ -227,6 +227,7 @@ export function piede() {
   return `
     <footer class="piede">
       <p>${esc(AVVISO_NON_UFFICIALE)}</p>
+      <p>${esc(AVVISO_RECAPTCHA)}</p>
       <p><a href="#/privacy">Privacy</a> · <a href="#/termini">Termini</a> · <a href="#/sicurezza">Sicurezza e minori</a></p>
     </footer>`;
 }
