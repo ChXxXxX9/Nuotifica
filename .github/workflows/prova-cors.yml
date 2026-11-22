@@ -1,0 +1,14 @@
+name: Prova CORS
+on:
+  push:
+    branches: [prova-cors]
+jobs:
+  prova:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Preflight
+        run: |
+          R=$(curl -s -i -X OPTIONS "https://nuotifica-default-rtdb.europe-west1.firebasedatabase.app/sqx.json" -H "Origin: https://cloro.web.app" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: x-firebase-appcheck" | tr -d '\r' | grep -i "^HTTP\|^access-control" | tr '\n' ' ')
+          echo "::notice title=Preflight::$R"
+          R2=$(curl -s -i "https://nuotifica-default-rtdb.europe-west1.firebasedatabase.app/sqx.json?shallow=true" -H "Origin: https://cloro.web.app" -H "X-Firebase-AppCheck: prova" | tr -d '\r' | grep -i "^HTTP\|^access-control\|^www" | tr '\n' ' ')
+          echo "::notice title=Get::$R2"
