@@ -28,7 +28,7 @@ const DATI_UTENTI = [
 
 const privacy = () => `
   <h1 class="titolo-pagina">Informativa privacy</h1>
-  <p class="nota">Ultimo aggiornamento: 18 novembre 2026</p>
+  <p class="nota">Ultimo aggiornamento: 22 novembre 2026</p>
   <p>Cloro è un servizio gratuito e non ufficiale: raccoglie risultati, tempi ed elenchi già pubblicati online da federazioni, comitati e organizzatori delle gare, e li mostra in un unico posto, con notifiche. Qui spieghiamo quali dati trattiamo, perché e quali sono i tuoi diritti.</p>
 
   <h2>1. Chi siamo</h2>
@@ -74,7 +74,7 @@ const privacy = () => `
     <li><strong>Togli questa scheda:</strong> Cloro cancella scheda, storico, presenze in classifiche e squadre. Nelle gare al posto del nome compare "Atleta nascosto". Niente più notifiche, e i suoi dati non vengono più caricati.</li>
     <li><strong>Solo risultati:</strong> la scheda resta, ma chi segue l'atleta non riceve più l'avviso quando compare negli elenchi (ammessi, start list, iscritti).</li>
   </ul>
-  <p><strong>Come.</strong> Dalla scheda dell'atleta, "Sei questo atleta o un suo genitore?", oppure scrivendo a ${mail}. Chiediamo di dimostrare di essere l'atleta o il genitore, per esempio con il numero della tessera federale, una foto della tessera con visibili solo nome e numero, o una conferma della società. Mentre verifichiamo, la scheda viene subito tolta dalla ricerca. Dopo la verifica applichiamo la richiesta entro 48 ore. I dati usati per la verifica li cancelliamo entro 30 giorni dalla chiusura della richiesta: teniamo solo una nota con data ed esito.</p>
+  <p><strong>Come.</strong> Dalla scheda dell'atleta, "Sei questo atleta o un suo genitore?", oppure scrivendo a ${mail}. Per verificare che sei l'atleta o il genitore chiediamo sempre una foto della tessera federale dell'atleta in cui si vedano solo nome e numero: il numero da solo non basta. Mentre verifichiamo, la scheda viene subito tolta dalla ricerca. Dopo la verifica applichiamo la richiesta entro 48 ore. I dati usati per la verifica li cancelliamo entro 30 giorni dalla chiusura della richiesta: teniamo solo una nota con data ed esito.</p>
 
   <h2>6. Chi tratta i dati per conto di Cloro, e dove</h2>
   <ul>
@@ -190,7 +190,7 @@ const sicurezza = () => `
   <h2>Come fare</h2>
   <ol>
     <li>Apri la scheda dell'atleta e tocca "Sei questo atleta o un suo genitore?", oppure scrivi a ${mail}.</li>
-    <li>Ti chiediamo di dimostrare che sei l'atleta o il genitore: per esempio il numero della tessera federale, una foto della tessera con visibili solo nome e numero, o una conferma della società.</li>
+    <li>Per verificare che sei l'atleta o il genitore ti chiediamo una foto della tessera federale dell'atleta in cui si vedano solo nome e numero (copri il resto). Il numero da solo non basta.</li>
     <li>Intanto la scheda viene subito tolta dalla ricerca.</li>
     <li>Dopo la verifica, applichiamo la richiesta entro 48 ore e ti avvisiamo.</li>
   </ol>

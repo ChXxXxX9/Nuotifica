@@ -57,9 +57,14 @@ export async function creaBackendFirebase(config) {
       appCheck = null;
     }
   }
-  /** Intestazione per le letture dal Realtime Database (fatte senza SDK). */
+  /**
+   * Intestazione per le letture dal Realtime Database e da Firestore senza SDK. Se una richiesta con il gettone
+   * viene rifiutata e senza passa (App Check non ancora obbligatorio, gettone non valido), per questa sessione
+   * il gettone non si manda più: l'app non si blocca per colpa di App Check.
+   */
+  let senzaAppCheck = false;
   const intestazioniAppCheck = async () => {
-    if (!appCheck) return {};
+    if (!appCheck || senzaAppCheck) return {};
     try {
       const { token } = await AC.getToken(appCheck, false);
       return token ? { 'X-Firebase-AppCheck': token } : {};
@@ -147,7 +152,15 @@ export async function creaBackendFirebase(config) {
       if (!utente) throw Object.assign(new Error('Accedi per vedere i dati.'), { code: 'permission-denied' });
       const [token, intestazioni] = await Promise.all([utente.getIdToken(), intestazioniAppCheck()]);
       const q = new URLSearchParams({ ...parametri, auth: token });
-      const r = await fetch(`${indirizzo}?${q}`, { headers: intestazioni });
+      let r = await fetch(`${indirizzo}?${q}`, { headers: intestazioni });
+      if ((r.status === 401 || r.status === 403) && intestazioni['X-Firebase-AppCheck']) {
+        const senza = await fetch(`${indirizzo}?${q}`);
+        if (senza.ok) {
+          senzaAppCheck = true;
+          console.warn('App Check: gettone rifiutato dal Realtime Database, proseguo senza.');
+        }
+        r = senza;
+      }
       if (r.status === 401 || r.status === 403) throw Object.assign(new Error('permission-denied'), { code: 'permission-denied' });
       if (!r.ok) throw Object.assign(new Error(`rete ${r.status}`), { code: 'unavailable' });
       const dati = await r.json();
@@ -180,12 +193,19 @@ export async function creaBackendFirebase(config) {
     if (!utente) throw Object.assign(new Error('permission-denied'), { code: 'permission-denied' });
     const [token, intestazioni] = await Promise.all([utente.getIdToken(), intestazioniAppCheck()]);
     let r;
+    const manda = (conGettone) => fetch(`https://firestore.googleapis.com/v1/${RADICE}${percorso}`, {
+      method: metodo,
+      headers: { Authorization: `Bearer ${token}`, ...(corpo ? { 'Content-Type': 'application/json' } : {}), ...(conGettone ? intestazioni : {}) },
+      body: corpo ? JSON.stringify(corpo) : undefined,
+    });
     try {
-      r = await fetch(`https://firestore.googleapis.com/v1/${RADICE}${percorso}`, {
-        method: metodo,
-        headers: { Authorization: `Bearer ${token}`, ...(corpo ? { 'Content-Type': 'application/json' } : {}), ...intestazioni },
-        body: corpo ? JSON.stringify(corpo) : undefined,
-      });
+      r = await manda(true);
+      // Gettone App Check rifiutato (vedi intestazioniAppCheck): si riprova una volta senza.
+      if (r.status === 401 && intestazioni['X-Firebase-AppCheck']) {
+        const senza = await manda(false);
+        if (senza.status !== 401) senzaAppCheck = true;
+        r = senza;
+      }
     } catch {
       throw Object.assign(new Error('unavailable'), { code: 'unavailable' });
     }
