@@ -1,7 +1,7 @@
 // Squadre: elenco, componenti attuali e passati, migliori tempi per gara (di sempre o di una stagione),
 // classifica interna di ogni gara e staffette.
 import {
-  stato, api, esc, barraTop, tabBar, disegna, caricamento, paginaErrore, conCache, giaInCache, percorso, memoria, avviso, eNascosto,
+  stato, api, esc, barraTop, tabBar, disegna, caricamento, paginaErrore, conCache, giaInCache, percorso, memoria, avviso, eNascosto, ICONE,
 } from './nucleo.js';
 import { punti } from './punti.js';
 import {
@@ -98,8 +98,8 @@ export async function vistaSquadre(q = '') {
           ${Object.entries(REGIONI).filter(([id]) => presenti.has(id)).sort((a, b) => a[1].localeCompare(b[1], 'it'))
     .map(([id, nome]) => `<option value="${id}"${regione === id ? ' selected' : ''}>${esc(nome)}</option>`).join('')}
         </select></label></div>` : ''}
-      <label class="cerca">
-        <span class="nascosto">Cerca una squadra</span>
+      <label class="cerca cerca-squadre">
+        <span class="nascosto">Cerca una squadra</span>${ICONE.cerca}
         <input type="search" placeholder="Nome della squadra" autocomplete="off" enterkeyhint="search" value="${esc(testoIniziale)}">
       </label>
       ${tutte.length ? '<ul class="elenco elenco-squadre" data-elenco></ul>' : `

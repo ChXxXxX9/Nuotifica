@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   avvisaRichieste, ripulisciRichieste, calcolaSegnali, eseguiSegnali, controllaInattivi, pulisciConsigliVecchi,
-  pulisciTestiStagione, pulisciVecchieRaccolte, mesiTra, tutela,
+  pulisciTestiStagione, pulisciVecchieRaccolte, mesiTra, tutela, cancellaFotoChiuse,
 } from '../src/tutela.js';
 import { NASCOSTI, IN_ATTESA, pulisciNascosti } from '../src/nascosti.js';
 
@@ -265,4 +265,18 @@ test('tutela: i lavori di giorno, mese e stagione si fanno una volta', async () 
   db.elenca = async (c, o) => { elenchi++; return elenca(c, o); };
   await tutela({ ...opz, adesso: '2026-11-22T10:05:00Z' });
   assert.equal(elenchi, 0);
+});
+
+test('foto delle tessere: restano solo quelle delle richieste aperte', async () => {
+  const db = dbFinto({
+    'richiestePrivacy/a': { stato: 'nuova' },
+    'richiestePrivacy/b': { stato: 'in-attesa' },
+    'richiestePrivacy/c': { stato: 'tolta' },
+    'richiestePrivacyFoto/a': { foto: 'data:image/jpeg;base64,AAA' },
+    'richiestePrivacyFoto/b': { foto: 'data:image/jpeg;base64,BBB' },
+    'richiestePrivacyFoto/c': { foto: 'data:image/jpeg;base64,CCC' },
+    'richiestePrivacyFoto/orfana': { foto: 'data:image/jpeg;base64,DDD' },
+  });
+  assert.equal(await cancellaFotoChiuse({ db, log: () => {} }), 2);
+  assert.deepEqual([...db.docs.keys()].filter((p) => p.startsWith('richiestePrivacyFoto/')).sort(), ['richiestePrivacyFoto/a', 'richiestePrivacyFoto/b']);
 });

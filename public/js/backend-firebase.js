@@ -170,6 +170,37 @@ export async function creaBackendFirebase(config) {
     return dallaRete();
   }
 
+  /**
+   * Firestore senza SDK (REST), per i documenti con la foto della tessera: così la foto non resta nella
+   * copia dei dati sul telefono (né di chi la manda né dell'admin che la guarda). Le regole valgono uguale.
+   */
+  const RADICE = `projects/${config.firebase.projectId}/databases/(default)/documents`;
+  async function firestoreRest(metodo, percorso, corpo) {
+    const utente = auth.currentUser;
+    if (!utente) throw Object.assign(new Error('permission-denied'), { code: 'permission-denied' });
+    const [token, intestazioni] = await Promise.all([utente.getIdToken(), intestazioniAppCheck()]);
+    let r;
+    try {
+      r = await fetch(`https://firestore.googleapis.com/v1/${RADICE}${percorso}`, {
+        method: metodo,
+        headers: { Authorization: `Bearer ${token}`, ...(corpo ? { 'Content-Type': 'application/json' } : {}), ...intestazioni },
+        body: corpo ? JSON.stringify(corpo) : undefined,
+      });
+    } catch {
+      throw Object.assign(new Error('unavailable'), { code: 'unavailable' });
+    }
+    if (r.status === 404) return null;
+    if (r.status === 401 || r.status === 403) throw Object.assign(new Error('permission-denied'), { code: 'permission-denied' });
+    if (!r.ok) throw Object.assign(new Error(`rete ${r.status}`), { code: 'unavailable' });
+    return r.json();
+  }
+  const campiRest = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, typeof v === 'boolean' ? { booleanValue: v } : { stringValue: String(v) }]));
+  const scritturaNuova = (percorso, campi) => ({
+    update: { name: `${RADICE}/${percorso}`, fields: campiRest(campi) },
+    updateTransforms: [{ fieldPath: 'creato', setToServerValue: 'REQUEST_TIME' }],
+    currentDocument: { exists: false },
+  });
+
   return {
     demo: false,
 
@@ -395,12 +426,30 @@ export async function creaBackendFirebase(config) {
 
     /* ---------- richieste privacy ("Sei questo atleta o un suo genitore?") ---------- */
 
-    /** `manuale`: creata dall'admin per una richiesta arrivata per email (non serve avvisarlo). */
+    /**
+     * Richiesta e foto della tessera insieme (o tutte e due o niente). La foto sta in un documento a parte
+     * (richiestePrivacyFoto/{id}) che legge solo l'admin. `manuale`: creata dall'admin (non serve avvisarlo).
+     */
     inviaRichiestaPrivacy: (uid, {
-      atleta, nome, tipo, chi, prova, email, manuale = false,
-    }) => avvolgi(() => F.addDoc(F.collection(db, 'richiestePrivacy'), {
-      uid, atleta, nome, tipo, chi, prova, email, stato: 'nuova', avvisato: manuale, ...(manuale ? { manuale: true } : {}), creato: F.serverTimestamp(),
-    })),
+      atleta, nome, tipo, chi, prova, email, foto = null, manuale = false,
+    }) => avvolgi(async () => {
+      const id = F.doc(F.collection(db, 'richiestePrivacy')).id;
+      await firestoreRest('POST', ':commit', {
+        writes: [
+          scritturaNuova(`richiestePrivacy/${id}`, {
+            uid, atleta, nome, tipo, chi, prova, email, foto: Boolean(foto), stato: 'nuova', avvisato: manuale, ...(manuale ? { manuale: true } : {}),
+          }),
+          ...(foto ? [scritturaNuova(`richiestePrivacyFoto/${id}`, { uid, foto })] : []),
+        ],
+      });
+    }),
+
+    /** Solo admin: la foto della tessera di una richiesta (null se non c'è o è già cancellata). */
+    leggiFotoRichiesta: (id) => avvolgi(async () => {
+      const doc = await firestoreRest('GET', `/richiestePrivacyFoto/${encodeURIComponent(id)}`);
+      const foto = doc?.fields?.foto?.stringValue ?? null;
+      return typeof foto === 'string' && foto.startsWith('data:image/') ? foto : null;
+    }),
 
     /** Solo admin. */
     leggiRichiestePrivacy: () => avvolgi(async () => {
@@ -411,9 +460,13 @@ export async function creaBackendFirebase(config) {
     }),
 
     /** Solo admin: cambia lo stato di una richiesta (con la data di chiusura se è chiusa). */
-    aggiornaRichiestaPrivacy: (id, stato, chiusa) => avvolgi(() => F.updateDoc(F.doc(db, 'richiestePrivacy', id), {
-      stato, ...(chiusa ? { chiusa: F.serverTimestamp() } : {}),
-    })),
+    // Alla chiusura la foto della tessera si cancella insieme (nello stesso lotto).
+    aggiornaRichiestaPrivacy: (id, stato, chiusa) => avvolgi(async () => {
+      const lotto = F.writeBatch(db);
+      lotto.update(F.doc(db, 'richiestePrivacy', id), { stato, ...(chiusa ? { chiusa: F.serverTimestamp() } : {}) });
+      if (chiusa) lotto.delete(F.doc(db, 'richiestePrivacyFoto', id));
+      await lotto.commit();
+    }),
 
     /** Solo admin: segnali sugli account (privato/segnali/utenti/{uid}). */
     leggiSegnali: () => avvolgi(async () => {

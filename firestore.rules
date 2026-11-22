@@ -75,12 +75,13 @@ service cloud.firestore {
       allow delete: if admin() || (request.auth != null && resource.data.uid == request.auth.uid);
     }
 
-    // "Sei questo atleta o un suo genitore?": chi è iscritto manda la richiesta per sé; la leggono e la
-    // gestiscono solo l'admin e il controllore (che la segnala all'admin e, chiusa, ne cancella i dati).
-    // L'admin può anche crearne una a mano (richiesta arrivata per email).
+    // "Sei questo atleta o un suo genitore?": chi è iscritto manda la richiesta per sé, sempre insieme alla
+    // foto della tessera (richiestePrivacyFoto/{stesso id}, nello stesso invio). Le leggono e le gestiscono
+    // solo l'admin e il controllore. L'admin può crearne una a mano (richiesta arrivata per email).
     match /richiestePrivacy/{id} {
       function richiestaValida(d) {
-        return d.keys().hasOnly(['uid', 'atleta', 'nome', 'tipo', 'chi', 'prova', 'email', 'stato', 'creato', 'avvisato', 'manuale'])
+        return d.keys().hasOnly(['uid', 'atleta', 'nome', 'tipo', 'chi', 'prova', 'email', 'stato', 'creato', 'avvisato', 'manuale', 'foto'])
+          && (!('foto' in d) || d.foto is bool)
           && d.uid == request.auth.uid
           && d.atleta is string && d.atleta.size() >= 3 && d.atleta.size() <= 80
           && d.nome is string && d.nome.size() <= 80
@@ -94,11 +95,26 @@ service cloud.firestore {
       }
       allow create: if request.auth != null && richiestaValida(request.resource.data)
         && (admin() || (request.resource.data.avvisato == false && !('manuale' in request.resource.data)
-          && request.resource.data.prova.size() >= 3 && request.resource.data.email.size() >= 5));
+          && request.resource.data.email.size() >= 5 && request.resource.data.foto == true
+          && existsAfter(/databases/$(database)/documents/richiestePrivacyFoto/$(id))));
       allow read, delete: if admin();
       allow update: if admin()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stato', 'chiusa'])
         && request.resource.data.stato in ['nuova', 'in-attesa', 'tolta', 'solo-risultati', 'respinta', 'scaduta'];
+    }
+
+    // Foto della tessera di una richiesta: la manda chi fa la richiesta (insieme alla richiesta), la vede solo
+    // l'admin, si cancella quando la richiesta si chiude.
+    match /richiestePrivacyFoto/{id} {
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['uid', 'foto', 'creato'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.foto is string && request.resource.data.foto.size() <= 750000
+        && request.resource.data.creato == request.time
+        && getAfter(/databases/$(database)/documents/richiestePrivacy/$(id)).data.uid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/richiestePrivacy/$(id)).data.stato == 'nuova';
+      allow read, delete: if admin();
+      allow update: if false;
     }
 
     // Annunci a tutti: li scrive l'admin, li manda il controllore.

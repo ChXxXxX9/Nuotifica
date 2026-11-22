@@ -340,7 +340,7 @@ p { margin: 0; }
 }
 .link-pericolo { color: var(--pericolo); }
 
-.pila { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+.pila { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; }
 
 .chips {
   display: flex;
@@ -399,6 +399,8 @@ p { margin: 0; }
 }
 .segmento {
   min-height: 38px;
+  min-width: 0;
+  padding: 0 6px;
   border: none;
   border-radius: 10px;
   background: transparent;
@@ -407,6 +409,7 @@ p { margin: 0; }
   font-size: 13px;
 }
 .segmento[aria-selected='true'] { background: var(--linea); color: var(--testo); font-weight: 800; }
+@media (max-width: 350px) { .segmento { font-size: 12px; padding: 0 3px; } }
 
 .live {
   display: inline-flex;
@@ -498,7 +501,7 @@ p { margin: 0; }
 .elenco-admin span { color: var(--tenue); font-size: 13px; font-weight: 600; }
 .personale[aria-pressed='true'] { border-color: var(--cloro-testo); }
 
-.cerca { position: relative; margin: 12px 0; }
+.cerca { position: relative; display: block; margin: 12px 0; }
 .cerca input { width: 100%; padding-left: 46px; }
 .cerca svg { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; color: var(--tenue); }
 .cerca-classifica { display: block; margin: 4px 0 12px; }
@@ -710,7 +713,10 @@ p { margin: 0; }
 .elenco { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 
 /* Avvisi del Comitato */
-.filtri { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 2px 16px 10px; margin: 0 -16px; }
+.filtri { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 2px 16px 10px; margin: 0 -16px; scroll-padding: 0 16px;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 28px), transparent 100%); }
+.filtri > * { flex: 0 0 auto; }
 .filtri::-webkit-scrollbar { display: none; }
 .avviso-post {
   display: flex;
@@ -890,23 +896,38 @@ p { margin: 0; }
 .cifre-piccole small { color: var(--tenue); font-size: 10.5px; font-weight: 700; }
 .parziali-grafico { display: flex; flex-direction: column; gap: 6px; }
 .fraz { display: grid; grid-template-columns: 52px minmax(0, 1fr) 62px 78px; gap: 8px; align-items: center; font-variant-numeric: tabular-nums; }
+.senza-barre .fraz { grid-template-columns: 52px minmax(0, 1fr) 78px; }
+.senza-barre .fraz-t { text-align: left; }
+.senza-barre .fraz-testa span:nth-child(2) { text-align: left; }
+.fraz-testa-barra { text-align: center; text-transform: none; letter-spacing: 0; font-size: 10.5px; }
 .fraz-testa { color: var(--tenue); font-size: 10.5px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
 .fraz-testa span:nth-child(3), .fraz-testa span:nth-child(4) { text-align: right; }
 .fraz-m { color: var(--tenue-2); font-size: 12px; font-weight: 700; }
-.fraz-barra { height: 10px; border-radius: 5px; background: var(--linea); overflow: hidden; }
-.fraz-barra i { display: block; height: 100%; border-radius: 5px; background: var(--tenue); }
-.fraz-veloce .fraz-barra i { background: var(--acqua); }
-.fraz-lenta .fraz-barra i { background: var(--pericolo); }
-.fraz-t { text-align: right; font-weight: 800; font-size: 14px; }
+/* Barra divergente: dal centro (ritmo medio) a sinistra se più veloce, a destra se più lenta. */
+.fraz-barra { position: relative; height: 12px; border-radius: 6px; background: var(--linea); overflow: hidden; }
+.fraz-barra::after { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--tenue); opacity: .6; }
+.fraz-barra i { position: absolute; top: 0; bottom: 0; display: block; }
+.fraz-barra i.piu-veloce { background: var(--acqua); border-radius: 6px 0 0 6px; }
+.fraz-barra i.piu-lenta { background: var(--pericolo); border-radius: 0 6px 6px 0; opacity: .85; }
+.fraz-barra-vuota { background: transparent; }
+.fraz-barra-vuota::after { display: none; }
+.fraz-t { text-align: right; font-weight: 800; font-size: 14px; line-height: 1.15; }
+.fraz-t small { display: block; font-size: 10.5px; font-weight: 700; color: var(--tenue); }
 .fraz-veloce .fraz-t { color: var(--acqua); }
 .fraz-lenta .fraz-t { color: var(--pericolo); }
 .fraz-c { text-align: right; color: var(--tenue); font-size: 12px; font-weight: 600; }
 .fraz-c em { font-style: normal; color: var(--tenue-2); font-weight: 800; }
-.fraz-legenda { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; color: var(--tenue); font-size: 11px; font-weight: 600; margin-top: 2px; }
+.fraz-legenda { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; color: var(--tenue); font-size: 11px; font-weight: 600; margin-top: 4px; }
+.voce-legenda { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.voce-legenda .punto-legenda { margin-right: 0; }
+.fraz-nota { color: var(--tenue); font-size: 11.5px; font-weight: 600; line-height: 1.4; }
+.fraz-nota b.buono { color: var(--acqua); }
+.fraz-nota b.calo { color: var(--pericolo); }
 .andatura { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .andatura span { padding: 8px; border-radius: 12px; background: var(--piastrella); border: 1px solid var(--linea); }
 .andatura small { display: block; color: var(--tenue); font-size: 10.5px; font-weight: 700; }
-.andatura b { font-family: var(--titoli); font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; color: var(--pericolo); }
+.andatura b { font-family: var(--titoli); font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; color: var(--testo); }
+.andatura b.calo { color: var(--pericolo); }
 .andatura b.buono { color: var(--acqua); }
 .dettaglio[hidden] { display: none; }
 .parziali {
@@ -921,7 +942,7 @@ p { margin: 0; }
 .parziale b { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .parziale span { color: var(--tenue-2); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .parziale.lenta span { color: var(--pericolo); }
-.dettaglio-azioni { display: flex; gap: 8px; }
+.dettaglio-azioni { display: flex; gap: 10px; margin-top: 4px; }
 .dettaglio-azioni > * { flex: 1; }
 
 /* Modalità tribuna: caratteri grandi */
@@ -1026,6 +1047,7 @@ legend { font-size: 12px; font-weight: 800; letter-spacing: 2px; text-transform:
 .gettone-testo {
   display: inline-flex;
   align-items: center;
+  white-space: nowrap;
   min-height: 42px;
   padding: 0 16px;
   border-radius: 999px;
@@ -1037,7 +1059,10 @@ legend { font-size: 12px; font-weight: 800; letter-spacing: 2px; text-transform:
 }
 .gettone input:checked + .gettone-testo { background: var(--cloro); color: var(--su-cloro); border-color: var(--cloro); }
 .gettone input:focus-visible + .gettone-testo, .opzione input:focus-visible + .opzione-testo { outline: 3px solid var(--cloro); outline-offset: 2px; }
-.opzioni-grandi { display: grid; gap: 8px; }
+.opzione { display: block; }
+.opzione + .opzione { margin-top: 10px; }
+.opzioni-grandi { display: grid; gap: 10px; }
+.opzioni-grandi .opzione + .opzione { margin-top: 0; }
 .opzioni-grandi.due { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .opzione-testo {
   display: flex;
@@ -1291,7 +1316,7 @@ legend { font-size: 12px; font-weight: 800; letter-spacing: 2px; text-transform:
 .classifica-squadra > li.aperta { border-color: var(--linea-forte); }
 .classifica-squadra .riga-gara {
   display: grid;
-  grid-template-columns: 62px minmax(0, 1fr) auto;
+  grid-template-columns: 74px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
   width: 100%;
@@ -1303,7 +1328,7 @@ legend { font-size: 12px; font-weight: 800; letter-spacing: 2px; text-transform:
   text-decoration: none;
   cursor: pointer;
 }
-.classifica-squadra .gara-nome { font-family: var(--titoli); font-weight: 700; font-size: 13px; color: var(--cloro-testo); }
+.classifica-squadra .gara-nome { font-family: var(--titoli); font-weight: 700; font-size: 13px; color: var(--cloro-testo); white-space: nowrap; }
 .classifica-squadra .quanto { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 .classifica-squadra .quanto b { font-family: var(--titoli); font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; }
 .classifica-squadra .quanto small { color: var(--tenue); font-size: 11px; font-weight: 600; }
@@ -1605,3 +1630,10 @@ dialog.foglio-info::backdrop { background: rgba(0, 0, 0, 0.55); }
 .azioni-richiesta > * { flex: 1 1 45%; }
 .elenco-puntato { margin: 0; padding-left: 18px; }
 .elenco-puntato li { margin: 2px 0; }
+
+/* Foto della tessera (richieste privacy). */
+.campo-foto { display: flex; flex-direction: column; gap: 10px; }
+.scegli-foto { position: relative; overflow: hidden; cursor: pointer; }
+.scegli-foto input { position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 0; }
+.anteprima-foto img, .foto-tessera img { display: block; max-width: 100%; max-height: 320px; border-radius: var(--r-s); border: 1px solid var(--linea); object-fit: contain; }
+.foto-tessera { margin-top: 4px; }
