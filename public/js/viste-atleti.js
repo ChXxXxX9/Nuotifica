@@ -1,7 +1,7 @@
 // Sezione Atleti: ricerca, scheda atleta (personali, grafico, storico) e "Segui".
 import {
   stato, api, esc, barraTop, tabBar, disegna, caricamento, paginaErrore, ICONE, conCache, giaInCache,
-  percorso, memoria, avviso, conAttesa,
+  percorso, memoria, avviso, conAttesa, eNascosto, fuoriRicerca,
 } from './nucleo.js';
 import {
   tempo, nomeGara, ordineGara, giorno, iniziali, differenza, codici, stagioneCorrente, stagioneDi, nomeStagione,
@@ -115,8 +115,13 @@ export function indiceAttuale(risultati = []) {
 
 /** Dati brevi degli atleti seguiti, per "Per te": ultima gara e Indice Cloro di adesso. */
 export async function leggiSeguiti(chiavi) {
-  const schede = await Promise.all(chiavi.map((k) => leggiAtleta(k).catch(() => null)));
+  const schede = await Promise.all(chiavi.map((k) => (eNascosto(k) ? null : leggiAtleta(k).catch(() => null))));
   return chiavi.map((k, i) => {
+    // Scheda tolta su richiesta: il nome si tiene dalla copia sul telefono.
+    if (eNascosto(k)) {
+      const prima = (stato.seguitiDati ?? []).find((x) => x.k === k);
+      return { k, n: prima?.n ?? k.replace(/-\d{4}$/, '').replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) };
+    }
     const a = schede[i];
     if (!a) return { k, n: k.replace(/-\d{4}$/, '').replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) };
     return {
@@ -189,10 +194,13 @@ async function leggiPezzo(p) {
 async function cercaInItalia(testo) {
   const q = testoRicerca(testo);
   const leggi = (x, quanti) => conCache(`italia-cerca:${x}:${quanti}`, () => api.cercaItalia(x, quanti), { durata: 600_000 });
+  // L'indice si legge solo per inizio del nome (almeno 3 lettere, al massimo 100 voci): non si può scorrere.
+  if (q.length < 3) return [];
   let righe = await leggi(q, 80);
-  if (!righe.length && q.includes(' ')) {
+  const parola = [...q.split(' ')].sort((x, y) => y.length - x.length)[0];
+  if (!righe.length && q.includes(' ') && parola.length >= 3) {
     // Parole in un ordine diverso dal nome: si cerca la più lunga e si filtra qui.
-    righe = await leggi([...q.split(' ')].sort((x, y) => y.length - x.length)[0], 400);
+    righe = await leggi(parola, 100);
   }
   return righe.map((riga) => {
     const v = leggiRigaRicerca(riga);
@@ -213,8 +221,7 @@ export async function cerca(testo) {
   const perChiave = new Map(lazio.map((v) => [v.k, v]));
   for (const v of italia) perChiave.set(v.k, v);
   const voci = [...perChiave.values()];
-  const nascosti = new Set(stato.nascosti ?? []);
-  const trovati = voci.filter((v) => !nascosti.has(v.k) && parole.every((p) => v.cerca.includes(p)));
+  const trovati = voci.filter((v) => !fuoriRicerca(v.k) && parole.every((p) => v.cerca.includes(p)));
   const primo = parole[0];
   const iniziaCon = (v) => testoCerca(v.n).split(' ').some((x) => x.startsWith(primo));
   return trovati
@@ -379,7 +386,7 @@ export async function vistaAtleta(k) {
     }
   };
   window.addEventListener('cloro:fresco', fresco);
-  if (a && (stato.nascosti ?? []).includes(k)) {
+  if (eNascosto(k)) {
     disegna(`${barraTop({ indietro: true })}<main class="pagina"><h1 class="titolo-pagina">Scheda non disponibile</h1><p class="intro">Questa scheda è stata tolta su richiesta.</p></main>${tabBar('atleti')}`);
     return;
   }
@@ -413,6 +420,7 @@ export async function vistaAtleta(k) {
     },
     codice: x.c,
     nomeBatt: [x.cat, `vasca ${x.v} m`].filter(Boolean).join(' · '),
+    rif: [`atleta ${k}`, nomeGara(x.c, { breve: true }), `vasca ${x.v}`, x.d, x.t ? tempo(x.t) : x.x, x.g ? `gara ${x.g}` : x.gn].filter(Boolean).join(' · '),
     nota: x.tp ? `<p class="nota-tipo">${esc(fraseTipo(x.tp, x.og))}</p>` : '',
     extra: `<p class="nota" style="margin:8px 0 0">${esc([giorno(x.d), x.gn, x.f === 1 ? 'migliore della stagione dalle graduatorie' : ''].filter(Boolean).join(' · '))}</p>
       ${x.ci ? `<a class="bottone bottone-secondario bottone-piccolo" style="margin-top:10px" href="#/gara/${encodeURIComponent(x.g)}?c=${encodeURIComponent(x.ci)}&e=${encodeURIComponent(x.c)}">Apri la gara</a>`
@@ -550,7 +558,9 @@ export async function vistaAtleta(k) {
               ${ordineGruppi.filter((x) => x.endsWith(`|${vg}`)).map(testaGruppo).join('')}
             </ul>`).join('') : '<div class="vuoto"><strong>Ancora nessun tempo</strong>Appena nuota una gara la trovi qui.</div>'}
         </section>
-        <p class="nota" style="margin-top:20px">Ci sono i tempi delle gare che leggiamo, il migliore di ogni stagione per gara e vasca e, per gli atleti seguiti, tutte le gare (prima del 2018/19 anche tempi presi a mano). Vuoi che questa scheda non compaia? Scrivici dalla pagina <a href="#/privacy">Privacy</a>.</p>
+        <p class="nota" style="margin-top:20px">Ci sono i tempi delle gare che leggiamo, il migliore di ogni stagione per gara e vasca e, per gli atleti seguiti, tutte le gare (prima del 2018/19 anche tempi presi a mano).</p>
+        <p class="riga-link" style="margin-top:12px"><a href="#/consigli?tipo=errore&rif=${encodeURIComponent(`atleta ${k} · ${a.n}`)}">Segnala un errore in questa scheda</a></p>
+        <p class="riga-link"><a href="#/richiesta/${encodeURIComponent(k)}">Sei questo atleta o un suo genitore?</a></p>
       </main>
       ${tabBar('atleti')}`, (el) => {
       el.querySelector('[data-segui]').addEventListener('click', (e) => seguiAtleta(k, a.n, e.currentTarget));

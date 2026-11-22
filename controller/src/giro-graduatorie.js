@@ -14,6 +14,7 @@ import { trovaUrlRtdb, creaRtdb } from './rtdb.js';
 import { giroGraduatorie } from './graduatorie.js';
 import { giroStorico, creaChiedi } from './storico.js';
 import { giornoQuota } from './tempi.js';
+import { caricaPrivato } from './nascosti.js';
 
 // Il piano gratuito di Firestore permette 20.000 scritture al giorno (il giorno finisce alle 9 italiane):
 // ci si ferma prima di questa soglia, contando anche quelle del controllore.
@@ -45,6 +46,8 @@ async function principale() {
   } catch (e) {
     annota('warning', `Realtime Database non raggiungibile: ${e.message}`);
   }
+  // Atleti che hanno chiesto di non comparire: senza l'elenco non si carica niente.
+  await caricaPrivato(db);
   const adesso = new Date().toISOString();
   const giorno = giornoQuota(adesso);
   const letti = await db.leggiTanti(['meta/budget', 'meta/budget-grad']);

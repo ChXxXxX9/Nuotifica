@@ -1,6 +1,7 @@
 // Il "nucleo" dell'app: stato condiviso, collegamento al backend, pezzi di interfaccia comuni.
 import { CONFIG } from './config.js';
 import { AVVISO_NON_UFFICIALE } from './costanti.js';
+import { impronta } from './impronta.js';
 
 export const radice = document.getElementById('app');
 const parametri = new URLSearchParams(location.search);
@@ -20,7 +21,18 @@ export const stato = {
   filtro: 'tutto',
   gare: null, // elenco delle gare
   cache: new Map(), // documenti già letti in questa sessione
+  // Atleti che hanno chiesto di non comparire: solo le impronte delle chiavi (mai i nomi).
+  nascosti: { h: new Set(), r: new Set() },
 };
+
+/** L'atleta ha chiesto di non comparire (scheda tolta)? */
+export const eNascosto = (k) => Boolean(k) && stato.nascosti.h.has(impronta(k));
+/** Fuori dalla ricerca: nascosto, oppure in attesa di verifica di una richiesta. */
+export const fuoriRicerca = (k) => Boolean(k) && (stato.nascosti.h.has(impronta(k)) || stato.nascosti.r.has(impronta(k)));
+/** Impronte arrivate dal database (config/nascosti). */
+export function impostaNascosti(d) {
+  stato.nascosti = { h: new Set(d?.h ?? []), r: new Set(d?.r ?? []) };
+}
 
 // Il backend (Firebase o demo) si carica in parallelo: ogni chiamata ad `api` aspetta da sola.
 let backendPronto;
@@ -215,7 +227,7 @@ export function piede() {
   return `
     <footer class="piede">
       <p>${esc(AVVISO_NON_UFFICIALE)}</p>
-      <p><a href="#/privacy">Privacy</a></p>
+      <p><a href="#/privacy">Privacy</a> · <a href="#/termini">Termini</a> · <a href="#/sicurezza">Sicurezza e minori</a></p>
     </footer>`;
 }
 

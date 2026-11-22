@@ -5,11 +5,14 @@ import { leggiAccountServizio, creaGestoreToken, creaClientGoogle } from './goog
 import { creaFirestore } from './firestore.js';
 import { trovaUrlRtdb, creaRtdb } from './rtdb.js';
 import { giroStorico, creaChiedi } from './storico.js';
+import { caricaPrivato } from './nascosti.js';
 
 const fonti = leggiFonti();
 const account = leggiAccountServizio(process.env.FIREBASE_SERVICE_ACCOUNT);
 const chiama = creaClientGoogle(creaGestoreToken(account));
 const db = creaFirestore(chiama, account.project_id);
+// Atleti che hanno chiesto di non comparire (senza l'elenco ci si ferma).
+await caricaPrivato(db);
 const rtdb = creaRtdb(chiama, await trovaUrlRtdb(chiama, account.project_id));
 const inizio = Date.now();
 try {

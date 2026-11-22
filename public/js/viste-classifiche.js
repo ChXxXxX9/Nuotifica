@@ -1,7 +1,7 @@
 // Classifiche: graduatorie del Lazio stile Spotify (▲▼, NUOVO, picco), Indice Cloro, tempi limite
 // e "Quanto vale questo tempo?".
 import {
-  stato, api, esc, barraTop, tabBar, disegna, caricamento, paginaErrore, conCache, percorso, memoria, avviso, conAttesa,
+  stato, api, esc, barraTop, tabBar, disegna, caricamento, paginaErrore, conCache, percorso, memoria, avviso, conAttesa, eNascosto,
 } from './nucleo.js';
 import {
   tempo, nomeGara, giorno, quando, stagioneCorrente, nomeStagione, stagioneDi, differenza,
@@ -34,7 +34,7 @@ const LAZIO = '12';
 const ORE_VALIDITA = 24;
 const nomeRegione = (reg) => (reg === 'it' ? 'Italia' : REGIONI[reg] ?? reg);
 
-const nascosto = (k) => (stato.nascosti ?? []).includes(k);
+const nascosto = (k) => eNascosto(k);
 const normalizzaNome = (t = '') => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/['’`-]/g, ' ').replace(/\s+/g, ' ').trim();
 
 /** Sotto-menu della sezione Classifiche. */

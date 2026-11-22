@@ -4,6 +4,7 @@ import { chiaveSquadra } from './ricerca.js';
 import { stessaSquadra } from './gare.js';
 import { tokensAttivi, senzaToken } from './invio.js';
 import { formatta } from './tempi.js';
+import { eNascosto } from './nascosti.js';
 
 export const NOTIFICHE_BASE = ['pb', 'staffette'];
 const MAX_PER_PERSONA = 2;
@@ -58,6 +59,7 @@ export async function avvisaSquadre({
     perSquadra.get(id)[campo].push(x);
   };
   for (const t of nuoviTempi) {
+    if (eNascosto(t.k)) continue; // chi ha chiesto di non comparire: nessun avviso
     const id = trovaSquadra(t.s, elenco);
     if (id) aggiungi(id, 'tempi', t);
   }

@@ -1573,3 +1573,35 @@ dialog.foglio-info::backdrop { background: rgba(0, 0, 0, 0.55); }
 .foglio-info-corpo strong { color: var(--testo); }
 .foglio-info-corpo .esempio { background: var(--fondo); border: 1px solid var(--linea); border-radius: var(--r-s); padding: 10px 12px; }
 .foglio-info-corpo .bottone { margin-top: 6px; width: 100%; }
+
+/* "Per te": atleta seguito con la scheda tolta su richiesta. */
+.seguito-tolto { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px; color: var(--tenue); font-size: 14px; }
+.seguito-tolto b { color: var(--testo); }
+
+/* Iscrizione: casella dell'età e accettazione dei testi. */
+.spunta-eta { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--linea); background: var(--piastrella); font-size: 14px; font-weight: 600; line-height: 1.4; cursor: pointer; }
+.spunta-eta input { width: 20px; height: 20px; margin-top: 1px; flex: none; accent-color: var(--cloro); }
+.nota-accetta { font-size: 13px; }
+.nota-accetta a, .piede-legale a { color: var(--cloro-testo); }
+
+/* Pagine legali: la tabella dei dati diventa un elenco di schede sul telefono. */
+.tabella-schede { display: flex; flex-direction: column; gap: 10px; margin: 10px 0 14px; }
+.scheda-dato { margin: 0; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--linea); background: var(--piastrella); display: grid; grid-template-columns: 1fr; gap: 2px; }
+.scheda-dato dt { color: var(--tenue); font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin-top: 6px; }
+.scheda-dato dt:first-child { margin-top: 0; }
+.scheda-dato dd { margin: 0; color: var(--testo); font-size: 14px; }
+.testo-lungo ul, .testo-lungo ol { padding-left: 20px; margin: 8px 0; display: flex; flex-direction: column; gap: 6px; }
+.piede-legale { margin-top: 28px; }
+
+/* "Segnala un errore" sotto un tempo: discreto, a destra. */
+.link-segnala { display: block; margin-top: 10px; font-size: .8rem; color: var(--tenue); text-align: right; text-decoration: underline; }
+
+/* Admin → Richieste e Segnali. */
+.richiesta-lunga { border-color: var(--pericolo); }
+.dati-richiesta { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; font-size: 14px; margin: 0; }
+.dati-richiesta dt { color: var(--tenue); font-weight: 600; }
+.dati-richiesta dd { margin: 0; overflow-wrap: anywhere; }
+.azioni-richiesta { flex-wrap: wrap; }
+.azioni-richiesta > * { flex: 1 1 45%; }
+.elenco-puntato { margin: 0; padding-left: 18px; }
+.elenco-puntato li { margin: 2px 0; }

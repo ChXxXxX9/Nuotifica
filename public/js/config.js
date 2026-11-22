@@ -24,7 +24,10 @@ export const CONFIG = {
   // viene invitato a reinstallarla da quello nuovo.
   indirizzo: 'cloro.web.app',
   trasferimento: true,
-  // Chi gestisce il servizio, mostrato nella pagina Privacy.
-  titolare: '',
-  contatto: '',
+  // App Check con reCAPTCHA (facoltativo): la "chiave del sito" registrata in Firebase → App Check.
+  // Vuota = App Check spento. enterprise: true se la chiave è di reCAPTCHA Enterprise, false se è reCAPTCHA v3.
+  appCheck: { chiave: '', enterprise: false },
+  // Chi gestisce il servizio (titolare del trattamento) e il contatto, nelle pagine Privacy, Termini e Sicurezza.
+  titolare: 'Christian Caputi',
+  contatto: 'cloroita@gmail.com',
 };

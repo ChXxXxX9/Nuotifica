@@ -16,6 +16,7 @@ import {
 import { chiaveAtleta, oggiRoma } from './tempi.js';
 import { chiaveSquadra } from './ricerca.js';
 import { stagione } from './gare.js';
+import { eNascosto, caricaPrivato } from './nascosti.js';
 
 const caso = (n) => Math.floor(Math.random() * n);
 const pausa = (ms) => new Promise((r) => { setTimeout(r, ms); });
@@ -44,6 +45,7 @@ export async function controllaRiga({
 }) {
   const { cognome, nome } = dividiNome(r.nome);
   const k = chiaveAtleta(cognome, nome, r.anno);
+  if (eNascosto(k)) return { k, t: r.ms, scheda: 'ok', squadra: 'ok', sempre: 'ok' };
   const dopo = aggiornata && r.data && r.data > aggiornata.slice(0, 10);
   const esito = { k, t: r.ms };
   const scheda = tempoScheda(await leggi(`a/${k}`), st, c, v);
@@ -78,6 +80,7 @@ async function principale() {
   const db = creaFirestore(chiama, account.project_id);
   const rtdb = creaRtdb(chiama, await trovaUrlRtdb(chiama, account.project_id));
   const stato = (await db.leggi('meta/graduatorie')) ?? {};
+  await caricaPrivato(db).catch(() => {});
   const corrente = Number(stagione(oggiRoma(new Date().toISOString())));
   const memo = new Map();
   const leggi = (p) => {

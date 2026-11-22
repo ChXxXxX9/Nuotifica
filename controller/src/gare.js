@@ -11,6 +11,7 @@
 //   meta/live                           stato delle sedi e delle gare
 //   meta/gare                           elenco delle gare per l'app (una sola lettura)
 import { tokensAttivi, senzaToken } from './invio.js';
+import { eNascosto, NOME_NASCOSTO } from './nascosti.js';
 import { avvisaSquadre } from './avvisi-squadre.js';
 import {
   leggiElenco, raggruppa, leggiRisultati, nomeCat,
@@ -111,9 +112,13 @@ export function costruisciSede({
       });
     }
 
-    const riga = { n: r.atleta.nome, s: r.societa, c: r.corsia, p: r.posizione };
-    if (r.atleta.chiave) riga.k = r.atleta.chiave;
-    if (r.atleta.anno) riga.y = r.atleta.anno;
+    // Atleta nascosto su richiesta: nella gara restano tempo e posizione, senza nome, anno e società.
+    const nascosto = eNascosto(r.atleta.chiave);
+    const riga = nascosto ? { n: NOME_NASCOSTO, c: r.corsia, p: r.posizione } : {
+      n: r.atleta.nome, s: r.societa, c: r.corsia, p: r.posizione,
+    };
+    if (r.atleta.chiave && !nascosto) riga.k = r.atleta.chiave;
+    if (r.atleta.anno && !nascosto) riga.y = r.atleta.anno;
     if (r.ms) riga.t = r.ms;
     if (r.stato) riga.x = r.stato;
     if (r.parziali.length) riga.sp = r.parziali.map((p) => (p.p ? { m: p.m, t: p.ms, p: p.p } : { m: p.m, t: p.ms }));
@@ -127,7 +132,7 @@ export function costruisciSede({
     if (!nuova) {
       if (noto.b) riga.b = noto.b;
       if (noto.dp) riga.dp = noto.dp;
-    } else if (r.atleta.chiave && r.ms && !r.gara.staffetta) {
+    } else if (r.atleta.chiave && r.ms && !r.gara.staffetta && !nascosto) {
       // Personale e stagionale, confrontati con quello che sapevamo prima di questo tempo.
       const percorso = percorsoPrimati(gara.vasca, r.gara.codice, r.sesso);
       if (!primati.has(percorso)) primati.set(percorso, {});
@@ -152,7 +157,7 @@ export function costruisciSede({
     }
     ricorda[r.id] = [v, riga.b ?? '', riga.dp ?? ''].join('|').replace(/\|+$/, '');
     evento.b.get(chiaveBatt).r.push(riga);
-    if (!nuova) continue;
+    if (!nuova || nascosto) continue;
     nuove.push({ riga: r, uscita: riga, sbPrima });
 
     // Scheda dell'atleta: solo i risultati nuovi.
@@ -556,7 +561,9 @@ export async function aggiornaGare({
 }
 
 /** Manda "è uscito il tuo tempo" a chi segue gli atleti. Al massimo 3 notifiche per persona per giro. */
-export async function avvisaTempi({ db, invio, nuoviTempi, atleti, sito, log = console.log }) {
+export async function avvisaTempi({ db, invio, nuoviTempi: tutti, atleti, sito, log = console.log }) {
+  // Chi ha chiesto di non comparire: nessun avviso (né tempi, né limiti).
+  const nuoviTempi = tutti.filter((t) => !eNascosto(t.k));
   const chiavi = [...new Set(nuoviTempi.map((t) => t.k))];
   const utenti = await db.contieneUno('users', 'seguiti', chiavi);
   const conteggi = { push: 0, errori: 0, utenti: 0 };

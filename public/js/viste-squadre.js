@@ -1,7 +1,7 @@
 // Squadre: elenco, componenti attuali e passati, migliori tempi per gara (di sempre o di una stagione),
 // classifica interna di ogni gara e staffette.
 import {
-  stato, api, esc, barraTop, tabBar, disegna, caricamento, paginaErrore, conCache, giaInCache, percorso, memoria, avviso,
+  stato, api, esc, barraTop, tabBar, disegna, caricamento, paginaErrore, conCache, giaInCache, percorso, memoria, avviso, eNascosto,
 } from './nucleo.js';
 import { punti } from './punti.js';
 import {
@@ -14,7 +14,7 @@ import {
 } from './dati-italia.js';
 import { tastoInfo } from './spiegazioni.js';
 
-const nascosto = (k) => (stato.nascosti ?? []).includes(k);
+const nascosto = (k) => eNascosto(k);
 const normalizza = (t = '') => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const nomeStagione = (st) => `${st}/${String(Number(st) + 1).slice(2)}`;
 

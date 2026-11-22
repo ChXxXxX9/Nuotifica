@@ -5,6 +5,7 @@
 //   noti/{x}       chiavi degli atleti con una scheda (atleti/{chiave}), per iniziale della chiave
 // (La ricerca in tutta Italia sta nel Realtime Database: vedi dati-italia.js.)
 import { slug } from './tempi.js';
+import { fuoriRicerca } from './nascosti.js';
 
 const senzaAccenti = (t) => String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -28,6 +29,7 @@ export const vocePrefisso = (k, a) => `${k}|${a.n}|${a.y ?? ''}|${a.s ?? ''}`;
 export function scrittureRicerca(atleti) {
   const perPrefisso = new Map();
   for (const [k, a] of atleti) {
+    if (fuoriRicerca(k)) continue;
     for (const p of prefissi(a.n)) {
       if (!perPrefisso.has(p)) perPrefisso.set(p, []);
       perPrefisso.get(p).push(vocePrefisso(k, a));

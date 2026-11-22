@@ -229,7 +229,7 @@ const siglaBatteria = (b) => b.nc ?? (b.n ? `B${b.n}` : '');
 
 /** Scheda di un risultato: tempo, posizioni, punti e parziali disegnati. */
 export function schedaRisultato({
-  r, codice, batteria, nomeBatt, posTot, extra = '', nota = '',
+  r, codice, batteria, nomeBatt, posTot, extra = '', nota = '', rif = '',
 }) {
   const dist = metri(codice);
   const passaggi = r.t ? [...(r.sp ?? []).map((p) => ({ m: p.m, t: p.t, p: p.p })), { m: dist, t: r.t }] : [];
@@ -292,6 +292,7 @@ export function schedaRisultato({
     : (r.t && dist > 50 ? '<p class="nota">Parziali non disponibili per questa gara.</p>' : '')}
       ${r.t ? '<div data-posizioni></div>' : ''}
       ${extra}
+      ${rif ? `<a class="link-segnala" href="#/consigli?tipo=errore&rif=${encodeURIComponent(rif.slice(0, 200))}">Segnala un errore</a>` : ''}
       ${r.k ? `
         <div class="dettaglio-azioni">
           <a class="bottone bottone-secondario bottone-piccolo" href="#/atleta/${encodeURIComponent(r.k)}">Scheda atleta</a>
@@ -487,7 +488,12 @@ export async function vistaGara(id) {
       }
       aperta = i;
       b.setAttribute('aria-expanded', 'true');
-      b.insertAdjacentHTML('afterend', schedaRisultato(righe[i]));
+      const rx = righe[i];
+      b.insertAdjacentHTML('afterend', schedaRisultato({
+        ...rx,
+        rif: [decodeURIComponent(location.hash.replace(/^#\//, '').split('?')[0]), rx.codice ? nomeGara(rx.codice, { breve: true }) : '', rx.nomeBatt,
+          rx.r?.n, rx.r?.t ? tempo(rx.r.t) : rx.r?.x].filter(Boolean).join(' · '),
+      }));
       const scheda = b.nextElementSibling;
       scheda.querySelector('[data-segui]')?.addEventListener('click', (e) => seguiAtleta(e.currentTarget.dataset.segui, e.currentTarget.dataset.nome, e.currentTarget));
       // Dove si piazza questo tempo nelle graduatorie della stagione (Lazio e Italia).

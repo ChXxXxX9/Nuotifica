@@ -4,10 +4,13 @@ import { leggiAccountServizio, creaGestoreToken, creaClientGoogle } from './goog
 import { creaFirestore } from './firestore.js';
 import { creaInvio } from './invio.js';
 import { aggiornaTesti, avvisaElenchi } from './testi.js';
+import { caricaPrivato } from './nascosti.js';
 
 const account = leggiAccountServizio(process.env.FIREBASE_SERVICE_ACCOUNT);
 const chiamaGoogle = creaClientGoogle(creaGestoreToken(account));
 const db = creaFirestore(chiamaGoogle, account.project_id);
+// Atleti che hanno chiesto di non comparire (senza l'elenco ci si ferma).
+await caricaPrivato(db);
 const invio = creaInvio({ chiamaGoogle, progetto: account.project_id });
 const sito = (process.env.SITO_URL || 'https://cloro.web.app').replace(/\/+$/, '');
 
