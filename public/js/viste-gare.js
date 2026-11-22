@@ -325,8 +325,8 @@ export function schedaRisultato({
     return `
             <div class="fraz ${lenta.includes(i) ? 'fraz-lenta' : ''} ${veloce.includes(i) ? 'fraz-veloce' : ''}">
               <span class="fraz-m">${p.m} m</span>
-              ${conBarre ? `<span class="fraz-barra" aria-hidden="true">${d == null ? '<small>partenza</small>' : `<i class="${d <= 0 ? 'piu-veloce' : 'piu-lenta'}" style="${d <= 0 ? `right:50%` : 'left:50%'};width:${largo}%"></i>`}</span>` : ''}
-              <span class="fraz-t">${esc(tempo(frazioni[i]))}${d != null ? `<small>${d === 0 ? '=' : esc(differenza(d))}</small>` : ''}</span>
+              ${conBarre ? `<span class="fraz-barra ${d == null ? 'fraz-barra-vuota' : ''}" aria-hidden="true">${d == null ? '' : `<i class="${d <= 0 ? 'piu-veloce' : 'piu-lenta'}" style="${d <= 0 ? 'right:50%' : 'left:50%'};width:${largo}%"></i>`}</span>` : ''}
+              <span class="fraz-t">${esc(tempo(frazioni[i]))}${d != null ? `<small>${d === 0 ? '=' : esc(differenza(d))}</small>` : conBarre ? '<small>partenza</small>' : ''}</span>
               <span class="fraz-c">${esc(tempo(p.t))}${p.p ? ` <em>${p.p}°</em>` : ''}</span>
             </div>`;
   }).join('')}
