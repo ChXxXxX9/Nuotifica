@@ -123,6 +123,14 @@ export function fasceAnni(st) {
   return fasce;
 }
 
+/** Annate da rileggere nella nazionale: una per una fino ai 24 anni, i più grandi tutti insieme. */
+export function fasceFuoriRegione(anni, st) {
+  const limite = Number(st) - 25;
+  const fasce = [...anni].filter((y) => y > limite).sort((a, b) => b - a).map((y) => ({ dal: y, al: y }));
+  if ([...anni].some((y) => y <= limite)) fasce.push({ dal: 1900, al: limite });
+  return fasce;
+}
+
 /**
  * Una stagione di tutta Italia. `regioniSquadre`: id squadra -> regione già nota (dalle stagioni lette prima).
  * Restituisce { atleti, richieste, errori }.
@@ -152,6 +160,9 @@ export async function scaricaItalia({
     for (const anni of fasceAnni(st)) tutte.push(...((await leggi(sesso, idVasca, codFin, reg, anni)) ?? []));
     return tutte;
   };
+  // Gare con la nazionale piena e atleti visti nelle nazionali piene (chiave -> anno di nascita).
+  const piene = [];
+  const visteNazionali = new Map();
   for (const [vasca, idVasca] of VASCHE) {
     for (const sesso of ['M', 'F']) {
       for (const [codFin, codice] of Object.entries(CODICI)) {
@@ -171,7 +182,13 @@ export async function scaricaItalia({
           aggiungiRiga(atleti, r, {
             sesso, vasca, codice, st,
           });
+          const { cognome, nome } = dividiNome(r.nome);
+          const k = chiaveAtleta(cognome, nome, r.anno);
+          if (k && r.anno) visteNazionali.set(k, Number(r.anno));
         }
+        if (nazionale) piene.push({
+          sesso, idVasca, codFin, codice, vasca,
+        });
         for (const reg of TUTTE_LE_REGIONI) {
           for (const r of await leggiRegione(sesso, idVasca, codFin, reg)) {
             aggiungiRiga(atleti, r, {
@@ -182,6 +199,24 @@ export async function scaricaItalia({
       }
     }
   }
+  // Società che non stanno in nessun comitato regionale (gruppi sportivi nazionali): regione per regione
+  // non compaiono, e nella nazionale piena ci sono solo i primi 5000. Per le gare piene si rilegge la
+  // nazionale anno di nascita per anno di nascita, nelle annate dove ci sono atleti di queste società
+  // (quelli delle nazionali piene rimasti senza regione). Chi c'è già non si raddoppia.
+  const anniFuori = new Set([...visteNazionali].filter(([k]) => atleti.has(k) && !atleti.get(k).reg).map(([, anno]) => anno));
+  const fasce = fasceFuoriRegione(anniFuori, st);
+  for (const g of piene) {
+    for (const anni of fasce) {
+      const righe = await leggi(g.sesso, g.idVasca, g.codFin, '', anni);
+      if (righe && righe.length >= QUASI_PIENA) log(`Graduatoria ${st} ${g.codice} ${g.sesso} vasca ${g.vasca}, nati ${anni.dal}-${anni.al}: ancora piena.`);
+      for (const r of righe ?? []) {
+        aggiungiRiga(atleti, r, {
+          sesso: g.sesso, vasca: g.vasca, codice: g.codice, st,
+        });
+      }
+    }
+  }
+  if (piene.length && fasce.length) log(`Italia ${st}: ${piene.length} gare piene rilette per ${fasce.length} annate (società fuori dai comitati regionali).`);
   completaRegioni(atleti, regioniSquadre);
   risolviOrigini(atleti);
   return { atleti, richieste, errori };

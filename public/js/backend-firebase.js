@@ -460,13 +460,24 @@ export async function creaBackendFirebase(config) {
     }),
 
     /** Solo admin: cambia lo stato di una richiesta (con la data di chiusura se è chiusa). */
-    // Alla chiusura la foto della tessera si cancella insieme (nello stesso lotto).
-    aggiornaRichiestaPrivacy: (id, stato, chiusa) => avvolgi(async () => {
-      const lotto = F.writeBatch(db);
-      lotto.update(F.doc(db, 'richiestePrivacy', id), { stato, ...(chiusa ? { chiusa: F.serverTimestamp() } : {}) });
-      if (chiusa) lotto.delete(F.doc(db, 'richiestePrivacyFoto', id));
-      await lotto.commit();
+    // La foto della tessera resta 30 giorni dopo la chiusura, poi la cancella il controllore con gli altri dati.
+    aggiornaRichiestaPrivacy: (id, stato, chiusa) => avvolgi(() => F.updateDoc(F.doc(db, 'richiestePrivacy', id), {
+      stato, ...(chiusa ? { chiusa: F.serverTimestamp() } : {}),
+    })),
+
+    /** Solo admin: account inattivi senza notifiche, da avvisare per email (privato/inattivi/account/{uid}). */
+    leggiInattivi: () => avvolgi(async () => {
+      const snap = await F.getDocs(F.collection(db, 'privato', 'inattivi', 'account'));
+      return snap.docs.map((d) => {
+        const x = d.data();
+        return {
+          uid: d.id, ...x, ultimo: comeData(x.ultimo), creato: comeData(x.creato), mandata: comeData(x.mandata),
+        };
+      });
     }),
+    segnaEmailMandata: (uid) => avvolgi(() => F.updateDoc(F.doc(db, 'privato', 'inattivi', 'account', uid), {
+      stato: 'avvisato', mandata: F.serverTimestamp(),
+    })),
 
     /** Solo admin: segnali sugli account (privato/segnali/utenti/{uid}). */
     leggiSegnali: () => avvolgi(async () => {

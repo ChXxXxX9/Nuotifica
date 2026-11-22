@@ -38,7 +38,12 @@ const PAUSA_ITALIA = 600;
 // Versione della lettura di tutta Italia: le stagioni lette con una versione più vecchia si rileggono.
 // 2 = regioni grandi divise per anno di nascita, Indice annata.
 // 3 = anche i passaggi e le prime frazioni di staffetta (prima mancavano).
-export const VERSIONE_ITALIA = 6;
+// 6 = passaggi tolti (non valgono come tempo).
+// 7 = gare piene rilette anno per anno nella nazionale, per le società fuori dai comitati regionali.
+export const VERSIONE_ITALIA = 7;
+// Primati del Lazio: si rifanno da zero solo quando cambiano le regole sui tempi validi (non per la v7, che
+// aggiunge solo atleti di società fuori dai comitati regionali).
+export const VERSIONE_PRIMATI = 6;
 const MESI = {
   gennaio: 1, febbraio: 2, marzo: 3, aprile: 4, maggio: 5, giugno: 6,
   luglio: 7, agosto: 8, settembre: 9, ottobre: 10, novembre: 11, dicembre: 12,
@@ -507,7 +512,7 @@ export async function giroGraduatorie({
     // Per le stagioni dal 2018/19 mai lette prima, anche primati e classifiche del Lazio (se c'è spazio).
     let primati = 0;
     let classifiche = 0;
-    const giaPrimati = (stato.primatiV?.[st] ?? 1) >= VERSIONE_ITALIA;
+    const giaPrimati = (stato.primatiV?.[st] ?? 1) >= VERSIONE_PRIMATI;
     if (Number(st) >= PRIMA_STAGIONE && !giaPrimati && await firestoreLibero(300)) {
       const lazio = new Map([...atleti].filter(([, a]) => a.reg === COMITATO));
       primati = await aggiornaPrimati({
@@ -519,7 +524,7 @@ export async function giroGraduatorie({
       stato.pacchiLazio ??= {};
       stato.pacchiLazio[st] = adesso;
       stato.primatiV ??= {};
-      stato.primatiV[st] = VERSIONE_ITALIA;
+      stato.primatiV[st] = VERSIONE_PRIMATI;
     }
     stato.rtdb[st] = adesso;
     stato.rtdbV ??= {};
@@ -559,11 +564,11 @@ export async function giroGraduatorie({
 
   // Primati (PB e SB delle gare in diretta) rifatti da zero quando cambiano le regole sui tempi validi
   // (prima contenevano anche i passaggi): si tolgono e le stagioni li riscrivono una per una.
-  if (['tutto', 'notte'].includes(lavoro) && !forza && (stato.primatiPuliti ?? 0) < VERSIONE_ITALIA) {
+  if (['tutto', 'notte'].includes(lavoro) && !forza && (stato.primatiPuliti ?? 0) < VERSIONE_PRIMATI) {
     const percorsi = [];
     for (const [vasca] of VASCHE) for (const sx of ['M', 'F']) for (const c of Object.values(CODICI)) percorsi.push(`primati/${vasca}-${c}-${sx}`);
     for (const p of percorsi) await db.elimina(p);
-    stato.primatiPuliti = VERSIONE_ITALIA;
+    stato.primatiPuliti = VERSIONE_PRIMATI;
     stato.primatiV = {};
     delete stato.fatte?.[corrente];
     await salva();

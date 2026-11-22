@@ -210,16 +210,52 @@ test('account inattivi: avviso a 35 mesi, eliminazione a 36 (e almeno 30 giorni 
     db, invio, sito: SITO, chiamaGoogle, progetto: 'p', adesso, log: () => {},
   });
   // Novembre 2026: "vecchio" (36 mesi) e "quasi" (35) ricevono l'avviso, nessuno si elimina subito.
-  assert.deepEqual(await giro('2026-11-22T10:00:00Z'), { avvisi: 2, tolti: 0 });
+  assert.deepEqual(await giro('2026-11-22T10:00:00Z'), { avvisi: 2, perEmail: 0, tolti: 0 });
   assert.equal(invio.mandate.length, 2);
   assert.match(invio.mandate[0].corpo, /entro 30 giorni verrà eliminato/);
   // Dicembre: avvisi già mandati; "vecchio" si elimina, "quasi" (36 mesi ora) anche, perché avvisato da 30 giorni.
-  assert.deepEqual(await giro('2026-12-22T10:00:00Z'), { avvisi: 0, tolti: 2 });
+  assert.deepEqual(await giro('2026-12-22T10:00:00Z'), { avvisi: 0, perEmail: 0, tolti: 2 });
   assert.deepEqual(eliminati, ['vecchio', 'quasi']);
   assert.ok(!db.docs.has('users/vecchio'));
   assert.ok(!db.docs.has('consigli/c1'));
   assert.ok(db.docs.has('users/attivo'));
   assert.equal(invio.mandate.length, 2);
+});
+
+test('account inattivi senza notifiche: li avvisa l\'admin per email, e si eliminano solo dopo', async () => {
+  const db = dbFinto({
+    'meta/admin': { uid: 'adm' },
+    'admin/adm': {},
+    'users/adm': { tokens: ['tok-admin'] },
+    'users/muto': { tokens: [] },
+  });
+  const utenti = [{ localId: 'muto', email: 'muto@example.com', createdAt: String(Date.parse('2023-01-01')), lastRefreshAt: '2023-10-01T10:00:00Z' }];
+  const eliminati = [];
+  const chiamaGoogle = async (url, o = {}) => {
+    if (url.includes(':batchGet')) return { users: utenti };
+    if (url.endsWith(':delete')) eliminati.push(o.body.localId);
+    return {};
+  };
+  const invio = invioFinto();
+  const giro = (adesso) => controllaInattivi({
+    db, invio, sito: SITO, chiamaGoogle, progetto: 'p', adesso, log: () => {},
+  });
+  assert.deepEqual(await giro('2026-11-22T10:00:00Z'), { avvisi: 1, perEmail: 1, tolti: 0 });
+  const scheda = db.docs.get('privato/inattivi/account/muto');
+  assert.equal(scheda.email, 'muto@example.com');
+  assert.equal(scheda.stato, 'da-avvisare');
+  // All'admin una notifica (senza email dentro).
+  assert.equal(invio.mandate.length, 1);
+  assert.equal(invio.mandate[0].token, 'tok-admin');
+  assert.doesNotMatch(JSON.stringify(invio.mandate[0]), /muto@/);
+  // Un mese dopo, email non ancora segnata come mandata: non si elimina.
+  assert.deepEqual(await giro('2026-12-22T10:00:00Z'), { avvisi: 0, perEmail: 0, tolti: 0 });
+  // L'admin la segna mandata il 23/12: si elimina al primo controllo dopo 30 giorni.
+  db.docs.set('privato/inattivi/account/muto', { ...scheda, stato: 'avvisato', mandata: '2026-12-23T10:00:00Z' });
+  assert.deepEqual(await giro('2027-01-10T10:00:00Z'), { avvisi: 0, perEmail: 0, tolti: 0 });
+  assert.deepEqual(await giro('2027-01-25T10:00:00Z'), { avvisi: 0, perEmail: 0, tolti: 1 });
+  assert.deepEqual(eliminati, ['muto']);
+  assert.ok(!db.docs.has('privato/inattivi/account/muto'));
 });
 
 test('conservazione: consigli di oltre 24 mesi, testi della stagione passata, vecchie copie', async () => {
@@ -267,16 +303,18 @@ test('tutela: i lavori di giorno, mese e stagione si fanno una volta', async () 
   assert.equal(elenchi, 0);
 });
 
-test('foto delle tessere: restano solo quelle delle richieste aperte', async () => {
+test('foto delle tessere: restano con la richiesta aperta e fino a 30 giorni dopo la chiusura', async () => {
   const db = dbFinto({
     'richiestePrivacy/a': { stato: 'nuova' },
     'richiestePrivacy/b': { stato: 'in-attesa' },
-    'richiestePrivacy/c': { stato: 'tolta' },
+    'richiestePrivacy/c': { stato: 'tolta', chiusa: '2026-11-01T10:00:00Z' },
+    'richiestePrivacy/d': { stato: 'respinta', chiusa: '2026-10-01T10:00:00Z' },
+    'richiestePrivacyFoto/d': { foto: 'data:image/jpeg;base64,EEE' },
     'richiestePrivacyFoto/a': { foto: 'data:image/jpeg;base64,AAA' },
     'richiestePrivacyFoto/b': { foto: 'data:image/jpeg;base64,BBB' },
     'richiestePrivacyFoto/c': { foto: 'data:image/jpeg;base64,CCC' },
     'richiestePrivacyFoto/orfana': { foto: 'data:image/jpeg;base64,DDD' },
   });
-  assert.equal(await cancellaFotoChiuse({ db, log: () => {} }), 2);
-  assert.deepEqual([...db.docs.keys()].filter((p) => p.startsWith('richiestePrivacyFoto/')).sort(), ['richiestePrivacyFoto/a', 'richiestePrivacyFoto/b']);
+  assert.equal(await cancellaFotoChiuse({ db, adesso: '2026-11-22T10:00:00Z', log: () => {} }), 2);
+  assert.deepEqual([...db.docs.keys()].filter((p) => p.startsWith('richiestePrivacyFoto/')).sort(), ['richiestePrivacyFoto/a', 'richiestePrivacyFoto/b', 'richiestePrivacyFoto/c']);
 });
