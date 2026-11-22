@@ -3,14 +3,10 @@
 // Nei log solo numeri aggregati.
 import { leggiAccountServizio, creaGestoreToken, creaClientGoogle } from './google.js';
 import { creaFirestore } from './firestore.js';
+import { trovaUrlRtdb, creaRtdb } from './rtdb.js';
 
-const PREFISSI = [
-  'firestore.googleapis.com/',
-  'firebasedatabase.googleapis.com/',
-  'firebasehosting.googleapis.com/',
-  'firebaseappcheck.googleapis.com/',
-  'recaptchaenterprise.googleapis.com/',
-];
+// Le metriche di Cloud Monitoring si leggono solo con la fatturazione attiva (piano Blaze): per ora nessuna.
+const PREFISSI = [];
 const GIORNI = Number(process.argv[2]) || 8;
 
 async function principale() {
@@ -60,6 +56,36 @@ async function principale() {
   // Contatori del controllore (solo il suo consumo di Firestore).
   const [budget, budgetGrad] = await Promise.all([db.leggi('meta/budget'), db.leggi('meta/budget-grad')]);
   righe.push(`Controllore oggi (${budget?.giorno ?? '?'}): ${budget?.letture ?? '?'} letture, ${budget?.scritture ?? '?'} scritture (giro ogni 5 minuti); graduatorie notturne (${budgetGrad?.giorno ?? '?'}): ${budgetGrad?.scritture ?? '?'} scritture, ${budgetGrad?.letture ?? '?'} letture.`);
+  // Quanto pesa ogni lettura dal Realtime Database (le metriche non si leggono senza fatturazione): campioni.
+  try {
+    const rtdb = creaRtdb(chiama, await trovaUrlRtdb(chiama, progetto));
+    const peso = (x) => Buffer.byteLength(JSON.stringify(x ?? null));
+    const stat = (v) => (v.length ? `media ${Math.round(v.reduce((a, b) => a + b, 0) / v.length / 1024)} KB, max ${Math.round(Math.max(...v) / 1024)} KB (${v.length} campioni)` : 'nessun campione');
+    const caso = (arr, n) => [...arr].sort(() => Math.random() - 0.5).slice(0, n);
+    const noti = (await db.leggi('noti/r'))?.k ?? [];
+    const atleti = [];
+    const storici = [];
+    for (const k of caso(noti, 25)) {
+      atleti.push(peso(await rtdb.leggi(`a/${k}`)));
+      const st = await rtdb.leggi(`st/${k}`);
+      if (st) storici.push(peso(st));
+    }
+    const squadre = Object.keys((await db.leggi('meta/squadre'))?.squadre ?? {});
+    const riassunti = [];
+    const stagioniSq = [];
+    for (const id of caso(squadre, 15)) {
+      riassunti.push(peso(await rtdb.leggi(`sqx/${id}`)));
+      stagioniSq.push(peso(await rtdb.leggi(`sqs/${id}/s2026`)));
+    }
+    const cl = [...await rtdb.chiavi('cl')];
+    const classifiche = [];
+    for (const id of caso(cl, 8)) classifiche.push(peso(await rtdb.leggi(`cl/${id}`)));
+    const ricerca = peso(await rtdb.leggi('c', { orderBy: '"$key"', startAt: '"ros"', endAt: '"ros\uf8ff"', limitToFirst: '80' }));
+    const annate = peso(await rtdb.leggi('ann/2026'));
+    righe.push(`Realtime Database, peso delle letture: scheda atleta ${stat(atleti)}; storico gara per gara ${stat(storici)}; riassunto squadra ${stat(riassunti)}; squadra in una stagione ${stat(stagioniSq)}; classifica su richiesta ${stat(classifiche)} (${cl.length} classifiche salvate); una ricerca ${Math.round(ricerca / 1024)} KB; annate della stagione ${Math.round(annate / 1024)} KB; squadre in elenco ${squadre.length}.`);
+  } catch (e) {
+    righe.push(`Realtime Database: pesi non misurati (${String(e.message).slice(0, 200)})`);
+  }
   for (const r of righe) {
     console.log(r);
     if (process.env.GITHUB_ACTIONS) console.log(`::notice title=Consumi::${r.slice(0, 3800).replace(/%/g, '%25').replace(/\n/g, ' ')}`);
