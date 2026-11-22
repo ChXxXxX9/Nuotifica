@@ -227,22 +227,62 @@ function posizioniClassifica(evento) {
 const nomeBatteria = (b, conTurni) => b.nb ?? `${conTurni ? `Turno ${Number(b.tu) || b.tu} · ` : ''}Batteria ${b.n}`;
 const siglaBatteria = (b) => b.nc ?? (b.n ? `B${b.n}` : '');
 
+/**
+ * I parziali di un tempo, con i numeri veri. Le frazioni dopo la prima (che comprende la partenza) si
+ * confrontano con il ritmo medio dell'atleta in quelle frazioni: `delta` = secondi persi (+) o guadagnati (−)
+ * rispetto a nuotare quella frazione al ritmo medio (con frazioni di lunghezza diversa si conta per metro).
+ * Migliore e peggiore: la frazione più veloce e la più lenta per metro, prima esclusa. Servono almeno due
+ * frazioni confrontabili; altrimenti niente barre.
+ */
+export function analisiParziali(r, dist) {
+  const vuoto = {
+    passaggi: [], frazioni: [], delta: [], veloce: [], lenta: [],
+  };
+  if (!r?.t || !dist) return vuoto;
+  // Parziali in ordine, crescenti e dentro la gara (scarta doppioni e valori impossibili).
+  const sp = [...(r.sp ?? [])].filter((p) => p.m > 0 && p.m < dist && p.t > 0).sort((a, b) => a.m - b.m);
+  const passaggi = [];
+  for (const p of sp) {
+    const prima = passaggi[passaggi.length - 1];
+    if (prima && (p.m === prima.m || p.t <= prima.t)) continue;
+    if (p.t >= r.t) continue;
+    passaggi.push({ m: p.m, t: p.t, p: p.p });
+  }
+  passaggi.push({ m: dist, t: r.t });
+  if (passaggi.length < 2) return vuoto;
+  const frazioni = passaggi.map((p, i) => (i === 0 ? p.t : p.t - passaggi[i - 1].t));
+  const lunghezze = passaggi.map((p, i) => (i === 0 ? p.m : p.m - passaggi[i - 1].m));
+  const delta = frazioni.map(() => null);
+  const confrontabili = frazioni.map((_, i) => i).filter((i) => i > 0);
+  if (confrontabili.length < 2) {
+    return {
+      passaggi, frazioni, delta, veloce: [], lenta: [],
+    };
+  }
+  const tempoTot = confrontabili.reduce((x, i) => x + frazioni[i], 0);
+  const metriTot = confrontabili.reduce((x, i) => x + lunghezze[i], 0);
+  const perMetro = tempoTot / metriTot;
+  for (const i of confrontabili) delta[i] = Math.round(frazioni[i] - perMetro * lunghezze[i]);
+  // A parità (al centesimo per 50 m) si segnano tutte.
+  const ritmo = (i) => Math.round((frazioni[i] * 50) / lunghezze[i] / 10);
+  const minimo = Math.min(...confrontabili.map(ritmo));
+  const massimo = Math.max(...confrontabili.map(ritmo));
+  const veloce = minimo === massimo ? [] : confrontabili.filter((i) => ritmo(i) === minimo);
+  const lenta = minimo === massimo ? [] : confrontabili.filter((i) => ritmo(i) === massimo);
+  return {
+    passaggi, frazioni, delta, veloce, lenta,
+  };
+}
+
 /** Scheda di un risultato: tempo, posizioni, punti e parziali disegnati. */
 export function schedaRisultato({
   r, codice, batteria, nomeBatt, posTot, extra = '', nota = '', rif = '',
 }) {
   const dist = metri(codice);
-  const passaggi = r.t ? [...(r.sp ?? []).map((p) => ({ m: p.m, t: p.t, p: p.p })), { m: dist, t: r.t }] : [];
+  const { passaggi, frazioni, delta, veloce, lenta } = analisiParziali(r, dist);
   const conParziali = passaggi.length > 1;
-  const frazioni = passaggi.map((p, i) => (i === 0 ? p.t : p.t - passaggi[i - 1].t));
-  const min = Math.min(...frazioni.slice(1));
-  const max = Math.max(...frazioni.slice(1));
-  const lenta = frazioni.length > 2 ? frazioni.indexOf(max, 1) : -1;
-  const veloce = frazioni.length > 2 ? frazioni.indexOf(min, 1) : -1;
-  const larghezza = (f, i) => {
-    if (i === 0 || max === min) return 70;
-    return Math.round(42 + (58 * (f - min)) / (max - min));
-  };
+  const conBarre = delta.some((d) => d != null);
+  const scala = Math.max(...delta.filter((d) => d != null).map(Math.abs), 1);
   // Andatura: prima metà contro seconda metà.
   let andatura = '';
   const meta = passaggi.find((p) => p.m === dist / 2);
@@ -254,7 +294,7 @@ export function schedaRisultato({
       <div class="andatura">
         <span><small>Prima metà</small><b>${esc(tempo(prima))}</b></span>
         <span><small>Seconda metà</small><b>${esc(tempo(seconda))}</b></span>
-        <span><small>${d <= 0 ? 'In progressione' : 'Calo'}</small><b class="${d <= 0 ? 'buono' : ''}">${esc(differenza(d) || '0"00')}</b></span>
+        <span><small>${d <= 0 ? 'In progressione' : 'Calo'}</small><b class="${d <= 0 ? 'buono' : 'calo'}">${esc(differenza(d) || '0"00')}</b></span>
       </div>`;
   }
   const cifre = [
@@ -277,16 +317,23 @@ export function schedaRisultato({
       ${nota}
       ${cifre.length ? `<div class="cifre-piccole" style="grid-template-columns:repeat(${cifre.length},minmax(0,1fr))">${cifre.join('')}</div>` : ''}
       ${conParziali ? `
-        <div class="parziali-grafico" aria-label="Parziali">
-          <div class="fraz fraz-testa"><span>Vasca</span><span></span><span>Frazione</span><span>Passaggio</span></div>
-          ${passaggi.map((p, i) => `
-            <div class="fraz ${i === lenta ? 'fraz-lenta' : ''} ${i === veloce ? 'fraz-veloce' : ''}">
+        <div class="parziali-grafico ${conBarre ? '' : 'senza-barre'}" aria-label="Parziali">
+          <div class="fraz fraz-testa"><span>Metri</span>${conBarre ? '<span class="fraz-testa-barra">rispetto al suo ritmo</span>' : ''}<span>Frazione</span><span>Passaggio</span></div>
+          ${passaggi.map((p, i) => {
+    const d = delta[i];
+    const largo = d == null ? 0 : Math.max(Math.round((Math.abs(d) / scala) * 50), d === 0 ? 0 : 2);
+    return `
+            <div class="fraz ${lenta.includes(i) ? 'fraz-lenta' : ''} ${veloce.includes(i) ? 'fraz-veloce' : ''}">
               <span class="fraz-m">${p.m} m</span>
-              <span class="fraz-barra" aria-hidden="true"><i style="width:${larghezza(frazioni[i], i)}%"></i></span>
-              <span class="fraz-t">${esc(tempo(frazioni[i]))}</span>
+              ${conBarre ? `<span class="fraz-barra" aria-hidden="true">${d == null ? '<small>partenza</small>' : `<i class="${d <= 0 ? 'piu-veloce' : 'piu-lenta'}" style="${d <= 0 ? `right:50%` : 'left:50%'};width:${largo}%"></i>`}</span>` : ''}
+              <span class="fraz-t">${esc(tempo(frazioni[i]))}${d != null ? `<small>${d === 0 ? '=' : esc(differenza(d))}</small>` : ''}</span>
               <span class="fraz-c">${esc(tempo(p.t))}${p.p ? ` <em>${p.p}°</em>` : ''}</span>
-            </div>`).join('')}
-          <p class="fraz-legenda"><span class="punto-legenda veloce-l"></span>vasca più veloce <span class="punto-legenda lenta-l"></span>più lenta${passaggi.some((p) => p.p) ? ' · ° = posizione al passaggio' : ''}</p>
+            </div>`;
+  }).join('')}
+          ${conBarre ? `<p class="fraz-legenda"><span class="voce-legenda"><span class="punto-legenda veloce-l"></span>più veloce del suo ritmo</span><span class="voce-legenda"><span class="punto-legenda lenta-l"></span>più lenta</span></p>
+          ${veloce.length ? `<p class="fraz-nota">Migliore: <b class="buono">${veloce.map((i) => `${passaggi[i].m} m`).join(', ')}</b> · peggiore: <b class="calo">${lenta.map((i) => `${passaggi[i].m} m`).join(', ')}</b></p>` : ''}
+          <p class="fraz-nota">Il ritmo è la media delle frazioni dopo la prima, che comprende la partenza e non si confronta.${passaggi.some((p) => p.p) ? ' ° = posizione al passaggio.' : ''}</p>`
+    : `<p class="fraz-nota">Con due sole frazioni non c'è un ritmo da confrontare: la differenza tra le due metà è qui sotto.${passaggi.some((p) => p.p) ? ' ° = posizione al passaggio.' : ''}</p>`}
         </div>
         ${andatura}`
     : (r.t && dist > 50 ? '<p class="nota">Parziali non disponibili per questa gara.</p>' : '')}

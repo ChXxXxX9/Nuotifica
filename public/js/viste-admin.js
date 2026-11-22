@@ -14,6 +14,7 @@ import { leggiFileLimiti, leggiTabellaLimiti, righeDaTesto, modelloCsv } from '.
 import { GARE, leggiTempo } from './viste-classifiche.js';
 import { cerca } from './viste-atleti.js';
 import { eAdmin } from './viste-consigli.js';
+import { comprimiFoto } from './viste-privacy.js';
 
 const SEZIONI = [
   ['panoramica', 'Panoramica'], ['consigli', 'Consigli'], ['annunci', 'Annunci'], ['limiti', 'Tempi limite'],
@@ -581,7 +582,7 @@ async function richieste() {
   };
 
   disegna(pagina('richieste', `
-    <p class="intro">Chi chiede di togliere una scheda o di avere "Solo risultati". Verifica che sia l'atleta (almeno 14 anni) o un genitore, poi applica la richiesta entro 48 ore e rispondi per email. I dati della verifica si cancellano da soli 30 giorni dopo la chiusura.</p>
+    <p class="intro">Chi chiede di togliere una scheda o di avere "Solo risultati". Verifica dalla foto della tessera che sia l'atleta (almeno 14 anni) o un genitore, poi applica la richiesta entro 48 ore e rispondi per email. La foto si cancella quando chiudi la richiesta (cancella anche le email con foto); gli altri dati della verifica 30 giorni dopo.</p>
     <div class="filtri" role="toolbar" aria-label="Filtra le richieste">
       <button class="chip" data-filtro-richieste="aperte" aria-pressed="${filtro === 'aperte'}">Aperte (${aperte})</button>
       <button class="chip" data-filtro-richieste="chiuse" aria-pressed="${filtro === 'chiuse'}">Chiuse</button>
@@ -596,9 +597,11 @@ async function richieste() {
         <p><b>${esc(r.nome || r.atleta)}</b> <small class="nota">${esc(r.atleta ?? '')}</small></p>
         <dl class="dati-richiesta">
           <dt>Chi scrive</dt><dd>${esc(CHI_RICHIESTA[r.chi] ?? r.chi ?? '–')}</dd>
-          <dt>Verifica</dt><dd>${esc(r.prova || '–')}</dd>
+          ${r.prova ? `<dt>Note</dt><dd>${esc(r.prova)}</dd>` : ''}
           <dt>Email</dt><dd>${r.email ? `<a href="mailto:${esc(r.email)}">${esc(r.email)}</a>` : '–'}</dd>
-        </dl>`}
+          <dt>Foto</dt><dd>${!r.foto ? 'nessuna' : APERTA(r) ? '<button class="link" type="button" data-vedi-foto>Vedi la foto della tessera</button>' : 'cancellata alla chiusura'}</dd>
+        </dl>
+        <div class="foto-tessera" data-box-foto hidden></div>`}
         ${APERTA(r) ? `<p class="${lunga ? 'errore' : 'nota'}">${lunga ? `Aperta da ${giorni} giorni: oltre 15, rispondi o chiudila.` : (giorni ? `Aperta da ${giorni === 1 ? '1 giorno' : `${giorni} giorni`}.` : 'Aperta oggi.')}</p>` : (r.chiusa ? `<p class="nota">Chiusa ${esc(quando(r.chiusa))}.</p>` : '')}
         ${APERTA(r) ? `<div class="dettaglio-azioni azioni-richiesta">
           ${r.stato === 'nuova' ? '<button class="bottone bottone-secondario bottone-piccolo" data-fai="attesa">Nascondi in attesa</button>' : ''}
@@ -631,7 +634,12 @@ async function richieste() {
           <label class="opzione"><input type="radio" name="chi" value="atleta"><span class="opzione-testo">L'atleta (almeno 14 anni)</span></label>
           <label class="opzione"><input type="radio" name="chi" value="genitore"><span class="opzione-testo">Un genitore</span></label>
         </fieldset>
-        <label class="campo">Come è stato verificato (o come si verificherà)
+        <div class="campo-foto">
+          <p class="nota">Foto della tessera (facoltativa: se è arrivata per email). Si cancella alla chiusura.</p>
+          <div class="anteprima-foto" data-anteprima hidden><img alt="Foto scelta"></div>
+          <label class="bottone bottone-secondario scegli-foto"><input type="file" accept="image/*" data-foto><span data-testo-foto>Aggiungi la foto</span></label>
+        </div>
+        <label class="campo">Note (facoltative)
           <textarea name="prova" rows="3" maxlength="300"></textarea>
         </label>
         <label class="campo">Email per rispondere
@@ -645,11 +653,44 @@ async function richieste() {
       stato.filtroRichieste = x.dataset.filtroRichieste;
       richieste();
     }));
+    el.querySelectorAll('[data-vedi-foto]').forEach((b) => b.addEventListener('click', async () => {
+      const li = b.closest('[data-id]');
+      const box = li.querySelector('[data-box-foto]');
+      if (!box.hidden) {
+        box.hidden = true;
+        box.innerHTML = '';
+        b.textContent = 'Vedi la foto della tessera';
+        return;
+      }
+      try {
+        const foto = await conAttesa(b, () => api.leggiFotoRichiesta(li.dataset.id));
+        box.innerHTML = foto ? `<img src="${esc(foto)}" alt="Foto della tessera">` : '<p class="nota">La foto non c\'è più.</p>';
+        box.hidden = false;
+        b.textContent = 'Nascondi la foto';
+      } catch (err) {
+        avviso(err.message, 'errore');
+      }
+    }));
     el.querySelectorAll('[data-fai]').forEach((x) => x.addEventListener('click', () => {
       const r = elenco.find((y) => y.id === x.closest('[data-id]').dataset.id);
       if (r) esegui(r, x.dataset.fai, x);
     }));
     const modulo = el.querySelector('[data-manuale]');
+    let fotoManuale = null;
+    const sceltaFoto = modulo.querySelector('[data-foto]');
+    sceltaFoto.addEventListener('change', async () => {
+      const file = sceltaFoto.files?.[0];
+      if (!file) return;
+      try {
+        fotoManuale = await comprimiFoto(file);
+        modulo.querySelector('[data-anteprima] img').src = fotoManuale;
+        modulo.querySelector('[data-anteprima]').hidden = false;
+        modulo.querySelector('[data-testo-foto]').textContent = 'Cambia foto';
+      } catch (err) {
+        mostraErrore(modulo, err);
+      }
+      sceltaFoto.value = '';
+    });
     const input = el.querySelector('[data-cerca-atleta]');
     const box = el.querySelector('[data-trovati]');
     let attesa;
@@ -686,6 +727,7 @@ async function richieste() {
           chi: modulo.chi.value,
           prova: modulo.prova.value.trim().slice(0, 300),
           email: modulo.email.value.trim().slice(0, 120),
+          foto: fotoManuale,
           manuale: true,
         }));
         avviso('Richiesta creata.');

@@ -890,23 +890,39 @@ p { margin: 0; }
 .cifre-piccole small { color: var(--tenue); font-size: 10.5px; font-weight: 700; }
 .parziali-grafico { display: flex; flex-direction: column; gap: 6px; }
 .fraz { display: grid; grid-template-columns: 52px minmax(0, 1fr) 62px 78px; gap: 8px; align-items: center; font-variant-numeric: tabular-nums; }
+.senza-barre .fraz { grid-template-columns: 52px minmax(0, 1fr) 78px; }
+.senza-barre .fraz-t { text-align: left; }
+.senza-barre .fraz-testa span:nth-child(2) { text-align: left; }
+.fraz-testa-barra { text-align: center; text-transform: none; letter-spacing: 0; font-size: 10.5px; }
 .fraz-testa { color: var(--tenue); font-size: 10.5px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
 .fraz-testa span:nth-child(3), .fraz-testa span:nth-child(4) { text-align: right; }
 .fraz-m { color: var(--tenue-2); font-size: 12px; font-weight: 700; }
-.fraz-barra { height: 10px; border-radius: 5px; background: var(--linea); overflow: hidden; }
-.fraz-barra i { display: block; height: 100%; border-radius: 5px; background: var(--tenue); }
-.fraz-veloce .fraz-barra i { background: var(--acqua); }
-.fraz-lenta .fraz-barra i { background: var(--pericolo); }
-.fraz-t { text-align: right; font-weight: 800; font-size: 14px; }
+/* Barra divergente: dal centro (ritmo medio) a sinistra se più veloce, a destra se più lenta. */
+.fraz-barra { position: relative; height: 12px; border-radius: 6px; background: var(--linea); overflow: hidden; }
+.fraz-barra::after { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--tenue); opacity: .6; }
+.fraz-barra i { position: absolute; top: 0; bottom: 0; display: block; }
+.fraz-barra i.piu-veloce { background: var(--acqua); border-radius: 6px 0 0 6px; }
+.fraz-barra i.piu-lenta { background: var(--pericolo); border-radius: 0 6px 6px 0; opacity: .85; }
+.fraz-barra small { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 9.5px; font-weight: 800; color: var(--tenue); letter-spacing: .5px; text-transform: uppercase; }
+.fraz-barra:has(small) { background: transparent; }
+.fraz-barra:has(small)::after { display: none; }
+.fraz-t { text-align: right; font-weight: 800; font-size: 14px; line-height: 1.15; }
+.fraz-t small { display: block; font-size: 10.5px; font-weight: 700; color: var(--tenue); }
 .fraz-veloce .fraz-t { color: var(--acqua); }
 .fraz-lenta .fraz-t { color: var(--pericolo); }
 .fraz-c { text-align: right; color: var(--tenue); font-size: 12px; font-weight: 600; }
 .fraz-c em { font-style: normal; color: var(--tenue-2); font-weight: 800; }
-.fraz-legenda { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; color: var(--tenue); font-size: 11px; font-weight: 600; margin-top: 2px; }
+.fraz-legenda { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; color: var(--tenue); font-size: 11px; font-weight: 600; margin-top: 4px; }
+.voce-legenda { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.voce-legenda .punto-legenda { margin-right: 0; }
+.fraz-nota { color: var(--tenue); font-size: 11.5px; font-weight: 600; line-height: 1.4; }
+.fraz-nota b.buono { color: var(--acqua); }
+.fraz-nota b.calo { color: var(--pericolo); }
 .andatura { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .andatura span { padding: 8px; border-radius: 12px; background: var(--piastrella); border: 1px solid var(--linea); }
 .andatura small { display: block; color: var(--tenue); font-size: 10.5px; font-weight: 700; }
-.andatura b { font-family: var(--titoli); font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; color: var(--pericolo); }
+.andatura b { font-family: var(--titoli); font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; color: var(--testo); }
+.andatura b.calo { color: var(--pericolo); }
 .andatura b.buono { color: var(--acqua); }
 .dettaglio[hidden] { display: none; }
 .parziali {
@@ -1605,3 +1621,10 @@ dialog.foglio-info::backdrop { background: rgba(0, 0, 0, 0.55); }
 .azioni-richiesta > * { flex: 1 1 45%; }
 .elenco-puntato { margin: 0; padding-left: 18px; }
 .elenco-puntato li { margin: 2px 0; }
+
+/* Foto della tessera (richieste privacy). */
+.campo-foto { display: flex; flex-direction: column; gap: 10px; }
+.scegli-foto { position: relative; overflow: hidden; cursor: pointer; }
+.scegli-foto input { position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 0; }
+.anteprima-foto img, .foto-tessera img { display: block; max-width: 100%; max-height: 320px; border-radius: var(--r-s); border: 1px solid var(--linea); object-fit: contain; }
+.foto-tessera { margin-top: 4px; }

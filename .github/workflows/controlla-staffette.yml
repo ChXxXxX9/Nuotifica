@@ -1,0 +1,65 @@
+name: Controllo staffette
+
+# Controlla che i tempi "da staffetta" siano solo prime frazioni: diciture del turno nelle graduatorie,
+# anomalie, confronto con le schede e con lo storico gara per gara. Nel riassunto solo i numeri; diciture ed
+# esempi escono solo cifrati.
+on:
+  workflow_dispatch:
+  push:
+    branches: [lavoro-sistemazioni]
+    paths: ['controller/src/controlla-staffette.js']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: indagine
+  cancel-in-progress: false
+
+jobs:
+  controllo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Controllo
+        working-directory: controller
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          RTDB_URL: https://nuotifica-default-rtdb.europe-west1.firebasedatabase.app
+          FONTI: ${{ secrets.FONTI }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/esiti"
+          node src/controlla-staffette.js "$RUNNER_TEMP/esiti/staffette.json" 3
+      - name: Esiti (solo cifrati)
+        run: |
+          cat > "$RUNNER_TEMP/pub.pem" <<'CHIAVE'
+          -----BEGIN PUBLIC KEY-----
+          MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAqm39n6Y/tgiSblTY0JoX
+          n7VpWtMMXHDnP6rlr0H5+5JroOtu3+kt9QkPrY8PJ4S9Ewz+Px/iIgoVBGRtV+gx
+          ekcjqyE8HZvq0vJRJRv6nmzaBlKBuU1pCpb+pUoLz9Tuf9YmW7ha49fJ6PAK+mb0
+          ISa8tmtVAvqI6Ekaq+8uJbd+nf7PCXX5jvaAiikAPUtrgAtPz50oCsMfNBEnV8YP
+          lEvA63uoABWLqS+1A8XEFSsm7L6RgmtuV/ivtNw1TImSObTaCt3TidA+Qq78HFtT
+          lemj8na6M1oI4u7nL6FVHqP1f0+Wkc0V+aV6Ddi7OLRp2czwFQN0e9hGxSGKa/uv
+          T1cpczZyyMb4AB2pyQiLrwytqZfSS/MqFBlmm06jNzCQq3j5W93FI2Povx/TMJH2
+          aIPxLAUXBgMOuCcdjiYYyIr38azln4JMDEjUkloPhuLlaU+cuFcMGkdf8GVDKSyS
+          /NbotyFrJaG5rU7klUl/wD1GVjdxvx7HRMRMtAeF92ENAgMBAAE=
+          -----END PUBLIC KEY-----
+          CHIAVE
+          cd "$RUNNER_TEMP"
+          tar czf esiti.tgz esiti
+          openssl rand -out k.bin 32
+          openssl enc -aes-256-cbc -pbkdf2 -salt -in esiti.tgz -out esiti.tgz.enc -pass file:k.bin
+          openssl pkeyutl -encrypt -pubin -inkey pub.pem -pkeyopt rsa_padding_mode:oaep -in k.bin -out k.bin.enc
+          mkdir cifrati && mv esiti.tgz.enc k.bin.enc cifrati/
+          rm -rf esiti esiti.tgz k.bin
+          cd cifrati
+          git init -q -b indagine-esiti
+          git config user.name "Cloro"
+          git config user.email "noreply@cloro.web.app"
+          git add -A
+          git commit -qm "Esiti cifrati"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" indagine-esiti

@@ -96,6 +96,7 @@ const POST = [
 
 const privati = { nascosti: {}, inAttesa: {}, soloRisultati: {} };
 // Anteprima: una richiesta di esempio (aperta da 17 giorni) per vedere la pagina dell'admin.
+const fotoRichieste = new Map();
 const richieste = [{
   id: 'esempio', uid: 'demo', atleta: 'giulia-rossi-2011', nome: 'Giulia Rossi', tipo: 'togli', chi: 'genitore',
   prova: 'Tessera federale 123456', email: 'genitore@example.com', stato: 'nuova', creato: new Date(Date.now() - 17 * 86_400_000),
@@ -349,12 +350,21 @@ export function creaBackendDemo() {
     async sonoAdmin() { return parametri.has('admin'); },
     async mandaConsiglio(uid, c) { await pausa(); consigli.unshift({ id: String(Date.now()), ...c, uid, stato: 'nuovo', creato: new Date() }); },
     async mieiConsigli() { await pausa(100); return consigli; },
-    async inviaRichiestaPrivacy(uid, r) { await pausa(); richieste.unshift({ id: String(Date.now()), uid, ...r, stato: 'nuova', creato: new Date() }); },
+    async inviaRichiestaPrivacy(uid, { foto = null, ...r }) {
+      await pausa();
+      const id = String(Date.now());
+      if (foto) fotoRichieste.set(id, foto);
+      richieste.unshift({
+        id, uid, ...r, foto: Boolean(foto), stato: 'nuova', creato: new Date(),
+      });
+    },
+    async leggiFotoRichiesta(id) { await pausa(80); return fotoRichieste.get(id) ?? null; },
     async leggiRichiestePrivacy() { await pausa(80); return richieste.map((r) => ({ ...r })); },
     async aggiornaRichiestaPrivacy(id, stato, chiusa) {
       await pausa();
       const r = richieste.find((x) => x.id === id);
       if (r) Object.assign(r, { stato, ...(chiusa ? { chiusa: new Date() } : {}) });
+      if (chiusa) fotoRichieste.delete(id);
     },
     async leggiSegnali() { await pausa(80); return segnali.map((x) => ({ ...x })); },
     async decidiSegnale(uid, azione) {

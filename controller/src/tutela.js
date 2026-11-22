@@ -1,5 +1,6 @@
 // Tutela di atleti e iscritti (adeguamento legale, parte B). Documenti che leggono solo l'admin e il controllore:
 //   richiestePrivacy/{id}          "Sei questo atleta o un suo genitore?" (l'admin le gestisce in Admin → Richieste)
+//   richiestePrivacyFoto/{id}      la foto della tessera della richiesta: si cancella quando la richiesta si chiude
 //   privato/segnali                { daFare }: l'admin ha deciso qualcosa su un segnale, da eseguire
 //   privato/segnali/utenti/{uid}   account che seguono molti atleti sotto i 14 anni di società diverse
 //   meta/manutenzione              quando sono stati fatti i lavori di ogni giorno, mese e stagione
@@ -84,10 +85,35 @@ export async function ripulisciRichieste({ db, adesso, log = console.log }) {
     await db.scrivi(`richiestePrivacy/${r.id}`, {
       stato: r.stato ?? '', tipo: r.tipo ?? '', creato: comeData(r.creato), chiusa: comeData(r.chiusa), ripulita: true, avvisato: true,
     });
+    await db.elimina(`richiestePrivacyFoto/${r.id}`);
     n++;
   }
   if (n) log(`Richieste privacy: dati di verifica cancellati da ${n} richieste chiuse.`);
   return n;
+}
+
+const APERTA = new Set(['nuova', 'in-attesa']);
+
+/**
+ * Foto delle tessere: restano solo quelle delle richieste aperte. L'app le cancella già quando l'admin chiude
+ * la richiesta; questo è il controllo di sicurezza (anche per foto rimaste senza richiesta).
+ */
+export async function cancellaFotoChiuse({ db, log = console.log }) {
+  const ids = [];
+  for (;;) {
+    const pagina = await db.nomi('richiestePrivacyFoto', 300);
+    const nuovi = pagina.filter((id) => !ids.includes(id));
+    ids.push(...nuovi);
+    if (pagina.length < 300 || !nuovi.length) break;
+  }
+  if (!ids.length) return 0;
+  const richieste = await db.leggiTanti(ids.map((id) => `richiestePrivacy/${id}`));
+  const via = ids.filter((id) => !APERTA.has(richieste.get(`richiestePrivacy/${id}`)?.stato));
+  if (via.length) {
+    await db.eliminaTanti(via.map((id) => `richiestePrivacyFoto/${id}`));
+    log(`Foto di richieste chiuse cancellate: ${via.length}.`);
+  }
+  return via.length;
 }
 
 /* ---------- B3: segnali sugli account ---------- */
@@ -397,7 +423,8 @@ export async function tutela({
       return r.nuovi;
     });
     const ok2 = await prova('verifiche', () => ripulisciRichieste({ db, adesso, log }));
-    if (ok && ok2) m.giorno = oggi;
+    const ok3 = await prova('foto', () => cancellaFotoChiuse({ db, log }));
+    if (ok && ok2 && ok3) m.giorno = oggi;
   }
   if (m.mese !== oggi.slice(0, 7)) {
     const ok = await prova('inattivi', () => controllaInattivi({
