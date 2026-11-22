@@ -1,6 +1,7 @@
 // Prove delle regole di sicurezza (Firestore e Realtime Database) sugli emulatori di Firebase.
 // Gira su GitHub (workflow "Prova delle regole"): node --test dentro "firebase emulators:exec".
 import { test, before, after } from 'node:test';
+import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   initializeTestEnvironment, assertSucceeds, assertFails,
@@ -111,4 +112,37 @@ test('ricerca nel Realtime Database: solo per inizio del nome, almeno 3 lettere,
   await assertFails(get(c));
   const ospite = env.unauthenticatedContext().database();
   await assertFails(get(query(ref(ospite, 'c'), orderByKey(), startAt('mar'), endAt('mar'), limitToFirst(80))));
+});
+
+// Come fa l'app: richiesta e foto insieme con il commit REST (ora del server, documento nuovo).
+test('richiesta privacy via REST (come l\'app)', async () => {
+  const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const ora = Math.floor(Date.now() / 1000);
+  const gettone = (uid) => `${b64({ alg: 'none', typ: 'JWT' })}.${b64({
+    iss: 'https://securetoken.google.com/demo-cloro', aud: 'demo-cloro', auth_time: ora, user_id: uid, sub: uid, iat: ora, exp: ora + 3600,
+    firebase: { sign_in_provider: 'password', identities: {} },
+  })}.`;
+  const radice = 'projects/demo-cloro/databases/(default)/documents';
+  const campi = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, typeof v === 'boolean' ? { booleanValue: v } : { stringValue: String(v) }]));
+  const nuova = (percorso, c) => ({
+    update: { name: `${radice}/${percorso}`, fields: campi(c) },
+    updateTransforms: [{ fieldPath: 'creato', setToServerValue: 'REQUEST_TIME' }],
+    currentDocument: { exists: false },
+  });
+  const commit = (uid, writes) => fetch(`http://127.0.0.1:8080/v1/${radice}:commit`, {
+    method: 'POST', headers: { Authorization: `Bearer ${gettone(uid)}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ writes }),
+  });
+  const richiestaRest = {
+    uid: 'carla', atleta: 'rossi-mario-2010', nome: 'Mario Rossi', tipo: 'solo-risultati', chi: 'atleta', prova: '', email: 'c@d.it', foto: true, stato: 'nuova', avvisato: false,
+  };
+  const ok = await commit('carla', [nuova('richiestePrivacy/rest1', richiestaRest), nuova('richiestePrivacyFoto/rest1', { uid: 'carla', foto: FOTO })]);
+  assert.equal(ok.status, 200, await ok.text());
+  const senzaFoto = await commit('carla', [nuova('richiestePrivacy/rest2', richiestaRest)]);
+  assert.equal(senzaFoto.status, 403);
+  // L'admin legge la foto via REST.
+  const foto = await fetch(`http://127.0.0.1:8080/v1/${radice}/richiestePrivacyFoto/rest1`, { headers: { Authorization: `Bearer ${gettone('capo')}` } });
+  assert.equal(foto.status, 200);
+  assert.equal((await foto.json()).fields.foto.stringValue, FOTO);
+  const fotoAltri = await fetch(`http://127.0.0.1:8080/v1/${radice}/richiestePrivacyFoto/rest1`, { headers: { Authorization: `Bearer ${gettone('carla')}` } });
+  assert.equal(fotoAltri.status, 403);
 });
