@@ -1,0 +1,27 @@
+name: Consumi di Firebase
+
+# Solo lettura: metriche di Cloud Monitoring (Firestore, Realtime Database, Hosting, App Check, reCAPTCHA)
+# degli ultimi giorni e contatori del controllore. Nel riassunto solo numeri aggregati.
+on:
+  workflow_dispatch:
+  push:
+    branches: [misure]
+    paths: ['controller/src/consumi.js', '.github/workflows/consumi.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  consumi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Consumi
+        working-directory: controller
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node src/consumi.js 8
