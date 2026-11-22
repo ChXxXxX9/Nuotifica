@@ -90,6 +90,11 @@ test('richieste privacy: l\'admin è avvisato una volta, senza nomi; dopo 30 gio
   const r = db.docs.get('richiestePrivacy/r1');
   assert.deepEqual(Object.keys(r).sort(), ['avvisato', 'chiusa', 'creato', 'ripulita', 'stato', 'tipo']);
   assert.equal(r.stato, 'tolta');
+  // Ripulita: resta fino a 3 anni dopo la chiusura, poi si cancella del tutto.
+  await ripulisciRichieste({ db, adesso: '2029-11-11T10:00:00Z', log: () => {} });
+  assert.ok(db.docs.has('richiestePrivacy/r1'));
+  await ripulisciRichieste({ db, adesso: '2029-11-12T10:00:00Z', log: () => {} });
+  assert.ok(!db.docs.has('richiestePrivacy/r1'));
 });
 
 test('richiesta respinta: l\'atleta torna nella ricerca', async () => {
