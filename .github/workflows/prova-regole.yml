@@ -1,0 +1,35 @@
+name: Prova delle regole
+
+# Le regole di sicurezza di Firestore e del Realtime Database provate sugli emulatori (nessun dato vero).
+on:
+  workflow_dispatch:
+  push:
+    paths: ['firestore.rules', 'database.rules.json', 'prove-regole/**', '.github/workflows/prova-regole.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  prova:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Prova
+        run: |
+          npm i --no-save --no-package-lock @firebase/rules-unit-testing@4 firebase@11 > /dev/null
+          set -o pipefail
+          if ! npx --yes firebase-tools@14 emulators:exec --project demo-cloro --only firestore,database \
+               "node --test prove-regole/regole.test.mjs" 2>&1 | tee "$RUNNER_TEMP/prova.log"; then
+            msg=$(grep -E "^not ok|Error|error" "$RUNNER_TEMP/prova.log" | head -n 20 | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=Regole::$msg"
+            exit 1
+          fi
+          echo "::notice title=Regole::$(grep -E '^# (pass|fail)' "$RUNNER_TEMP/prova.log" | tr '\n' ' ')"
