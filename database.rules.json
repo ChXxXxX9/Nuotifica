@@ -8,7 +8,7 @@
       }
     },
     "c": {
-      ".read": "auth != null && query.orderByKey == true && query.limitToFirst <= 400"
+      ".read": "auth != null && query.orderByKey == true && query.limitToFirst <= 100 && query.startAt.length >= 3 && query.endAt == query.startAt + '\uf8ff'"
     },
     "sqs": {
       "$squadra": {

@@ -24,6 +24,7 @@ import { giroStorico, creaChiedi } from './storico.js';
 import { salvaStaffette } from './avvisi-squadre.js';
 import { trovaUrlRtdb, creaRtdb } from './rtdb.js';
 import { caricaPrivato, pulisciNascosti } from './nascosti.js';
+import { tutela } from './tutela.js';
 import { aggiornaRiassunti } from './italia.js';
 import { appendFile } from 'node:fs/promises';
 import { oggiRoma, giornoQuota } from './tempi.js';
@@ -403,6 +404,15 @@ async function principale() {
     if (n && process.env.GITHUB_ACTIONS) console.log(`::notice title=Annunci::${n} notifiche mandate`);
   } catch (e) {
     console.log(`::warning title=Admin::${String(e.message).slice(0, 300)}`);
+  }
+
+  // Tutela di atleti e iscritti: richieste sulle schede, segnali sugli account, account inattivi, pulizie.
+  try {
+    await tutela({
+      db, rtdb, invio, sito, chiamaGoogle, progetto, adesso: new Date().toISOString(), log: (t) => console.log(t),
+    });
+  } catch (e) {
+    console.log(`::warning title=Tutela::${String(e.message).slice(0, 300)}`);
   }
 
   // 3. Gare di tutta Italia (calendario e risultati a gara finita), una gara per giro.

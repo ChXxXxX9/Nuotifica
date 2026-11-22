@@ -6,8 +6,8 @@
 // impronte delle chiavi (h = nascosti, r = fuori dalla ricerca), mai i nomi.
 // A ogni giro il controllore legge l'elenco (caricaPrivato) e cancella i dati dei nascosti nuovi (pulisciNascosti).
 import { createHash } from 'node:crypto';
-import { chiaviRicerca } from './dati-italia.js';
-import { prefissi, chiaveSquadra } from './ricerca.js';
+import { chiaviRicerca, rigaRicerca } from './dati-italia.js';
+import { prefissi, chiaveSquadra, vocePrefisso } from './ricerca.js';
 import { comeData } from './firestore.js';
 
 export const NOME_NASCOSTO = 'Atleta nascosto';
@@ -102,6 +102,32 @@ export async function togliDallaRicerca({ rtdb, db, k, n }) {
   for (const chiave of chiaviRicerca(n)) voci[`c/${chiave}~${k}`] = null;
   if (rtdb) await rtdb.aggiorna(voci);
   await pulisciRicercaFirestore({ db, k, n });
+}
+
+/**
+ * Rimette l'atleta nella ricerca (richiesta respinta o scaduta): le voci c/ si rifanno dalla sua scheda nel
+ * Realtime Database (nome, anno, società e regione dell'ultima stagione), ricerca/ dalla scheda in Firestore.
+ */
+export async function ripristinaRicerca({ rtdb, db, k }) {
+  if (rtdb) {
+    const doc = await rtdb.leggi(`a/${k}`).catch(() => null);
+    if (doc?.i) {
+      const [n, y] = String(doc.i).split('|');
+      const ultima = Object.keys(doc).filter((x) => /^s\d{4}$/.test(x)).sort().pop();
+      const [s = '', reg = ''] = ultima ? String(doc[ultima]).split('~')[0].split('|') : [];
+      const voci = {};
+      for (const chiave of chiaviRicerca(n)) voci[`c/${chiave}~${k}`] = rigaRicerca(k, { n, y, s, reg });
+      if (Object.keys(voci).length) await rtdb.aggiorna(voci);
+    }
+  }
+  const scheda = await db.leggi(`atleti/${k}`);
+  if (!scheda?.n) return;
+  const voce = vocePrefisso(k, scheda);
+  for (const p of prefissi(scheda.n)) {
+    const d = await db.leggi(`ricerca/${p}`);
+    if (d?.l?.some((r) => String(r).startsWith(`${k}|`))) continue;
+    await db.scrivi(`ricerca/${p}`, conDate({ ...(d ?? {}), l: [...(d?.l ?? []), voce] }));
+  }
 }
 
 async function pulisciRicercaFirestore({ db, k, n }) {
@@ -226,8 +252,18 @@ export async function pulisciNascosti({
     });
     fatti.ricerca[k] = new Date().toISOString();
   }
-  // Chi non è più in attesa né nascosto torna cercabile al prossimo caricamento: si dimentica il segno.
-  for (const k of Object.keys(fatti.ricerca)) if (!IN_ATTESA.has(k) && !NASCOSTI.has(k)) delete fatti.ricerca[k];
+  // Chi non è più in attesa né nascosto (richiesta respinta o scaduta) torna subito cercabile.
+  for (const k of Object.keys(fatti.ricerca)) {
+    if (IN_ATTESA.has(k) || NASCOSTI.has(k)) continue;
+    try {
+      await ripristinaRicerca({ rtdb, db, k });
+      log(`Richiesta chiusa: ${k} di nuovo nella ricerca.`);
+    } catch (e) {
+      log(`Ricerca di ${k} non rimessa (${e.message}): si riprova al prossimo giro.`);
+      continue;
+    }
+    delete fatti.ricerca[k];
+  }
   for (const k of Object.keys(fatti.atleti)) if (!NASCOSTI.has(k)) delete fatti.atleti[k];
   await db.scrivi('meta/nascosti-puliti', fatti);
   // Impronte per l'app (solo se cambiate).

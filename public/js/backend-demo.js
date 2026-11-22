@@ -95,6 +95,18 @@ const POST = [
 ];
 
 const privati = { nascosti: {}, inAttesa: {}, soloRisultati: {} };
+// Anteprima: una richiesta di esempio (aperta da 17 giorni) per vedere la pagina dell'admin.
+const richieste = [{
+  id: 'esempio', uid: 'demo', atleta: 'giulia-rossi-2011', nome: 'Giulia Rossi', tipo: 'togli', chi: 'genitore',
+  prova: 'Tessera federale 123456', email: 'genitore@example.com', stato: 'nuova', creato: new Date(Date.now() - 17 * 86_400_000),
+}];
+// Anteprima: un segnale di esempio per vedere la pagina dell'admin.
+const segnali = [{
+  uid: 'esempio', n: 6, m: 4, data: '2026-11-19', stato: 'da-vedere',
+  atleti: [['Alice Fontana', 2016, 'Nuoto Prenestino'], ['Elena Testa', 2016, 'Delfini Tiburtina'], ['Sofia Sala', 2016, 'Aurora Nuoto'],
+    ['Martina Marini', 2016, 'Acquarium Ostia'], ['Aurora Serra', 2016, 'Tritone Roma'], ['Ginevra Conti', 2016, 'Polisportiva Aniene Blu']]
+    .map(([n, y, s]) => ({ n, y, s })),
+}];
 const lavori = [];
 const limiti = [{
   id: 'regionali-2026', nome: 'Regionali di Categoria 2027', vasca: 25, st: '2026', stato: 'pubblicato',
@@ -203,6 +215,7 @@ export function creaBackendDemo() {
     async esci() { utente = null; avvisa(); },
     async leggiProfilo() { await pausa(150); return profilo && { ...profilo }; },
     async salvaProfilo(uid, dati) { await pausa(); profilo = { ...(profilo ?? { tokens: [] }), ...dati }; },
+    async salvaAccettato(uid, v) { await pausa(); profilo = { ...profilo, accettato: { v, eta: true, il: new Date() } }; },
     async eliminaAccount() { await pausa(); profilo = null; utente = null; avvisa(); },
     async leggiPost(settori) {
       await pausa(200);
@@ -336,6 +349,26 @@ export function creaBackendDemo() {
     async sonoAdmin() { return parametri.has('admin'); },
     async mandaConsiglio(uid, c) { await pausa(); consigli.unshift({ id: String(Date.now()), ...c, uid, stato: 'nuovo', creato: new Date() }); },
     async mieiConsigli() { await pausa(100); return consigli; },
+    async inviaRichiestaPrivacy(uid, r) { await pausa(); richieste.unshift({ id: String(Date.now()), uid, ...r, stato: 'nuova', creato: new Date() }); },
+    async leggiRichiestePrivacy() { await pausa(80); return richieste.map((r) => ({ ...r })); },
+    async aggiornaRichiestaPrivacy(id, stato, chiusa) {
+      await pausa();
+      const r = richieste.find((x) => x.id === id);
+      if (r) Object.assign(r, { stato, ...(chiusa ? { chiusa: new Date() } : {}) });
+    },
+    async leggiSegnali() { await pausa(80); return segnali.map((x) => ({ ...x })); },
+    async decidiSegnale(uid, azione) {
+      await pausa();
+      const x = segnali.find((y) => y.uid === uid);
+      if (x) {
+        Object.assign(x, {
+          decisione: { azione, il: new Date() },
+          stato: {
+            ignora: 'ignorato', avviso: 'avviso-da-mandare', sospendi: 'da-sospendere', chiudi: 'da-chiudere', riattiva: 'da-riattivare',
+          }[azione],
+        });
+      }
+    },
     async datiAdmin() {
       await pausa(200);
       return {

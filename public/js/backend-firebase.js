@@ -18,6 +18,7 @@ function messaggioErrore(e) {
     'auth/wrong-password': 'Email o password non corrette.',
     'auth/user-not-found': 'Non c\'è nessun account con questa email.',
     'auth/too-many-requests': 'Troppi tentativi. Riprova tra qualche minuto.',
+    'auth/user-disabled': 'Account sospeso. Questo account non rispetta i Termini d\'uso. Per chiarimenti scrivi a cloroita@gmail.com.',
     'auth/network-request-failed': 'Connessione assente. Controlla internet e riprova.',
     'auth/popup-closed-by-user': 'Accesso con Google annullato.',
     'auth/cancelled-popup-request': 'Accesso con Google annullato.',
@@ -35,12 +36,37 @@ function messaggioErrore(e) {
 const COPIE_RTDB = 'cloro-rtdb';
 
 export async function creaBackendFirebase(config) {
-  const [{ initializeApp }, A, F] = await Promise.all([
+  // App Check (reCAPTCHA): solo se c'è la chiave e non in prova sul computer.
+  const chiaveAppCheck = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? '' : (config.appCheck?.chiave ?? '');
+  const [{ initializeApp }, A, F, AC] = await Promise.all([
     import(`${CDN}/firebase-app.js`),
     import(`${CDN}/firebase-auth.js`),
     import(`${CDN}/firebase-firestore.js`),
+    chiaveAppCheck ? import(`${CDN}/firebase-app-check.js`).catch(() => null) : null,
   ]);
   const app = initializeApp(config.firebase);
+  // Prima di Auth e Firestore: così anche le loro richieste portano il "gettone" di App Check.
+  let appCheck = null;
+  if (AC) {
+    try {
+      appCheck = AC.initializeAppCheck(app, {
+        provider: config.appCheck.enterprise ? new AC.ReCaptchaEnterpriseProvider(chiaveAppCheck) : new AC.ReCaptchaV3Provider(chiaveAppCheck),
+        isTokenAutoRefreshEnabled: true,
+      });
+    } catch {
+      appCheck = null;
+    }
+  }
+  /** Intestazione per le letture dal Realtime Database (fatte senza SDK). */
+  const intestazioniAppCheck = async () => {
+    if (!appCheck) return {};
+    try {
+      const { token } = await AC.getToken(appCheck, false);
+      return token ? { 'X-Firebase-AppCheck': token } : {};
+    } catch {
+      return {};
+    }
+  };
   const auth = A.getAuth(app);
   auth.languageCode = 'it';
   // Copia dei dati sul telefono (IndexedDB): le pagine già viste si riaprono subito, anche offline.
@@ -119,8 +145,9 @@ export async function creaBackendFirebase(config) {
     const dallaRete = async () => {
       const utente = auth.currentUser;
       if (!utente) throw Object.assign(new Error('Accedi per vedere i dati.'), { code: 'permission-denied' });
-      const q = new URLSearchParams({ ...parametri, auth: await utente.getIdToken() });
-      const r = await fetch(`${indirizzo}?${q}`);
+      const [token, intestazioni] = await Promise.all([utente.getIdToken(), intestazioniAppCheck()]);
+      const q = new URLSearchParams({ ...parametri, auth: token });
+      const r = await fetch(`${indirizzo}?${q}`, { headers: intestazioni });
       if (r.status === 401 || r.status === 403) throw Object.assign(new Error('permission-denied'), { code: 'permission-denied' });
       if (!r.ok) throw Object.assign(new Error(`rete ${r.status}`), { code: 'unavailable' });
       const dati = await r.json();
@@ -207,6 +234,8 @@ export async function creaBackendFirebase(config) {
     salvaProfilo: (uid, dati) => avvolgi(async () => {
       const rif = F.doc(db, 'users', uid);
       const snap = await F.getDoc(rif);
+      // Conferma dell'età e accettazione di Termini e Privacy: versione dei testi e ora del server.
+      if (dati.accettato) dati = { ...dati, accettato: { v: dati.accettato.v, eta: true, il: F.serverTimestamp() } };
       if (snap.exists()) {
         await F.updateDoc(rif, { ...dati, aggiornato: F.serverTimestamp() });
       } else {
@@ -220,7 +249,15 @@ export async function creaBackendFirebase(config) {
       }
     }),
 
+    /** Accettazione dei testi nuovi (utenti già iscritti). */
+    salvaAccettato: (uid, v) => avvolgi(() => F.updateDoc(F.doc(db, 'users', uid), {
+      accettato: { v, eta: true, il: F.serverTimestamp() }, aggiornato: F.serverTimestamp(),
+    })),
+
+    /** Elimina l'account: prima i Consigli mandati, poi il profilo, poi l'accesso. */
     eliminaAccount: (uid) => avvolgi(async () => {
+      const consigli = await F.getDocs(F.query(F.collection(db, 'consigli'), F.where('uid', '==', uid)));
+      await Promise.all(consigli.docs.map((d) => F.deleteDoc(d.ref)));
       await F.deleteDoc(F.doc(db, 'users', uid));
       await A.deleteUser(auth.currentUser);
     }),
@@ -350,9 +387,56 @@ export async function creaBackendFirebase(config) {
       }
     },
 
-    mandaConsiglio: (uid, { testo, tipo, dispositivo }) => avvolgi(() => F.addDoc(F.collection(db, 'consigli'), {
-      uid, testo, tipo, dispositivo, stato: 'nuovo', creato: F.serverTimestamp(),
+    mandaConsiglio: (uid, {
+      testo, tipo, dispositivo, rif,
+    }) => avvolgi(() => F.addDoc(F.collection(db, 'consigli'), {
+      uid, testo, tipo, dispositivo, ...(rif ? { rif: String(rif).slice(0, 200) } : {}), stato: 'nuovo', creato: F.serverTimestamp(),
     })),
+
+    /* ---------- richieste privacy ("Sei questo atleta o un suo genitore?") ---------- */
+
+    /** `manuale`: creata dall'admin per una richiesta arrivata per email (non serve avvisarlo). */
+    inviaRichiestaPrivacy: (uid, {
+      atleta, nome, tipo, chi, prova, email, manuale = false,
+    }) => avvolgi(() => F.addDoc(F.collection(db, 'richiestePrivacy'), {
+      uid, atleta, nome, tipo, chi, prova, email, stato: 'nuova', avvisato: manuale, ...(manuale ? { manuale: true } : {}), creato: F.serverTimestamp(),
+    })),
+
+    /** Solo admin. */
+    leggiRichiestePrivacy: () => avvolgi(async () => {
+      const snap = await F.getDocs(F.query(F.collection(db, 'richiestePrivacy'), F.orderBy('creato', 'desc'), F.limit(200)));
+      return snap.docs.map((d) => ({
+        id: d.id, ...d.data(), creato: comeData(d.data().creato), chiusa: comeData(d.data().chiusa),
+      }));
+    }),
+
+    /** Solo admin: cambia lo stato di una richiesta (con la data di chiusura se è chiusa). */
+    aggiornaRichiestaPrivacy: (id, stato, chiusa) => avvolgi(() => F.updateDoc(F.doc(db, 'richiestePrivacy', id), {
+      stato, ...(chiusa ? { chiusa: F.serverTimestamp() } : {}),
+    })),
+
+    /** Solo admin: segnali sugli account (privato/segnali/utenti/{uid}). */
+    leggiSegnali: () => avvolgi(async () => {
+      const snap = await F.getDocs(F.collection(db, 'privato', 'segnali', 'utenti'));
+      return snap.docs.map((d) => {
+        const x = d.data();
+        return {
+          uid: d.id, ...x, data: comeData(x.data), decisione: x.decisione ? { ...x.decisione, il: comeData(x.decisione.il) } : null,
+        };
+      });
+    }),
+    /** Solo admin: decisione su un segnale (resta scritta). Le azioni le esegue il controllore al giro dopo. */
+    decidiSegnale: (uid, azione, n) => avvolgi(async () => {
+      const stato = {
+        ignora: 'ignorato', avviso: 'avviso-da-mandare', sospendi: 'da-sospendere', chiudi: 'da-chiudere', riattiva: 'da-riattivare',
+      }[azione];
+      await F.updateDoc(F.doc(db, 'privato', 'segnali', 'utenti', uid), {
+        decisione: { azione, n: n ?? null, il: F.serverTimestamp() },
+        decisioni: F.arrayUnion({ azione, n: n ?? null, il: new Date().toISOString() }),
+        stato,
+      });
+      if (azione !== 'ignora') await F.setDoc(F.doc(db, 'privato', 'segnali'), { daFare: true, aggiornato: F.serverTimestamp() }, { merge: true });
+    }),
 
     mieiConsigli: (uid) => avvolgi(async () => {
       const snap = await F.getDocs(F.query(F.collection(db, 'consigli'), F.where('uid', '==', uid)));

@@ -48,5 +48,8 @@ export const TIPO_BREVE = {
 // Per quanti giorni un file o un post resta segnato come nuovo.
 export const GIORNI_NOVITA = 7;
 
+// Versione di Termini d'uso e Informativa privacy: chi non l'ha accettata la vede una volta prima di "Per te".
+export const VERSIONE_TESTI = '2026-11-18';
+
 export const AVVISO_NON_UFFICIALE = 'Cloro è un servizio non ufficiale, non collegato a federazioni, '
   + 'comitati o organizzatori. Fanno fede solo i risultati e le comunicazioni ufficiali.';

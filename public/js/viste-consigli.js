@@ -1,7 +1,7 @@
 // Consigli (chiunque manda un'idea o segnala un problema) e sezione Admin (solo per chi gestisce Cloro).
 import {
   stato, api, esc, barraTop, disegna, caricamento, paginaErrore, ICONE, dispositivo, avviso, conAttesa,
-  mostraErrore, percorso,
+  mostraErrore, percorso, parametriHash,
 } from './nucleo.js';
 import { quando } from './formato.js';
 
@@ -9,6 +9,7 @@ const TIPI = [
   { id: 'idea', nome: 'Idea' },
   { id: 'problema', nome: 'Problema' },
   { id: 'altro', nome: 'Altro' },
+  { id: 'errore', nome: 'Errore nei dati' },
 ];
 const NOME_TIPO = Object.fromEntries(TIPI.map((t) => [t.id, t.nome]));
 const STATI = { nuovo: 'Inviato', letto: 'Letto', fatto: 'Fatto!' };
@@ -25,6 +26,10 @@ export async function eAdmin() {
 
 export async function vistaConsigli() {
   let miei = null;
+  // "Segnala un errore" da un tempo o da una scheda: arriva con il riferimento.
+  const p = parametriHash();
+  const rif = (p.get('rif') ?? '').slice(0, 200);
+  const tipoScelto = p.get('tipo') === 'errore' ? 'errore' : 'idea';
   const ridisegna = () => disegna(`
     ${barraTop({ indietro: true, titolo: 'Consigli' })}
     <main class="pagina">
@@ -32,10 +37,11 @@ export async function vistaConsigli() {
       <p class="intro">Cosa ti piacerebbe trovare in Cloro? Qualcosa non funziona? Scrivilo qui: lo leggiamo davvero.</p>
       <form class="modulo" novalidate>
         <div class="filtri" role="radiogroup" aria-label="Di cosa si tratta" style="padding-bottom:4px">
-          ${TIPI.map((t, i) => `<label class="gettone"><input type="radio" name="tipo" value="${t.id}" ${i === 0 ? 'checked' : ''}><span class="gettone-testo">${t.nome}</span></label>`).join('')}
+          ${TIPI.map((t) => `<label class="gettone"><input type="radio" name="tipo" value="${t.id}" ${t.id === tipoScelto ? 'checked' : ''}><span class="gettone-testo">${t.nome}</span></label>`).join('')}
         </div>
+        ${rif ? `<p class="nota">Riguarda: <b>${esc(rif)}</b></p>` : ''}
         <label class="campo">Il tuo consiglio
-          <textarea name="testo" rows="5" maxlength="1000" placeholder="Es. vorrei vedere anche…" required></textarea>
+          <textarea name="testo" rows="5" maxlength="1000" placeholder="${rif ? 'Cosa non torna? Es. il tempo giusto è…' : 'Es. vorrei vedere anche…'}" required></textarea>
         </label>
         <p class="nota" data-conta>0/1000</p>
         <p class="errore" data-errore hidden></p>
@@ -69,6 +75,7 @@ export async function vistaConsigli() {
           testo,
           tipo: modulo.tipo.value,
           dispositivo: d.ios ? 'iPhone' : d.android ? 'Android' : 'Computer',
+          rif: modulo.tipo.value === 'errore' ? rif : '',
         }));
         avviso('Grazie! Consiglio inviato.');
         miei = await api.mieiConsigli(stato.utente.uid).catch(() => miei);

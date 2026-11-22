@@ -1,5 +1,5 @@
 // Sezione Admin (anche dal computer, con l'app installata): panoramica e lavori, consigli, annunci, tempi limite,
-// categorie, atleti nascosti, utenti.
+// categorie, richieste sulle schede, segnali sugli account, atleti nascosti, utenti.
 import {
   stato, api, esc, barraTop, disegna, caricamento, paginaErrore, ICONE, avviso, conAttesa, mostraErrore, percorso,
   parametriHash, conCache, impostaNascosti,
@@ -17,9 +17,11 @@ import { eAdmin } from './viste-consigli.js';
 
 const SEZIONI = [
   ['panoramica', 'Panoramica'], ['consigli', 'Consigli'], ['annunci', 'Annunci'], ['limiti', 'Tempi limite'],
-  ['categorie', 'Categorie'], ['nascosti', 'Atleti nascosti'], ['utenti', 'Utenti'],
+  ['categorie', 'Categorie'], ['richieste', 'Richieste'], ['segnali', 'Segnali'], ['nascosti', 'Atleti nascosti'], ['utenti', 'Utenti'],
 ];
-const NOME_TIPO = { idea: 'Idea', problema: 'Problema', altro: 'Altro' };
+const NOME_TIPO = {
+  idea: 'Idea', problema: 'Problema', altro: 'Altro', errore: 'Errore nei dati',
+};
 const STATI = { nuovo: 'Inviato', letto: 'Letto', fatto: 'Fatto!' };
 const LAVORI = {
   stagione: 'Rileggi una stagione delle graduatorie', testi: 'Rileggi il testo dei PDF', prova: 'Notifica di prova', gara: 'Rileggi una gara',
@@ -50,7 +52,7 @@ export async function vistaAdmin() {
   stato.admin = true;
   const sez = parametriHash().get('sez') ?? 'panoramica';
   const vista = {
-    panoramica, consigli, annunci, limiti, categorie, nascosti, utenti,
+    panoramica, consigli, annunci, limiti, categorie, richieste, segnali, nascosti, utenti,
   }[sez] ?? panoramica;
   try {
     await vista();
@@ -154,6 +156,7 @@ async function consigli() {
     ${elenco.length ? `<ul class="elenco griglia-consigli">${elenco.map((c) => `
       <li class="scheda consiglio" data-id="${esc(c.id)}">
         <div class="consiglio-testa"><span class="tipo">${esc(NOME_TIPO[c.tipo] ?? 'Altro')}</span><span>${esc(quando(c.creato))} · ${esc(c.dispositivo ?? '')}</span><span class="stato-consiglio stato-${esc(c.stato)}">${esc(STATI[c.stato] ?? c.stato)}</span></div>
+        ${c.rif ? `<p class="nota">Riguarda: <b>${esc(c.rif)}</b></p>` : ''}
         <p>${esc(c.testo)}</p>
         <textarea rows="2" maxlength="500" placeholder="Rispondi (la vede chi l'ha scritto)" aria-label="Risposta">${esc(c.risposta ?? '')}</textarea>
         <div class="dettaglio-azioni">
@@ -497,6 +500,270 @@ async function nascosti() {
     }));
   }, { classeBody: 'senza-tab' });
   disegnaPagina();
+}
+
+/* ---------- richieste sulle schede ("Sei questo atleta o un suo genitore?") ---------- */
+
+const STATI_RICHIESTA = {
+  nuova: 'Da verificare',
+  'in-attesa': 'In attesa: fuori dalla ricerca',
+  tolta: 'Verificata: scheda tolta',
+  'solo-risultati': 'Verificata: solo risultati',
+  respinta: 'Respinta',
+  scaduta: 'Scaduta',
+};
+const TIPO_RICHIESTA = { togli: 'Togli la scheda', 'solo-risultati': 'Solo risultati' };
+const CHI_RICHIESTA = { atleta: 'L\'atleta', genitore: 'Un genitore' };
+const APERTA = (r) => r.stato === 'nuova' || r.stato === 'in-attesa';
+const giorniDa = (d) => (d ? Math.floor((Date.now() - d.getTime()) / 86_400_000) : 0);
+const senza = (oggetto, k) => Object.fromEntries(Object.entries(oggetto).filter(([x]) => x !== k));
+
+// Le azioni cambiano gli elenchi privati (privato/inAttesa, privato/nascosti, privato/soloRisultati) e lo
+// stato della richiesta; il controllore, al giro dopo, toglie o rimette l'atleta nella ricerca e ne cancella i dati.
+async function richieste() {
+  caricamento('Carico le richieste…');
+  const [elenco, inAttesa, nascostiOra, solo] = await Promise.all([
+    api.leggiRichiestePrivacy(), api.leggiPrivato('inAttesa'), api.leggiPrivato('nascosti'), api.leggiPrivato('soloRisultati'),
+  ]);
+  if (!qui()) return;
+  const filtro = stato.filtroRichieste ?? 'aperte';
+  const mostrate = elenco.filter((r) => (filtro === 'aperte' ? APERTA(r) : !APERTA(r)));
+  const aperte = elenco.filter(APERTA).length;
+
+  const esegui = async (r, cosa, bottone) => {
+    const nome = r.nome || r.atleta;
+    const domande = {
+      togli: `Togliere la scheda di ${nome}? I suoi dati vengono cancellati da tutto Cloro.`,
+      solo: `Solo risultati per ${nome}? La scheda torna nella ricerca, ma senza avvisi quando compare negli elenchi.`,
+      respinta: `Respingere la richiesta per ${nome}? La scheda torna nella ricerca.`,
+      scaduta: `Chiudere come scaduta la richiesta per ${nome}? La scheda torna nella ricerca.`,
+    };
+    if (domande[cosa] && !window.confirm(domande[cosa])) return;
+    const voce = { n: nome, il: new Date().toISOString() };
+    // Resta fuori dalla ricerca se c'è un'altra richiesta in attesa per lo stesso atleta.
+    const altraInAttesa = elenco.some((x) => x.id !== r.id && x.atleta === r.atleta && x.stato === 'in-attesa');
+    const liste = { nascosti: nascostiOra, soloRisultati: solo, inAttesa };
+    const nuove = {};
+    let statoNuovo = cosa;
+    if (cosa === 'attesa') {
+      nuove.inAttesa = { ...inAttesa, [r.atleta]: voce };
+      statoNuovo = 'in-attesa';
+    } else {
+      if (cosa === 'togli') {
+        nuove.nascosti = { ...nascostiOra, [r.atleta]: voce };
+        statoNuovo = 'tolta';
+      } else if (cosa === 'solo') {
+        nuove.soloRisultati = { ...solo, [r.atleta]: voce };
+        statoNuovo = 'solo-risultati';
+      }
+      if (inAttesa[r.atleta] && !altraInAttesa) nuove.inAttesa = senza(inAttesa, r.atleta);
+    }
+    try {
+      await conAttesa(bottone, async () => {
+        // Prima si nasconde, poi si toglie dall'attesa: l'atleta non torna mai cercabile nel mezzo.
+        for (const nomeLista of ['nascosti', 'soloRisultati', 'inAttesa']) {
+          if (nuove[nomeLista] && nuove[nomeLista] !== liste[nomeLista]) await api.salvaPrivato(nomeLista, nuove[nomeLista]);
+        }
+        await api.aggiornaRichiestaPrivacy(r.id, statoNuovo, statoNuovo !== 'in-attesa');
+      });
+      impostaNascosti(await api.leggiNascosti());
+      avviso({
+        attesa: 'Fatto: entro pochi minuti la scheda esce dalla ricerca.',
+        tolta: 'Fatto: entro pochi minuti i suoi dati spariscono da tutto Cloro. Ricordati di rispondere per email.',
+        'solo-risultati': 'Fatto: niente più avvisi sugli elenchi. Ricordati di rispondere per email.',
+        respinta: 'Respinta. Ricordati di rispondere per email.',
+        scaduta: 'Chiusa come scaduta.',
+      }[cosa === 'attesa' ? 'attesa' : statoNuovo]);
+      richieste();
+    } catch (err) {
+      avviso(err.message, 'errore');
+    }
+  };
+
+  disegna(pagina('richieste', `
+    <p class="intro">Chi chiede di togliere una scheda o di avere "Solo risultati". Verifica che sia l'atleta (almeno 14 anni) o un genitore, poi applica la richiesta entro 48 ore e rispondi per email. I dati della verifica si cancellano da soli 30 giorni dopo la chiusura.</p>
+    <div class="filtri" role="toolbar" aria-label="Filtra le richieste">
+      <button class="chip" data-filtro-richieste="aperte" aria-pressed="${filtro === 'aperte'}">Aperte (${aperte})</button>
+      <button class="chip" data-filtro-richieste="chiuse" aria-pressed="${filtro === 'chiuse'}">Chiuse</button>
+    </div>
+    ${mostrate.length ? `<ul class="elenco griglia-consigli">${mostrate.map((r) => {
+    const giorni = giorniDa(r.creato);
+    const lunga = APERTA(r) && giorni > 15;
+    return `
+      <li class="scheda consiglio richiesta${lunga ? ' richiesta-lunga' : ''}" data-id="${esc(r.id)}">
+        <div class="consiglio-testa"><span class="tipo">${esc(TIPO_RICHIESTA[r.tipo] ?? r.tipo ?? '')}</span><span>${esc(quando(r.creato))}${r.manuale ? ' · a mano' : ''}</span><span class="stato-consiglio">${esc(STATI_RICHIESTA[r.stato] ?? r.stato)}</span></div>
+        ${r.ripulita ? '<p class="nota">Dati della verifica cancellati.</p>' : `
+        <p><b>${esc(r.nome || r.atleta)}</b> <small class="nota">${esc(r.atleta ?? '')}</small></p>
+        <dl class="dati-richiesta">
+          <dt>Chi scrive</dt><dd>${esc(CHI_RICHIESTA[r.chi] ?? r.chi ?? '–')}</dd>
+          <dt>Verifica</dt><dd>${esc(r.prova || '–')}</dd>
+          <dt>Email</dt><dd>${r.email ? `<a href="mailto:${esc(r.email)}">${esc(r.email)}</a>` : '–'}</dd>
+        </dl>`}
+        ${APERTA(r) ? `<p class="${lunga ? 'errore' : 'nota'}">${lunga ? `Aperta da ${giorni} giorni: oltre 15, rispondi o chiudila.` : (giorni ? `Aperta da ${giorni === 1 ? '1 giorno' : `${giorni} giorni`}.` : 'Aperta oggi.')}</p>` : (r.chiusa ? `<p class="nota">Chiusa ${esc(quando(r.chiusa))}.</p>` : '')}
+        ${APERTA(r) ? `<div class="dettaglio-azioni azioni-richiesta">
+          ${r.stato === 'nuova' ? '<button class="bottone bottone-secondario bottone-piccolo" data-fai="attesa">Nascondi in attesa</button>' : ''}
+          <button class="bottone bottone-piccolo" data-fai="togli">Verificata → Togli</button>
+          <button class="bottone bottone-piccolo" data-fai="solo">Verificata → Solo risultati</button>
+          <button class="bottone bottone-secondario bottone-piccolo" data-fai="respinta">Respinta</button>
+          <button class="bottone bottone-secondario bottone-piccolo" data-fai="scaduta">Scaduta</button>
+        </div>` : ''}
+      </li>`;
+  }).join('')}</ul>` : `<p class="nota">${filtro === 'aperte' ? 'Nessuna richiesta aperta.' : 'Nessuna richiesta chiusa.'}</p>`}
+    <section class="sezione">
+      <div class="sezione-testa"><h2 class="sezione-titolo">Nuova richiesta a mano</h2></div>
+      <p class="nota">Per una richiesta arrivata per email.</p>
+      <form class="modulo modulo-richiesta" data-manuale novalidate style="max-width:560px">
+        <label class="cerca"><span class="nascosto">Cerca l'atleta</span>${ICONE.cerca}<input type="search" data-cerca-atleta placeholder="Cerca l'atleta: nome e cognome" autocomplete="off"></label>
+        <ul class="elenco risultati-ricerca" data-trovati></ul>
+        <label class="campo">Chiave dell'atleta (oppure l'indirizzo della sua scheda)
+          <input name="atleta" maxlength="200" autocomplete="off" placeholder="es. mario-rossi-2012" required>
+        </label>
+        <label class="campo">Nome dell'atleta
+          <input name="nome" maxlength="80" autocomplete="off" required>
+        </label>
+        <fieldset>
+          <legend>Cosa chiede?</legend>
+          <label class="opzione"><input type="radio" name="tipo" value="togli" checked><span class="opzione-testo">Togli questa scheda</span></label>
+          <label class="opzione"><input type="radio" name="tipo" value="solo-risultati"><span class="opzione-testo">Solo risultati</span></label>
+        </fieldset>
+        <fieldset>
+          <legend>Chi scrive?</legend>
+          <label class="opzione"><input type="radio" name="chi" value="atleta"><span class="opzione-testo">L'atleta (almeno 14 anni)</span></label>
+          <label class="opzione"><input type="radio" name="chi" value="genitore"><span class="opzione-testo">Un genitore</span></label>
+        </fieldset>
+        <label class="campo">Come è stato verificato (o come si verificherà)
+          <textarea name="prova" rows="3" maxlength="300"></textarea>
+        </label>
+        <label class="campo">Email per rispondere
+          <input type="email" name="email" maxlength="120" autocomplete="off">
+        </label>
+        <p class="errore" data-errore hidden></p>
+        <button class="bottone" type="submit">Crea la richiesta</button>
+      </form>
+    </section>`), (el) => {
+    el.querySelectorAll('[data-filtro-richieste]').forEach((x) => x.addEventListener('click', () => {
+      stato.filtroRichieste = x.dataset.filtroRichieste;
+      richieste();
+    }));
+    el.querySelectorAll('[data-fai]').forEach((x) => x.addEventListener('click', () => {
+      const r = elenco.find((y) => y.id === x.closest('[data-id]').dataset.id);
+      if (r) esegui(r, x.dataset.fai, x);
+    }));
+    const modulo = el.querySelector('[data-manuale]');
+    const input = el.querySelector('[data-cerca-atleta]');
+    const box = el.querySelector('[data-trovati]');
+    let attesa;
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') e.preventDefault();
+    });
+    input.addEventListener('input', () => {
+      clearTimeout(attesa);
+      attesa = setTimeout(async () => {
+        const trovati = input.value.trim().length >= 2 ? await cerca(input.value).catch(() => []) : [];
+        box.innerHTML = trovati.slice(0, 8).map((v) => `
+          <li><a href="#" data-scegli="${esc(v.k)}" data-nome="${esc(v.n)}"><b>${esc(v.n)}</b><small>${esc([v.y, v.s].filter(Boolean).join(' · '))}</small></a></li>`).join('');
+        box.querySelectorAll('[data-scegli]').forEach((a) => a.addEventListener('click', (e) => {
+          e.preventDefault();
+          modulo.atleta.value = a.dataset.scegli;
+          modulo.nome.value = a.dataset.nome;
+          box.innerHTML = '';
+        }));
+      }, 150);
+    });
+    modulo.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      el.querySelector('[data-errore]').hidden = true;
+      let k = modulo.atleta.value.trim();
+      const daIndirizzo = k.match(/#\/atleta\/([^?&#]+)/);
+      if (daIndirizzo) k = decodeURIComponent(daIndirizzo[1]);
+      if (!/^[a-z0-9-]{3,80}$/.test(k)) return mostraErrore(modulo, new Error('Scrivi la chiave dell\'atleta (lettere minuscole, numeri e trattini), o sceglilo dalla ricerca.'));
+      if (!modulo.chi.value) return mostraErrore(modulo, new Error('Scegli chi ha scritto.'));
+      try {
+        await conAttesa(modulo.querySelector('[type="submit"]'), () => api.inviaRichiestaPrivacy(stato.utente.uid, {
+          atleta: k,
+          nome: (modulo.nome.value.trim() || k).slice(0, 80),
+          tipo: modulo.tipo.value,
+          chi: modulo.chi.value,
+          prova: modulo.prova.value.trim().slice(0, 300),
+          email: modulo.email.value.trim().slice(0, 120),
+          manuale: true,
+        }));
+        avviso('Richiesta creata.');
+        stato.filtroRichieste = 'aperte';
+        richieste();
+      } catch (err) {
+        mostraErrore(modulo, err);
+      }
+      return null;
+    });
+  }, { classeBody: 'senza-tab' });
+}
+
+/* ---------- segnali sugli account ---------- */
+
+const STATI_SEGNALE = {
+  'da-vedere': 'Da controllare',
+  ignorato: 'Ignorato',
+  'avviso-da-mandare': 'Avviso in partenza',
+  avvisato: 'Avvisato',
+  'da-sospendere': 'Sospensione in corso',
+  sospeso: 'Sospeso',
+  'da-riattivare': 'Riattivazione in corso',
+  riattivato: 'Riattivato',
+  'da-chiudere': 'Chiusura in corso',
+  chiuso: 'Account chiuso',
+};
+const NOME_AZIONE = {
+  ignora: 'Ignora', avviso: 'Avviso', sospendi: 'Sospendi', riattiva: 'Riattiva', chiudi: 'Chiudi',
+};
+const AZIONI_SEGNALE = {
+  'da-vedere': ['ignora', 'avviso', 'sospendi', 'chiudi'],
+  ignorato: ['avviso', 'sospendi', 'chiudi'],
+  avvisato: ['ignora', 'sospendi', 'chiudi'],
+  riattivato: ['ignora', 'avviso', 'sospendi', 'chiudi'],
+  sospeso: ['riattiva', 'chiudi'],
+};
+
+// privato/segnali/utenti: account che seguono almeno 5 atleti sotto i 14 anni di almeno 3 società diverse
+// (li trova il controllore una volta al giorno). La decisione resta scritta; le azioni le fa il controllore.
+async function segnali() {
+  caricamento('Carico i segnali…');
+  const elenco = (await api.leggiSegnali()).sort((x, y) => (x.stato === 'da-vedere' ? 0 : 1) - (y.stato === 'da-vedere' ? 0 : 1)
+    || String(y.data ?? '').localeCompare(String(x.data ?? '')));
+  if (!qui()) return;
+  const data = (v) => {
+    const d = v instanceof Date ? v : (v ? new Date(v) : null);
+    return d && !Number.isNaN(d.getTime()) ? quando(d) : '';
+  };
+  disegna(pagina('segnali', `
+    <p class="intro">Account che seguono almeno 5 atleti sotto i 14 anni di almeno 3 società diverse. Valuta ogni caso: Ignora, manda un Avviso (una notifica che ricorda le regole), Sospendi l'accesso o Chiudi l'account. Le azioni partono entro pochi minuti.</p>
+    ${elenco.length ? `<ul class="elenco griglia-consigli">${elenco.map((x) => `
+      <li class="scheda consiglio" data-uid="${esc(x.uid)}" data-n="${Number(x.n) || 0}">
+        <div class="consiglio-testa"><span class="tipo">Account …${esc(String(x.uid).slice(-6))}</span><span>${esc(data(x.data))}</span><span class="stato-consiglio">${esc(STATI_SEGNALE[x.stato] ?? x.stato)}</span></div>
+        <p>${x.stato === 'da-vedere' ? 'Da controllare: segue' : 'Segue'} ${Number(x.n) || 0} atleti sotto i 14 anni di ${Number(x.m) || 0} società diverse.</p>
+        ${(x.atleti ?? []).length ? `<ul class="nota elenco-puntato">${x.atleti.map((a) => `<li>${esc([a.n, a.y, a.s].filter(Boolean).join(' · '))}</li>`).join('')}</ul>` : ''}
+        ${x.decisione?.azione ? `<p class="nota">Ultima decisione: ${esc(NOME_AZIONE[x.decisione.azione] ?? x.decisione.azione)}${x.decisione.il ? `, ${esc(data(x.decisione.il))}` : ''}${x.stato === 'avvisato' && x.consegnato === 0 ? ' · nessun dispositivo con le notifiche: avviso non arrivato' : ''}</p>` : ''}
+        ${(AZIONI_SEGNALE[x.stato] ?? []).length ? `<div class="dettaglio-azioni azioni-richiesta">${AZIONI_SEGNALE[x.stato].map((a) => `
+          <button class="bottone ${a === 'sospendi' || a === 'chiudi' ? '' : 'bottone-secondario '}bottone-piccolo" data-decidi="${a}">${NOME_AZIONE[a]}</button>`).join('')}</div>` : ''}
+      </li>`).join('')}</ul>` : '<p class="nota">Nessun segnale.</p>'}`), (el) => {
+    el.querySelectorAll('[data-decidi]').forEach((b) => b.addEventListener('click', async () => {
+      const li = b.closest('[data-uid]');
+      const azione = b.dataset.decidi;
+      const domande = {
+        sospendi: 'Sospendere questo account? Non potrà più entrare finché non lo riattivi.',
+        chiudi: 'Chiudere questo account? Cancelliamo profilo, atleti seguiti e Consigli. Non si può annullare.',
+        avviso: 'Mandare l\'avviso con le regole d\'uso a questo account?',
+      };
+      if (domande[azione] && !window.confirm(domande[azione])) return;
+      try {
+        await conAttesa(b, () => api.decidiSegnale(li.dataset.uid, azione, Number(li.dataset.n)));
+        avviso(azione === 'ignora' ? 'Segnato come ignorato.' : 'Decisione salvata: il controllore la esegue entro pochi minuti.');
+        segnali();
+      } catch (err) {
+        avviso(err.message, 'errore');
+      }
+    }));
+  }, { classeBody: 'senza-tab' });
 }
 
 /* ---------- utenti ---------- */

@@ -227,7 +227,7 @@ export function piede() {
   return `
     <footer class="piede">
       <p>${esc(AVVISO_NON_UFFICIALE)}</p>
-      <p><a href="#/privacy">Privacy</a></p>
+      <p><a href="#/privacy">Privacy</a> · <a href="#/termini">Termini</a> · <a href="#/sicurezza">Sicurezza e minori</a></p>
     </footer>`;
 }
 

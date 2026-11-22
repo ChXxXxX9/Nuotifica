@@ -58,18 +58,47 @@ service cloud.firestore {
     // Consigli: ognuno manda i suoi e li rivede; l'admin li legge tutti, li segna e risponde.
     match /consigli/{id} {
       allow create: if request.auth != null
-        && request.resource.data.keys().hasOnly(['uid', 'testo', 'tipo', 'dispositivo', 'stato', 'creato'])
+        && request.resource.data.keys().hasOnly(['uid', 'testo', 'tipo', 'dispositivo', 'stato', 'creato', 'rif'])
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.testo is string
         && request.resource.data.testo.size() >= 3 && request.resource.data.testo.size() <= 1000
-        && request.resource.data.tipo in ['idea', 'problema', 'altro']
+        && request.resource.data.tipo in ['idea', 'problema', 'altro', 'errore']
+        // "Segnala un errore" da un tempo o da una scheda: il riferimento a cosa non torna.
+        && (!('rif' in request.resource.data) || (request.resource.data.rif is string && request.resource.data.rif.size() <= 200))
         && request.resource.data.stato == 'nuovo'
         && request.resource.data.creato == request.time;
       allow read: if admin() || (request.auth != null && resource.data.uid == request.auth.uid);
       allow update: if admin()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stato', 'risposta'])
         && request.resource.data.stato in ['nuovo', 'letto', 'fatto'];
-      allow delete: if admin();
+      // Chi elimina l'account cancella anche i suoi Consigli.
+      allow delete: if admin() || (request.auth != null && resource.data.uid == request.auth.uid);
+    }
+
+    // "Sei questo atleta o un suo genitore?": chi è iscritto manda la richiesta per sé; la leggono e la
+    // gestiscono solo l'admin e il controllore (che la segnala all'admin e, chiusa, ne cancella i dati).
+    // L'admin può anche crearne una a mano (richiesta arrivata per email).
+    match /richiestePrivacy/{id} {
+      function richiestaValida(d) {
+        return d.keys().hasOnly(['uid', 'atleta', 'nome', 'tipo', 'chi', 'prova', 'email', 'stato', 'creato', 'avvisato', 'manuale'])
+          && d.uid == request.auth.uid
+          && d.atleta is string && d.atleta.size() >= 3 && d.atleta.size() <= 80
+          && d.nome is string && d.nome.size() <= 80
+          && d.tipo in ['togli', 'solo-risultati']
+          && d.chi in ['atleta', 'genitore']
+          && d.prova is string && d.prova.size() <= 300
+          && d.email is string && d.email.size() <= 120
+          && d.stato == 'nuova'
+          && d.avvisato is bool
+          && d.creato == request.time;
+      }
+      allow create: if request.auth != null && richiestaValida(request.resource.data)
+        && (admin() || (request.resource.data.avvisato == false && !('manuale' in request.resource.data)
+          && request.resource.data.prova.size() >= 3 && request.resource.data.email.size() >= 5));
+      allow read, delete: if admin();
+      allow update: if admin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stato', 'chiusa'])
+        && request.resource.data.stato in ['nuova', 'in-attesa', 'tolta', 'solo-risultati', 'respinta', 'scaduta'];
     }
 
     // Annunci a tutti: li scrive l'admin, li manda il controllore.
@@ -205,7 +234,10 @@ service cloud.firestore {
       }
 
       function valido(d) {
-        return d.keys().hasOnly(['settori', 'gruppi', 'tipi', 'pushOn', 'tokens', 'th', 'seguiti', 'squadre', 'notSq', 'obiettivi', 'limiti', 'creato', 'aggiornato'])
+        return d.keys().hasOnly(['settori', 'gruppi', 'tipi', 'pushOn', 'tokens', 'th', 'seguiti', 'squadre', 'notSq', 'obiettivi', 'limiti', 'accettato', 'creato', 'aggiornato'])
+          // Conferma dell'età e accettazione di Termini e Privacy: versione dei testi e ora.
+          && (!('accettato' in d) || (d.accettato is map && d.accettato.keys().hasOnly(['v', 'eta', 'il'])
+            && d.accettato.v is string && d.accettato.v.size() <= 20 && d.accettato.eta is bool && d.accettato.il is timestamp))
           && (!('th' in d) || (d.th is map && d.th.size() <= 20))
           && (!('squadre' in d) || (d.squadre is list && d.squadre.size() <= 10))
           && (!('notSq' in d) || (d.notSq is map && d.notSq.size() <= 10))

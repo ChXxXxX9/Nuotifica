@@ -203,11 +203,32 @@ export function creaFirestore(chiamaGoogle, progetto) {
       return documenti;
     },
 
-    async elenca(collezione) {
+    /** Cancella più documenti con un solo commit per blocco da 400. */
+    async eliminaTanti(percorsi) {
+      for (let i = 0; i < percorsi.length; i += 400) {
+        const blocco = percorsi.slice(i, i + 400);
+        conta.scritture += blocco.length;
+        await chiamaGoogle(`${base}:commit`, {
+          method: 'POST',
+          body: { writes: blocco.map((p) => ({ delete: `${radice}/${p}` })) },
+        });
+      }
+    },
+
+    /** Solo i nomi (id) dei primi documenti di una collezione, senza scaricarne i campi. */
+    async nomi(collezione, quanti = 300) {
+      const dati = await chiamaGoogle(`${base}/${collezione}?pageSize=${quanti}&mask.fieldPaths=nessuncampo`);
+      conta.letture += Math.max(1, (dati?.documents ?? []).length);
+      return (dati?.documents ?? []).map((d) => d.name.split('/').pop());
+    },
+
+    /** Tutti i documenti di una collezione (con `campi`: solo quei campi). */
+    async elenca(collezione, { campi = null } = {}) {
       const documenti = [];
+      const maschera = campi ? campi.map((c) => `&mask.fieldPaths=${encodeURIComponent(c)}`).join('') : '';
       let pagina = '';
       do {
-        const url = `${base}/${collezione}?pageSize=300${pagina ? `&pageToken=${encodeURIComponent(pagina)}` : ''}`;
+        const url = `${base}/${collezione}?pageSize=300${maschera}${pagina ? `&pageToken=${encodeURIComponent(pagina)}` : ''}`;
         const dati = await chiamaGoogle(url);
         conta.letture += Math.max(1, (dati.documents ?? []).length);
         for (const doc of dati.documents ?? []) {

@@ -1,6 +1,6 @@
 import { CONFIG } from './config.js';
 import {
-  SETTORI, GRUPPI, TIPI, NOME_SETTORE, TIPO_BREVE, GIORNI_NOVITA, AVVISO_NON_UFFICIALE,
+  SETTORI, GRUPPI, TIPI, NOME_SETTORE, TIPO_BREVE, GIORNI_NOVITA, AVVISO_NON_UFFICIALE, VERSIONE_TESTI,
 } from './costanti.js';
 import {
   stato, api, backendCaricato, modoDemo, pocoMovimento, esc, memoria, dispositivo, percorso,
@@ -25,6 +25,8 @@ import {
 } from './viste-classifiche.js';
 import { impostaRegoleCategorie } from './formato.js';
 import { vistaSquadre, vistaSquadra } from './viste-squadre.js';
+import { PAGINE_LEGALI, vistaTestoLegale } from './testi-legali.js';
+import { vistaRichiesta } from './viste-privacy.js';
 
 const DATA_TRASLOCO = Date.parse('2026-11-16T00:00:00+01:00');
 
@@ -202,8 +204,11 @@ function vistaOspite() {
       </ul>
 
       <div class="blocco-accesso">
+        <label class="spunta-eta"><input type="checkbox" data-eta ${memoria('eta-ok') === VERSIONE_TESTI ? 'checked' : ''}>
+          <span>Ho almeno 14 anni, oppure sono un genitore e uso Cloro per mio figlio.</span></label>
         <button class="bottone bottone-google" data-azione="google">${ICONE.google}<span>Continua con Google</span></button>
         <button class="bottone bottone-secondario" data-azione="mostra-email">Entra con email e password</button>
+        <p class="nota nota-accetta">Continuando accetti i <a href="#/termini">Termini d'uso</a> e confermi di aver letto l'<a href="#/privacy">Informativa privacy</a>.</p>
         ${inApp ? '<p class="nota">Se l\'accesso con Google non si apre, usa email e password.</p>' : ''}
         <p class="errore" data-errore-google hidden></p>
 
@@ -233,8 +238,20 @@ function vistaOspite() {
       }
     });
 
+    // Casella dell'età: obbligatoria per creare un account (con Google non si sa prima se è nuovo).
+    const eta = el.querySelector('[data-eta]');
+    const etaOk = () => {
+      if (eta.checked) memoria('eta-ok', VERSIONE_TESTI);
+      return eta.checked;
+    };
     el.querySelector('[data-azione="google"]').addEventListener('click', async (e) => {
       erroreGoogle.hidden = true;
+      if (!etaOk()) {
+        erroreGoogle.textContent = 'Per continuare spunta la casella qui sopra.';
+        erroreGoogle.hidden = false;
+        eta.focus();
+        return;
+      }
       try {
         await conAttesa(e.currentTarget, () => api.accediGoogle());
       } catch (err) {
@@ -276,12 +293,66 @@ function vistaOspite() {
         mostraErrore(modulo, new Error('Scrivi email e password.'));
         return;
       }
+      if (modoRegistrazione && !etaOk()) {
+        mostraErrore(modulo, new Error('Per creare l\'account spunta la casella sull\'età, qui sopra.'));
+        eta.focus();
+        return;
+      }
       try {
         await conAttesa(modulo.querySelector('[data-invio]'), () => (modoRegistrazione
           ? api.registrati(email, password)
           : api.accediEmail(email, password)));
       } catch (err) {
         mostraErrore(modulo, err);
+      }
+    });
+  }, { classeBody: 'senza-tab' });
+}
+
+const TESTO_ELIMINA = 'Eliminare l\'account? Cancelliamo preferenze, atleti seguiti, dispositivi collegati e i messaggi mandati in Consigli. Non si può annullare.';
+
+/** Utenti già iscritti: Termini d'uso e Privacy nuovi, da accettare una volta. */
+function vistaAccetta() {
+  disegna(`
+    ${barraTop()}
+    <main class="pagina">
+      <h1 class="titolo-pagina">Termini d'uso e Privacy</h1>
+      <p class="intro">Abbiamo scritto i Termini d'uso e aggiornato l'Informativa privacy. Per continuare a usare Cloro, leggili e conferma.</p>
+      <p><a href="#/termini">Termini d'uso</a> · <a href="#/privacy">Informativa privacy</a> · <a href="#/sicurezza">Sicurezza e minori</a></p>
+      <label class="spunta-eta" style="margin-top:16px"><input type="checkbox" data-eta>
+        <span>Ho almeno 14 anni, oppure sono un genitore e uso Cloro per mio figlio.</span></label>
+      <p class="errore" data-errore hidden></p>
+      <div class="pila" style="margin-top:16px">
+        <button class="bottone" data-azione="accetto">Accetto e continuo</button>
+        <button class="link link-pericolo" data-azione="elimina">Elimina il mio account</button>
+      </div>
+      ${piede()}
+    </main>`, (el) => {
+    el.querySelector('[data-azione="accetto"]').addEventListener('click', async (e) => {
+      if (!el.querySelector('[data-eta]').checked) {
+        mostraErrore(el, new Error('Per continuare spunta la casella sull\'età.'));
+        return;
+      }
+      try {
+        await conAttesa(e.currentTarget, () => api.salvaAccettato(stato.utente.uid, VERSIONE_TESTI));
+        stato.profilo = { ...stato.profilo, accettato: { v: VERSIONE_TESTI, eta: true } };
+        salvaCopia();
+        mostra();
+      } catch (err) {
+        mostraErrore(el, err);
+      }
+    });
+    el.querySelector('[data-azione="elimina"]').addEventListener('click', async (e) => {
+      // eslint-disable-next-line no-alert
+      if (!window.confirm(TESTO_ELIMINA)) return;
+      try {
+        await conAttesa(e.currentTarget, () => api.eliminaAccount(stato.utente.uid));
+        memoria('token', null);
+        memoria('visti', null);
+        avviso('Account eliminato.');
+        location.hash = '#/';
+      } catch (err) {
+        mostraErrore(el, err);
       }
     });
   }, { classeBody: 'senza-tab' });
@@ -380,6 +451,10 @@ function vistaImpostazioni({ primaVolta = false } = {}) {
           </div>
           <div class="gettoni" data-tipi ${tutto ? 'hidden' : ''} style="margin-top:12px">${opzioniSpunta('tipi', TIPI, tutto ? [] : tipi)}</div>
         </fieldset>
+        ${primaVolta && memoria('eta-ok') !== VERSIONE_TESTI ? `
+        <label class="spunta-eta" style="margin-top:16px"><input type="checkbox" name="eta">
+          <span>Ho almeno 14 anni, oppure sono un genitore e uso Cloro per mio figlio.</span></label>
+        <p class="nota nota-accetta">Continuando accetti i <a href="#/termini">Termini d'uso</a> e confermi di aver letto l'<a href="#/privacy">Informativa privacy</a>.</p>` : ''}
         <p class="errore" data-errore hidden style="margin-top:16px"></p>
         <div class="salva-fisso">
           <button class="bottone" type="submit">${primaVolta ? 'Salva e continua' : 'Salva'}</button>
@@ -400,6 +475,10 @@ function vistaImpostazioni({ primaVolta = false } = {}) {
         <p class="nota">Un'idea, un problema, una cosa che manca? Scrivicela.</p>
         <div class="pila"><a class="bottone bottone-secondario" href="#/consigli">Manda un consiglio</a>
         ${stato.admin ? '<a class="bottone bottone-secondario" href="#/admin">Apri la sezione admin</a>' : ''}</div>
+      </section>
+      <section class="riquadro">
+        <h2>Regole e privacy</h2>
+        <p class="nota"><a href="#/privacy">Privacy</a> · <a href="#/termini">Termini</a> · <a href="#/sicurezza">Sicurezza e minori</a> · <a href="#/domande">Domande frequenti</a></p>
       </section>
       <section class="riquadro">
         <h2>Account</h2>
@@ -437,10 +516,18 @@ function vistaImpostazioni({ primaVolta = false } = {}) {
       }
       if (!nuovi.tipi.length) return mostraErrore(el, new Error('Scegli almeno un tipo di documento, oppure "Tutto".'));
       if (!nuovi.gruppi.length) nuovi.gruppi = ['categoria', 'esordienti'];
+      // Account nuovo: si salva la conferma dell'età (spuntata qui o prima di entrare).
+      if (primaVolta) {
+        if (memoria('eta-ok') !== VERSIONE_TESTI && !modulo.eta?.checked) {
+          return mostraErrore(el, new Error('Per continuare spunta la casella sull\'età.'));
+        }
+        nuovi.accettato = { v: VERSIONE_TESTI };
+      }
 
       try {
         await conAttesa(modulo.querySelector('[type="submit"]'), () => api.salvaProfilo(stato.utente.uid, nuovi));
         stato.profilo = { ...(stato.profilo ?? {}), ...nuovi };
+        if (nuovi.accettato) memoria('eta-ok', null);
         stato.posts = null;
         stato.aggiornatoIl = 0;
         salvaCopia();
@@ -459,7 +546,7 @@ function vistaImpostazioni({ primaVolta = false } = {}) {
     });
     el.querySelector('[data-azione="elimina"]')?.addEventListener('click', async (e) => {
       // eslint-disable-next-line no-alert
-      if (!window.confirm('Eliminare l\'account? Cancelliamo preferenze, atleti seguiti e dispositivi collegati. Non si può annullare.')) return;
+      if (!window.confirm(TESTO_ELIMINA)) return;
       try {
         await conAttesa(e.currentTarget, () => api.eliminaAccount(stato.utente.uid));
         memoria('token', null);
@@ -878,42 +965,14 @@ function disegnaPost(post, { aggiornamento = false } = {}) {
 
 /* ---------- privacy ---------- */
 
-function vistaPrivacy() {
-  disegna(`
-    ${barraTop({ indietro: true })}
-    <main class="pagina testo-lungo">
-      <h1 class="titolo-pagina">Privacy</h1>
-      <p>Cloro è un servizio gratuito e non ufficiale: raccoglie risultati, tempi e avvisi già pubblicati online da federazioni, comitati e organizzatori delle gare, e te li mostra in un unico posto, con notifiche.</p>
-      <h2>Chi gestisce i dati</h2>
-      <p>Il titolare del trattamento è ${CONFIG.titolare ? esc(CONFIG.titolare) : 'il gestore di Cloro'}${CONFIG.contatto ? `, contattabile a <a href="mailto:${esc(CONFIG.contatto)}">${esc(CONFIG.contatto)}</a>` : ''}.</p>
-      <h2>I dati del tuo account</h2>
-      <ul>
-        <li>Il tuo indirizzo email, solo per farti entrare (con Google o con email e password).</li>
-        <li>Le tue scelte: avvisi che vuoi ricevere e atleti che segui.</li>
-        <li>Un codice tecnico per ogni dispositivo su cui attivi le notifiche.</li>
-      </ul>
-      <p>Non usiamo pubblicità, non tracciamo cosa fai e non cediamo i dati a nessuno. Servono solo a farti entrare e a mandarti le notifiche che hai chiesto; la base giuridica è il servizio che richiedi registrandoti.</p>
-      <h2>I dati sportivi degli atleti</h2>
-      <p>Nomi, anno di nascita, società, gare, tempi e posizioni provengono da risultati pubblicati online da federazioni, comitati e organizzatori. Li mostriamo solo a chi ha fatto l'accesso, senza foto, per permettere di consultare risultati e progressi sportivi (legittimo interesse). Se sei un atleta, o il genitore di un atleta minorenne, puoi chiedere in qualsiasi momento di non comparire: scrivi al gestore e togliamo la scheda.</p>
-      <h2>Dove stanno</h2>
-      <p>Account, preferenze e risultati sono salvati su Firebase (Google). Le notifiche passano da Firebase Cloud Messaging e, su iPhone, dal servizio di Apple.</p>
-      <h2>Per quanto tempo</h2>
-      <p>I dati dell'account finché lo tieni: se lo elimini dalle Impostazioni cancelliamo subito preferenze, atleti seguiti e dispositivi collegati.</p>
-      <h2>I tuoi diritti</h2>
-      <p>Puoi chiedere accesso, rettifica, cancellazione o opposizione scrivendo al gestore e, se lo ritieni, rivolgerti al Garante per la protezione dei dati personali.</p>
-      <h2>Minori</h2>
-      <p>Se hai meno di 14 anni, chiedi a un genitore di registrarsi al posto tuo.</p>
-      <p class="nota" style="margin-top:20px">${esc(AVVISO_NON_UFFICIALE)}</p>
-    </main>`, null, { classeBody: 'senza-tab' });
-}
-
 /* ---------- navigazione ---------- */
 
 async function mostra() {
   const p = percorso();
   let m;
 
-  if (p === 'privacy') return vistaPrivacy();
+  // Privacy, Termini, Sicurezza e minori, Domande: si leggono anche senza accesso.
+  if (PAGINE_LEGALI[p]) return vistaTestoLegale(p);
   if (stato.utente === undefined) return caricamento();
   if ((m = p.match(/^post\/([\w-]+)$/))) return vistaPost(m[1]);
 
@@ -931,6 +990,8 @@ async function mostra() {
     }
   }
   if (!stato.profilo) return vistaImpostazioni({ primaVolta: true });
+  // Testi nuovi (Termini e Privacy): chi non li ha ancora accettati li vede una volta, prima di tutto il resto.
+  if (stato.profilo.accettato?.v !== VERSIONE_TESTI) return vistaAccetta();
   // Impostazioni dell'admin per tutti: categorie per età e atleti da non mostrare.
   if (!stato.configCaricata) {
     stato.configCaricata = true;
@@ -953,6 +1014,7 @@ async function mostra() {
 
   if (p === 'impostazioni') return vistaImpostazioni();
   if (p === 'consigli') return vistaConsigli();
+  if ((m = p.match(/^richiesta\/(.+)$/))) return vistaRichiesta(decodeURIComponent(m[1]));
   if (p === 'admin') return vistaAdmin();
   if (p === 'installa') return vistaInstalla();
   if (p === 'gare') return vistaGare();
@@ -986,7 +1048,7 @@ async function avvia() {
   if (gestisciTrasloco()) return;
   // Nel browser Cloro non si usa: si mostra solo come installarla (e la pagina Privacy).
   if (deveInstallare()) {
-    const pagina = () => (percorso() === 'privacy' ? vistaPrivacy() : vistaSoloApp());
+    const pagina = () => (PAGINE_LEGALI[percorso()] ? vistaTestoLegale(percorso()) : vistaSoloApp());
     window.addEventListener('hashchange', pagina);
     window.addEventListener('cloro:installabile', pagina);
     pagina();
