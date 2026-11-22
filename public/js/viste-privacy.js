@@ -69,7 +69,8 @@ export async function vistaRichiesta(k) {
         </fieldset>
         <fieldset class="campo-foto">
           <legend>Foto della tessera federale</legend>
-          <p class="nota">Serve per forza la foto della tessera dell'atleta: il numero da solo non basta. Lascia visibili solo nome, cognome e numero (il resto puoi coprirlo). La vede solo chi gestisce Cloro e la cancelliamo ovunque entro 30 giorni dalla chiusura della richiesta.</p>
+          <p class="nota">Foto della tessera federale dell'atleta, in cui si vedano solo nome e numero (copri il resto). È obbligatoria: il numero da solo non basta.</p>
+          <p class="nota">La vede solo chi gestisce Cloro e la cancelliamo ovunque entro 30 giorni dalla chiusura della richiesta.</p>
           <div class="anteprima-foto" data-anteprima hidden><img alt="Foto scelta"></div>
           <label class="bottone bottone-secondario scegli-foto">
             <input type="file" accept="image/*" data-foto>
