@@ -17,11 +17,12 @@ const meta = join(tmp, 'meta.json');
 execFileSync('npx', ['--yes', 'esbuild@0.24.2', join(pub, 'js', 'app.js'), '--bundle', '--splitting', '--format=esm', '--minify',
   `--outdir=${join(tmp, 'js')}`, '--entry-names=[name]', '--chunk-names=pezzo-[hash]', `--metafile=${meta}`, '--log-level=warning'], { stdio: 'inherit' });
 
-// Quali pezzi: quello dell'anteprima (dati di esempio) non serve sul telefono, gli altri si tengono in memoria.
+// Quali pezzi: quello dell'anteprima (dati di esempio) e quello della sezione Admin non servono sul telefono
+// di tutti (si scaricano solo se si aprono); gli altri si tengono in memoria.
 const uscite = JSON.parse(readFileSync(meta, 'utf8')).outputs;
 const file = Object.entries(uscite).map(([p, o]) => ({ nome: basename(p), entrate: Object.keys(o.inputs) }));
-const demo = (f) => f.entrate.some((e) => /demo/.test(e));
-const daTenere = file.filter((f) => !demo(f)).map((f) => f.nome);
+const aParte = (f) => f.entrate.some((e) => /demo|viste-admin/.test(e));
+const daTenere = file.filter((f) => !aParte(f)).map((f) => f.nome);
 const backend = file.find((f) => f.entrate.some((e) => /backend-firebase/.test(e)))?.nome;
 if (!daTenere.includes('app.js') || !backend) throw new Error('Impacchettamento non riuscito: manca app.js o il pezzo di Firebase.');
 

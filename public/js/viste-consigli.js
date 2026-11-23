@@ -96,4 +96,30 @@ export async function vistaConsigli() {
 
 /* ---------- admin: vedi viste-admin.js ---------- */
 
-export { vistaAdmin } from './viste-admin.js';
+// La sezione Admin si scarica solo quando l'admin la apre: gli altri telefoni non la scaricano mai
+// (né all'installazione né agli aggiornamenti).
+const RICARICA_ADMIN = 'cloro.ricarica-admin';
+
+export async function vistaAdmin(...argomenti) {
+  let modulo;
+  try {
+    modulo = await import('./viste-admin.js');
+  } catch (err) {
+    // Subito dopo una pubblicazione il pezzo vecchio non c'è più: si ricarica l'app una volta (con quello nuovo).
+    let giaRicaricata = true;
+    try {
+      giaRicaricata = Boolean(sessionStorage.getItem(RICARICA_ADMIN));
+      sessionStorage.setItem(RICARICA_ADMIN, '1');
+    } catch { /* senza memoria della sessione non si ricarica */ }
+    if (!giaRicaricata) {
+      location.reload();
+      return null;
+    }
+    paginaErrore(new Error('La sezione Admin non si è aperta: controlla la connessione e riprova.'));
+    return null;
+  }
+  try {
+    sessionStorage.removeItem(RICARICA_ADMIN);
+  } catch { /* niente */ }
+  return modulo.vistaAdmin(...argomenti);
+}

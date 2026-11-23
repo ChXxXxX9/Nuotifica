@@ -64,6 +64,15 @@ export async function vistaAdmin() {
 
 /* ---------- panoramica e lavori ---------- */
 
+/** Download del mese dal Realtime Database (il mese di Firebase segue l'ora della California). */
+function scaricatoMese(budget = {}, budgetGrad = {}) {
+  const mese = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' }).slice(0, 7);
+  const byte = [budget, budgetGrad].reduce((t, x) => t + (x?.mese === mese ? (x.rtdb ?? 0) : 0), 0);
+  return byte >= 1e9
+    ? `${(byte / 1e9).toLocaleString('it-IT', { maximumFractionDigits: 1 })} GB`
+    : `${Math.round(byte / 1e6).toLocaleString('it-IT')} MB`;
+}
+
 async function panoramica() {
   caricamento('Apro la sezione admin…');
   const dati = await api.datiAdmin();
@@ -86,6 +95,7 @@ async function panoramica() {
         <ul class="elenco elenco-admin">
           <li class="scheda"><b>Ultimo controllo avvisi</b><span>${esc(s.ultimoControllo ? quando(new Date(s.ultimoControllo)) : '–')} · ${esc(s.esito ?? '')}</span></li>
           <li class="scheda"><b>Scritture su Firestore oggi</b><span>${(b.scritture ?? 0) + (dati.budgetGrad?.scritture ?? 0)} su 20.000 (controllore ${b.scritture ?? 0}, graduatorie ${dati.budgetGrad?.scritture ?? 0})</span></li>
+          <li class="scheda"><b>Scaricato dal Realtime Database questo mese</b><span>${scaricatoMese(b, dati.budgetGrad)} dal controllore e dalle graduatorie, su 10 GB gratuiti che valgono anche per l'app</span></li>
           <li class="scheda"><b>Testi dei PDF letti</b><span>${dati.testi ?? 0} documenti</span></li>
           ${s.messaggio ? `<li class="scheda"><b>Ultimo messaggio</b><span>${esc(String(s.messaggio).slice(0, 200))}</span></li>` : ''}
         </ul>

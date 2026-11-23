@@ -609,8 +609,8 @@ function passiInstallazione(d) {
     return `
       <p>Su iPhone e iPad è <span class="obbligatorio">obbligatorio</span>: Apple manda le notifiche solo alle app aggiunte alla schermata Home.</p>
       <ol class="passi">
-        <li><span>Tocca il tasto Condividi ${ICONE.condividi} nella barra di Safari.</span></li>
-        <li><span>Scorri e scegli <strong>Aggiungi alla schermata Home</strong> ${ICONE.piu}, poi <strong>Aggiungi</strong>.</span></li>
+        <li><span>Tocca il tasto Condividi ${ICONE.condividi} nella barra di Safari. Con iOS 26 è dentro il menu <strong>···</strong> accanto all'indirizzo.</span></li>
+        <li><span>Scorri e scegli <strong>Aggiungi alla schermata Home</strong> ${ICONE.piu}. Se vedi l'opzione per aprirla come app web, lasciala attiva. Poi tocca <strong>Aggiungi</strong>.</span></li>
         <li><span>Apri <strong>Cloro</strong> dall'icona sulla Home ed entra con lo stesso account.</span></li>
         <li><span>Tocca <strong>Attiva le notifiche</strong> e poi <strong>Consenti</strong>.</span></li>
       </ol>`;

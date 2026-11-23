@@ -79,7 +79,10 @@ const pausa = (ms) => new Promise((r) => { setTimeout(r, ms); });
  * si riprova (fino a 5 volte, aspettando sempre di più): nei giri lunghi capita, e non deve fermare tutto.
  */
 export function creaClientGoogle(ottieniToken, { fetchFn = fetch, tentativi = 5, attesa = 2000 } = {}) {
-  return async function chiamaGoogle(url, { method = 'GET', body, consenti404 = false } = {}) {
+  // Byte scaricati dal Realtime Database (il piano gratuito ne permette 10 GB al mese, app compresa).
+  const scaricati = { rtdb: 0 };
+  const daRtdb = (url) => /\.(firebasedatabase\.app|firebaseio\.com)\//.test(url);
+  async function chiamaGoogle(url, { method = 'GET', body, consenti404 = false } = {}) {
     let risposta;
     for (let i = 0; ; i++) {
       try {
@@ -97,7 +100,8 @@ export function creaClientGoogle(ottieniToken, { fetchFn = fetch, tentativi = 5,
         continue;
       }
       if ((risposta.status === 429 || risposta.status >= 500) && i + 1 < tentativi) {
-        await risposta.text().catch(() => '');
+        const scarto = await risposta.text().catch(() => '');
+        if (daRtdb(url)) scaricati.rtdb += Buffer.byteLength(scarto);
         await pausa(attesa * 2 ** i);
         continue;
       }
@@ -105,6 +109,7 @@ export function creaClientGoogle(ottieniToken, { fetchFn = fetch, tentativi = 5,
     }
     if (consenti404 && risposta.status === 404) return null;
     const testo = await risposta.text();
+    if (daRtdb(url)) scaricati.rtdb += Buffer.byteLength(testo);
     const dati = testo ? JSON.parse(testo) : {};
     if (!risposta.ok) {
       const errore = new Error(`${method} ${url} -> ${risposta.status}: ${dati?.error?.message ?? testo}`);
@@ -113,5 +118,7 @@ export function creaClientGoogle(ottieniToken, { fetchFn = fetch, tentativi = 5,
       throw errore;
     }
     return dati;
-  };
+  }
+  chiamaGoogle.scaricati = scaricati;
+  return chiamaGoogle;
 }

@@ -45,10 +45,10 @@ export function passiAggiunta(d) {
     const altro = ['chrome-ios', 'firefox-ios', 'edge-ios'].includes(d.browser);
     return `
       <ol class="passi">
-        <li><span>Tocca il tasto Condividi ${ICONE.condividi} ${altro ? 'in alto a destra, accanto all\'indirizzo' : 'nella barra di Safari'}.</span></li>
-        <li><span>Scorri e scegli <strong>Aggiungi alla schermata Home</strong> ${ICONE.piu}, poi <strong>Aggiungi</strong>.</span></li>
+        <li><span>Tocca il tasto Condividi ${ICONE.condividi} ${altro ? 'in alto a destra, accanto all\'indirizzo' : 'nella barra di Safari. Con iOS 26 è dentro il menu <strong>···</strong> accanto all\'indirizzo'}.</span></li>
+        <li><span>Scorri e scegli <strong>Aggiungi alla schermata Home</strong> ${ICONE.piu}. Se vedi l'opzione per aprirla come app web, lasciala attiva. Poi tocca <strong>Aggiungi</strong>.</span></li>
         <li><span>Chiudi ${altro ? 'il browser' : 'Safari'} e apri <strong>Cloro</strong> dall'icona <strong>Cl</strong> sulla schermata Home.</span></li>
-        <li><span>Entra con il tuo account e tocca <strong>Attiva le notifiche</strong>.</span></li>
+        <li><span>Entra con Google o con email e password (se non hai un account, lo crei lì), poi tocca <strong>Attiva le notifiche</strong>.</span></li>
       </ol>
       ${altro ? '<p class="nota">Non trovi "Aggiungi alla schermata Home"? Aggiorna iOS oppure apri questo indirizzo in Safari.</p>' : ''}`;
   }
@@ -61,7 +61,7 @@ export function passiAggiunta(d) {
       <ol class="passi">
         ${menu}
         <li><span>Conferma con <strong>Installa</strong> o <strong>Aggiungi</strong>.</span></li>
-        <li><span>Apri <strong>Cloro</strong> dall'icona <strong>Cl</strong> sulla schermata Home ed entra con il tuo account.</span></li>
+        <li><span>Apri <strong>Cloro</strong> dall'icona <strong>Cl</strong> sulla schermata Home ed entra con Google o con email e password (se non hai un account, lo crei lì).</span></li>
       </ol>`;
   }
   return `
@@ -84,12 +84,16 @@ export function vistaSoloApp() {
     <main class="ospite">
       <div class="ospite-marchio">${tessera()}<span class="logo-parola">cloro</span></div>
       <h1>Cloro si usa <em>come app</em>.</h1>
-      <p class="intro">Si installa dal sito, gratis e senza App Store: la apri al volo dalla schermata Home e le notifiche arrivano davvero. Ci vuole un minuto.</p>
+      <div>
+        <p class="intro">Il nuoto in diretta sul telefono: gare con batterie e parziali, schede degli atleti, classifiche e una notifica quando escono ammessi, start list e i tempi di chi segui.</p>
+        <p class="intro">Si installa dal sito, gratis e senza App Store: la apri al volo dalla schermata Home e le notifiche arrivano davvero. Ci vuole un minuto.</p>
+      </div>
       <section class="scheda" style="padding:16px">
         <h2 class="sezione-titolo" style="margin-bottom:6px">${d.ios ? 'Su iPhone' : d.android ? 'Su Android' : 'Dal computer'}</h2>
         ${passiAggiunta(d)}
       </section>
       <p class="nota">${d.telefono ? 'Hai già aggiunto Cloro? Chiudi il browser e aprila dall\'icona <strong>Cl</strong> sulla schermata Home.' : 'Dal browser Cloro non si apre, nemmeno per chi la gestisce: si usa solo installata.'}</p>
+      <p class="nota">Hai dei dubbi? Leggi le <a href="#/domande">Domande frequenti</a>.</p>
       ${piede()}
     </main>`, (el) => {
     collegaCopia(el);

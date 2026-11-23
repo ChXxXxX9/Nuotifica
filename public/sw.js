@@ -1,11 +1,10 @@
 // Service worker di Cloro: mostra le notifiche e tiene in cache l'app per aprirla subito.
-const VERSIONE = 'cloro-v18';
+const VERSIONE = 'cloro-v19';
 // Librerie di Firebase: l'indirizzo contiene la versione, quindi non cambiano mai e si tengono in memoria.
 const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/';
 const CACHE_SDK = 'nuotifica-sdk';
 const GUSCIO = [
   '/',
-  '/index.html',
   '/css/app.css',
   '/js/app.js',
   '/js/config.js',
@@ -21,7 +20,6 @@ const GUSCIO = [
   '/js/viste-consigli.js',
   '/js/viste-squadre.js',
   '/js/viste-classifiche.js',
-  '/js/viste-admin.js',
   '/js/categorie.js',
   '/js/punti.js',
   '/js/coriandoli.js',
@@ -37,11 +35,56 @@ const GUSCIO = [
   '/fonts/unbounded.woff2',
   '/fonts/manrope.woff2',
 ];
+// Impronta di ogni file, scritta alla pubblicazione (strumenti/impronte.mjs). A un aggiornamento si
+// riscaricano solo i file cambiati: gli altri (caratteri, icone, pezzi di codice uguali) si copiano dalla
+// versione già sul telefono. Vuoto in sviluppo: si scarica tutto.
+const IMPRONTE = {};
+// Voce interna della cache: le impronte di quello che c'è davvero dentro.
+const INDICE = '/.impronte';
+
+/** Impronta di un file (le prime 16 cifre esadecimali dello SHA-256), come in strumenti/impronte.mjs. */
+async function impronta(risposta) {
+  const hash = await crypto.subtle.digest('SHA-256', await risposta.clone().arrayBuffer());
+  return [...new Uint8Array(hash)].slice(0, 8).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** La versione già sul telefono (quella in uso), con le impronte dei suoi file. */
+async function copiaPrecedente() {
+  for (const nome of await caches.keys()) {
+    if (!nome.startsWith('cloro-') || nome === VERSIONE || nome === 'cloro-rtdb') continue;
+    const cache = await caches.open(nome);
+    const indice = await cache.match(INDICE);
+    if (indice) return { cache, impronte: await indice.json().catch(() => ({})) };
+  }
+  return { cache: null, impronte: {} };
+}
+
+async function preparaVersione() {
+  const nuova = await caches.open(VERSIONE);
+  const vecchia = await copiaPrecedente();
+  const salvate = {};
+  await Promise.all(GUSCIO.map(async (u) => {
+    if (IMPRONTE[u] && vecchia.impronte[u] === IMPRONTE[u]) {
+      const copia = await vecchia.cache.match(u);
+      if (copia) {
+        await nuova.put(u, copia);
+        salvate[u] = IMPRONTE[u];
+        return;
+      }
+    }
+    // Sempre dalla rete (non dalla cache HTTP del browser): è la versione nuova appena pubblicata.
+    const risposta = await fetch(new Request(u, { cache: 'reload' }));
+    if (!risposta.ok) throw new Error(`${u}: ${risposta.status}`);
+    // Si segna l'impronta di quello che è arrivato davvero: se fosse una copia vecchia, al prossimo
+    // aggiornamento non coinciderebbe e il file si riscaricherebbe.
+    salvate[u] = await impronta(risposta);
+    await nuova.put(u, risposta);
+  }));
+  await nuova.put(INDICE, new Response(JSON.stringify(salvate), { headers: { 'content-type': 'application/json' } }));
+}
 
 self.addEventListener('install', (evento) => {
-  // Sempre dalla rete (non dalla cache HTTP del browser): è la versione nuova appena pubblicata.
-  evento.waitUntil(caches.open(VERSIONE).then((c) => c.addAll(GUSCIO.map((u) => new Request(u, { cache: 'reload' }))))
-    .then(() => self.skipWaiting()));
+  evento.waitUntil(preparaVersione().then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (evento) => {
@@ -52,24 +95,22 @@ self.addEventListener('activate', (evento) => {
   })());
 });
 
-// File dell'app: si risponde subito con la copia sul telefono, senza scaricarli di nuovo a ogni apertura
-// (cambiano solo quando si pubblica: allora cambia anche questo file, e il telefono prende tutto il nuovo
-// in un colpo). Solo la pagina si ricontrolla in sottofondo. Senza copia si va in rete.
-async function primaLaCopia(evento) {
-  const richiesta = evento.request;
+// File dell'app: si risponde subito con la copia sul telefono, senza scaricarli di nuovo a ogni apertura.
+// Cambiano solo quando si pubblica: allora cambia anche questo file e il telefono prende i file nuovi
+// in un colpo (vedi preparaVersione). Senza copia si va in rete (per esempio la sezione Admin, che si
+// scarica solo quando si apre).
+async function primaLaCopia(richiesta) {
   const navigazione = richiesta.mode === 'navigate';
   const cache = await caches.open(VERSIONE);
   const inCache = await cache.match(navigazione ? '/' : richiesta, { ignoreSearch: navigazione });
-  if (inCache && !navigazione) return inCache;
-  const dallaRete = fetch(richiesta).then((risposta) => {
-    if (risposta.ok) cache.put(navigazione ? '/' : richiesta, risposta.clone());
+  if (inCache) return inCache;
+  try {
+    const risposta = await fetch(richiesta);
+    if (risposta.ok) await cache.put(navigazione ? '/' : richiesta, risposta.clone());
     return risposta;
-  }).catch(() => null);
-  if (inCache) {
-    evento.waitUntil(dallaRete);
-    return inCache;
+  } catch {
+    return Response.error();
   }
-  return (await dallaRete) ?? (navigazione ? cache.match('/index.html') : Response.error());
 }
 
 // Librerie di Firebase: una volta scaricate, sempre dalla memoria.
@@ -91,7 +132,7 @@ self.addEventListener('fetch', (evento) => {
   }
   const url = new URL(richiesta.url);
   if (url.origin !== self.location.origin || url.pathname.startsWith('/__/')) return;
-  evento.respondWith(primaLaCopia(evento));
+  evento.respondWith(primaLaCopia(richiesta));
 });
 
 function leggiMessaggio(evento) {

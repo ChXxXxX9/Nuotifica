@@ -1,0 +1,33 @@
+name: Sentinella
+
+# Controlla che il controllore giri: se non fa un giro da più di 30 minuti manda una notifica all'admin
+# (e quando riparte). È separata dal controllore apposta, con il timer di GitHub: se si ferma il timer
+# esterno (cron-job.org) o il controllore va sempre in errore, se ne accorge lo stesso.
+# Se la notifica non può partire, la corsa fallisce e GitHub manda un'email.
+on:
+  schedule:
+    - cron: '17,47 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sentinella
+  cancel-in-progress: false
+
+jobs:
+  sentinella:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Il controllore gira?
+        working-directory: controller
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          SITO_URL: https://cloro.web.app
+        run: node src/sentinella.js

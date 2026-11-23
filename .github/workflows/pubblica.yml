@@ -77,7 +77,12 @@ jobs:
           # pubblicazione: così l'app si apre leggendo pochissimo e si aggiorna da sola quando c'è del nuovo.
           node strumenti/impacchetta.mjs public "$(echo "$GITHUB_SHA" | cut -c1-10)"
           npx --yes esbuild@0.24.2 public/css/*.css --minify --outdir=public/css --allow-overwrite --log-level=warning
+          # Per ultimo: le impronte dei file (agli aggiornamenti si riscaricano solo quelli cambiati) e il
+          # service worker compresso (il telefono lo ricontrolla a ogni apertura).
+          node strumenti/impronte.mjs public
+          npx --yes esbuild@0.24.2 public/sw.js --minify --outfile=public/sw.js --allow-overwrite --log-level=warning
           du -sh public/js public/css
+          wc -c public/sw.js
 
       - name: Pubblica sito, regole e indici
         run: |

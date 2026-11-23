@@ -7,7 +7,7 @@
 //   meta/inattivi                  account non usati da quasi 3 anni già avvisati
 //   privato/inattivi/account/{uid} account inattivi senza notifiche: l'avviso lo manda l'admin per email
 import { comeData } from './firestore.js';
-import { tokensAttivi } from './invio.js';
+import { adminUid, pushUtente } from './allarmi.js';
 import { sotto14 } from './testi.js';
 import { stagioneDi } from './categorie.js';
 
@@ -40,19 +40,6 @@ const mesiPrima = (adesso, mesi) => {
   d.setUTCMonth(d.getUTCMonth() - mesi);
   return d;
 };
-
-async function adminUid(db) {
-  return (await db.leggi('meta/admin'))?.uid ?? null;
-}
-
-async function pushUtente({
-  db, invio, uid, messaggio,
-}) {
-  const u = await db.leggi(`users/${uid}`);
-  let n = 0;
-  for (const token of tokensAttivi(u)) if (await invio.push(token, messaggio) === 'ok') n++;
-  return n;
-}
 
 /* ---------- B1: richieste "Sei questo atleta o un suo genitore?" ---------- */
 

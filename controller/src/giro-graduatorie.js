@@ -118,7 +118,14 @@ async function principale() {
     }
     throw e;
   } finally {
-    await db.scrivi('meta/budget-grad', { giorno, scritture: giaGrad + db.conta.scritture + 1 });
+    // Anche il download dal Realtime Database del mese (il controllore lo somma al suo per gli avvisi).
+    const mese = giorno.slice(0, 7);
+    await db.scrivi('meta/budget-grad', {
+      giorno,
+      scritture: giaGrad + db.conta.scritture + 1,
+      mese,
+      rtdb: (grad.mese === mese ? (grad.rtdb ?? 0) : 0) + chiama.scaricati.rtdb,
+    });
   }
 }
 

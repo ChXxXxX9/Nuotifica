@@ -25,6 +25,7 @@ import { salvaStaffette } from './avvisi-squadre.js';
 import { trovaUrlRtdb, creaRtdb } from './rtdb.js';
 import { caricaPrivato, pulisciNascosti } from './nascosti.js';
 import { tutela } from './tutela.js';
+import { avvisiConsumi, avvisaAdmin } from './allarmi.js';
 import { aggiornaRiassunti } from './italia.js';
 import { appendFile } from 'node:fs/promises';
 import { oggiRoma, giornoQuota } from './tempi.js';
@@ -448,13 +449,42 @@ async function principale() {
     console.log(`::warning title=Classifiche::${String(e.message).slice(0, 300)}`);
   }
 
+  // Consumi: download dal Realtime Database del mese (controllore e graduatorie) e, vicino ai limiti,
+  // una notifica all'admin (una volta per soglia: al giorno per le scritture, al mese per il download).
+  const mese = giorno.slice(0, 7);
+  const rtdbControllore = (budget.mese === mese ? (budget.rtdb ?? 0) : 0) + chiamaGoogle.scaricati.rtdb;
+  const rtdbMese = rtdbControllore + (budgetGrad.mese === mese ? (budgetGrad.rtdb ?? 0) : 0);
+  const consumi = avvisiConsumi({
+    scritte: giaScritte + db.conta.scritture,
+    tetto: TETTO_SCRITTURE,
+    rtdb: rtdbMese,
+    avvisati: {
+      giorno: budget.giorno === giorno ? (budget.avvisati ?? []) : [],
+      mese: budget.mese === mese ? (budget.avvisatiMese ?? []) : [],
+    },
+    sito,
+  });
+  for (const messaggio of consumi.messaggi) {
+    try {
+      const n = await avvisaAdmin({ db, invio, messaggio });
+      console.log(`::warning title=Consumi::${messaggio.titolo}. ${messaggio.corpo} (${n} notifiche all'admin)`);
+    } catch (e) {
+      console.log(`::warning title=Consumi::${messaggio.titolo}, notifica non partita: ${String(e.message).slice(0, 200)}`);
+    }
+  }
+
   await db.scrivi('meta/budget', {
     giorno,
     scritture: giaScritte - scritteGrad + db.conta.scritture + 1,
     letture: giaLette + db.conta.letture,
+    avvisati: consumi.giorno,
+    mese,
+    rtdb: rtdbControllore,
+    avvisatiMese: consumi.mese,
   }).catch(() => {});
   console.log(`Firestore in questo giro: ${db.conta.letture} letture, ${db.conta.scritture} scritture `
-    + `(oggi ${giaScritte + db.conta.scritture} scritture).`);
+    + `(oggi ${giaScritte + db.conta.scritture} scritture). Realtime Database: ${Math.round(chiamaGoogle.scaricati.rtdb / 1e3)} KB `
+    + `scaricati (questo mese ${Math.round(rtdbMese / 1e6)} MB).`);
   if (errore) throw errore;
 }
 
